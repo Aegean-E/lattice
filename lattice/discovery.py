@@ -1,4 +1,4 @@
-"""Pluggable automated literature discovery: arXiv, Crossref, and offline scientific seed corpus."""
+"""Pluggable automated literature discovery: arXiv, Crossref, OpenAlex, EuropePMC, and offline corpus."""
 
 import json
 import re
@@ -7,7 +7,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence
+from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence, Tuple
 
 from lattice.errors import fail
 from lattice.models import normalize_text
@@ -266,6 +266,109 @@ class CrossrefProvider:
         return candidates[:limit]
 
 
+class OpenAlexProvider:
+    """Concrete provider querying the OpenAlex works REST endpoint."""
+
+    def __init__(self, fetcher: Optional[Fetcher] = None, timeout: float = 10.0) -> None:
+        self._fetcher = fetcher or _http_get
+        self._timeout = timeout
+
+    def search(self, query: str, limit: int = 10) -> List[PaperCandidate]:
+        """Search OpenAlex works and reconstruct inverted-index abstracts."""
+        cleaned = _validate_search_args(query, limit)
+        encoded = urllib.parse.quote_plus(cleaned)
+        url = f"https://api.openalex.org/works?search={encoded}&per-page={limit}"
+        payload = self._fetcher(url, self._timeout)
+        try:
+            data = json.loads(payload)
+        except ValueError as exc:
+            fail(f"could not parse OpenAlex JSON response: {exc}",
+                 "the remote endpoint did not return valid JSON",
+                 "retry later or use --source offline")
+        items = data.get("results") or []
+        candidates: List[PaperCandidate] = []
+        for item in items:
+            title = " ".join(str(item.get("title") or "").split())
+            if not title:
+                continue
+            raw_doi = str(item.get("doi") or "").strip()
+            for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+                if raw_doi.lower().startswith(prefix):
+                    raw_doi = raw_doi[len(prefix):]
+            authors = "; ".join(
+                str((auth.get("author") or {}).get("display_name") or "").strip()
+                for auth in (item.get("authorships") or [])
+                if str((auth.get("author") or {}).get("display_name") or "").strip()
+            )
+            year_val = item.get("publication_year")
+            year = str(year_val) if year_val else ""
+            venue = str(
+                ((item.get("primary_location") or {}).get("source") or {}).get("display_name") or ""
+            ).strip()
+            abstract = _reconstruct_inverted_abstract(item.get("abstract_inverted_index") or {})
+            candidates.append(
+                PaperCandidate(
+                    title=title,
+                    authors=authors,
+                    year=year,
+                    venue=venue,
+                    doi=raw_doi,
+                    arxiv="",
+                    url=str(item.get("id") or "").strip(),
+                    abstract=abstract,
+                    source="openalex",
+                )
+            )
+        return candidates[:limit]
+
+
+class EuropePmcProvider:
+    """Concrete provider querying the EuropePMC biomedical REST API."""
+
+    def __init__(self, fetcher: Optional[Fetcher] = None, timeout: float = 10.0) -> None:
+        self._fetcher = fetcher or _http_get
+        self._timeout = timeout
+
+    def search(self, query: str, limit: int = 10) -> List[PaperCandidate]:
+        """Search EuropePMC articles and extract biomedical metadata and abstracts."""
+        cleaned = _validate_search_args(query, limit)
+        encoded = urllib.parse.quote_plus(cleaned)
+        url = (
+            f"https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+            f"?query={encoded}&format=json&resultType=core&pageSize={limit}"
+        )
+        payload = self._fetcher(url, self._timeout)
+        try:
+            data = json.loads(payload)
+        except ValueError as exc:
+            fail(f"could not parse EuropePMC JSON response: {exc}",
+                 "the remote endpoint did not return valid JSON",
+                 "retry later or use --source offline")
+        items = ((data.get("resultList") or {}).get("result")) or []
+        candidates: List[PaperCandidate] = []
+        for item in items:
+            title = " ".join(str(item.get("title") or "").split())
+            if not title:
+                continue
+            raw_abstract = str(item.get("abstractText") or "")
+            abstract = " ".join(_TAG_RE.sub(" ", raw_abstract).split())
+            pmid = str(item.get("id") or "").strip()
+            candidates.append(
+                PaperCandidate(
+                    title=title,
+                    authors=" ".join(str(item.get("authorString") or "").split()),
+                    year=str(item.get("pubYear") or "").strip(),
+                    venue=" ".join(str(item.get("journalTitle") or "").split()),
+                    doi=str(item.get("doi") or "").strip(),
+                    arxiv="",
+                    url=f"https://europepmc.org/article/MED/{pmid}" if pmid else "",
+                    abstract=abstract,
+                    source="europepmc",
+                )
+            )
+        return candidates[:limit]
+
+
 class OfflineCorpusProvider:
     """Deterministic local provider over a curated seed catalog for offline/instant search."""
 
@@ -276,7 +379,7 @@ class OfflineCorpusProvider:
         """Rank local corpus records by token overlap with `query`."""
         cleaned = _validate_search_args(query, limit)
         terms = [term for term in normalize_text(cleaned).split() if term]
-        scored: List[ tuple[int, int, PaperCandidate] ] = []
+        scored: List[Tuple[int, int, PaperCandidate]] = []
         for idx, record in enumerate(self._records):
             haystack = normalize_text(
                 f"{record.get('title', '')} {record.get('abstract', '')} "
@@ -305,11 +408,13 @@ class OfflineCorpusProvider:
 
 
 def default_registry() -> ProviderRegistry:
-    """Create the default provider registry with offline, arXiv, and Crossref adapters."""
+    """Create the default provider registry with offline, arXiv, Crossref, OpenAlex, and EuropePMC."""
     registry = ProviderRegistry()
     registry.register("offline", OfflineCorpusProvider())
     registry.register("arxiv", ArxivProvider())
     registry.register("crossref", CrossrefProvider())
+    registry.register("openalex", OpenAlexProvider())
+    registry.register("europepmc", EuropePmcProvider())
     return registry
 
 
@@ -323,9 +428,15 @@ class DiscoveryService:
 
     def discover(self, query: str, source: str = "offline",
                  limit: int = 10, ingest: bool = True) -> Dict[str, Any]:
-        """Search `source` for `query` and optionally ingest discovered papers into the graph."""
-        provider = self.registry.get(source)
-        candidates = provider.search(query, limit=limit)
+        """Search one or comma-separated `source` providers and optionally ingest papers."""
+        sources = [part.strip() for part in str(source or "offline").split(",") if part.strip()]
+        if not sources:
+            sources = ["offline"]
+        raw_candidates: List[PaperCandidate] = []
+        for src in sources:
+            provider = self.registry.get(src)
+            raw_candidates.extend(provider.search(query, limit=limit))
+        candidates = _dedupe_candidates(raw_candidates)[: int(limit)]
         records: List[Dict[str, Any]] = []
         created_count = 0
         for candidate in candidates:
@@ -339,12 +450,55 @@ class DiscoveryService:
             records.append(entry)
         return {
             "query": query,
-            "source": source,
+            "source": ",".join(sources),
             "ingested": ingest,
             "count": len(records),
             "created": created_count,
             "records": records,
         }
+
+
+def _dedupe_candidates(candidates: Sequence[PaperCandidate]) -> List[PaperCandidate]:
+    """Deduplicate candidate papers across providers by DOI, arXiv ID, or normalized title."""
+    seen_dois: set[str] = set()
+    seen_arxiv: set[str] = set()
+    seen_titles: set[str] = set()
+    unique: List[PaperCandidate] = []
+    for item in candidates:
+        doi = item.doi.strip().lower()
+        arxiv = item.arxiv.strip().lower()
+        norm_title = normalize_text(item.title)
+        if doi and doi in seen_dois:
+            continue
+        if arxiv and arxiv in seen_arxiv:
+            continue
+        if norm_title and norm_title in seen_titles:
+            continue
+        if doi:
+            seen_dois.add(doi)
+        if arxiv:
+            seen_arxiv.add(arxiv)
+        if norm_title:
+            seen_titles.add(norm_title)
+        unique.append(item)
+    return unique
+
+
+def _reconstruct_inverted_abstract(inverted: Dict[str, Any]) -> str:
+    """Reconstruct a plain-text abstract from an OpenAlex inverted index mapping."""
+    if not isinstance(inverted, dict) or not inverted:
+        return ""
+    positions: Dict[int, str] = {}
+    for word, indices in inverted.items():
+        if not isinstance(indices, list):
+            continue
+        for idx in indices:
+            if isinstance(idx, int) and idx >= 0:
+                positions[idx] = str(word)
+    if not positions:
+        return ""
+    ordered = [positions[pos] for pos in sorted(positions)]
+    return " ".join(" ".join(ordered).split())
 
 
 def _validate_search_args(query: str, limit: int) -> str:

@@ -7,10 +7,10 @@
 
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `29`
-- **Total Classes**: `35`
-- **Total Top-Level Functions**: `135`
-- **Total Class Methods**: `166`
-- **Total Source Lines**: `6004`
+- **Total Classes**: `37`
+- **Total Top-Level Functions**: `137`
+- **Total Class Methods**: `172`
+- **Total Source Lines**: `6232`
 
 ---
 
@@ -105,9 +105,9 @@
 ---
 
 ### [`lattice/discovery.py`](lattice/discovery.py)
-> *Pluggable automated literature discovery: arXiv, Crossref, and offline scientific seed corpus.*
+> *Pluggable automated literature discovery: arXiv, Crossref, OpenAlex, EuropePMC, and offline corpus.*
 
-**Size**: `385` lines (`15815` bytes)
+**Size**: `539` lines (`22412` bytes)
 
 **Classes:**
 - `class PaperCandidate` - *Immutable DTO returned by any literature discovery provider.*
@@ -126,16 +126,24 @@
 - `class CrossrefProvider` - *Concrete provider querying the Crossref REST works endpoint.*
   - Method `.__init__(fetcher, timeout)`
   - Method `.search(query, limit)` - *Search Crossref works and normalize bibliographic items.*
+- `class OpenAlexProvider` - *Concrete provider querying the OpenAlex works REST endpoint.*
+  - Method `.__init__(fetcher, timeout)`
+  - Method `.search(query, limit)` - *Search OpenAlex works and reconstruct inverted-index abstracts.*
+- `class EuropePmcProvider` - *Concrete provider querying the EuropePMC biomedical REST API.*
+  - Method `.__init__(fetcher, timeout)`
+  - Method `.search(query, limit)` - *Search EuropePMC articles and extract biomedical metadata and abstracts.*
 - `class OfflineCorpusProvider` - *Deterministic local provider over a curated seed catalog for offline/instant search.*
   - Method `.__init__(records)`
   - Method `.search(query, limit)` - *Rank local corpus records by token overlap with `query`.*
 - `class DiscoveryService` - *Orchestration layer with constructor DI for discovering and ingesting papers.*
   - Method `.__init__(repository, registry)`
-  - Method `.discover(query, source, limit, ingest)` - *Search `source` for `query` and optionally ingest discovered papers into the graph.*
+  - Method `.discover(query, source, limit, ingest)` - *Search one or comma-separated `source` providers and optionally ingest papers.*
 
 **Functions:**
 - `def _http_get(url, timeout)` - *Perform a bounded HTTP GET with a scholarly User-Agent header.*
-- `def default_registry()` - *Create the default provider registry with offline, arXiv, and Crossref adapters.*
+- `def default_registry()` - *Create the default provider registry with offline, arXiv, Crossref, OpenAlex, and EuropePMC.*
+- `def _dedupe_candidates(candidates)` - *Deduplicate candidate papers across providers by DOI, arXiv ID, or normalized title.*
+- `def _reconstruct_inverted_abstract(inverted)` - *Reconstruct a plain-text abstract from an OpenAlex inverted index mapping.*
 - `def _validate_search_args(query, limit)` - *Ensure a discovery query is non-empty and `limit` is positive.*
 - `def _format_crossref_authors(authors)` - *Join Crossref author objects into `Given Family; Given Family`.*
 - `def _extract_crossref_year(item)` - *Extract a 4-digit publication year from Crossref date-parts.*
@@ -430,7 +438,7 @@
 ### [`tests/test_discovery.py`](tests/test_discovery.py)
 > *Tests for pluggable automated literature discovery (arXiv, Crossref, and offline corpus).*
 
-**Size**: `139` lines (`5927` bytes)
+**Size**: `213` lines (`8823` bytes)
 
 **Classes:**
 - `class DiscoveryTests` - *Verify the 4-layer discovery boundary: DTOs, registry, providers, and service DI.*
@@ -439,8 +447,10 @@
   - Method `.test_registry_registers_and_resolves_providers()`
   - Method `.test_arxiv_provider_parses_atom_xml()`
   - Method `.test_crossref_provider_parses_json_and_strips_jats_tags()`
+  - Method `.test_openalex_provider_reconstructs_inverted_index_abstract()`
+  - Method `.test_europepmc_provider_parses_biomedical_results()`
   - Method `.test_offline_provider_searches_curated_seed_catalog()`
-  - Method `.test_discovery_service_ingests_and_deduplicates()`
+  - Method `.test_discovery_service_ingests_and_deduplicates_across_federated_sources()`
 
 ---
 
