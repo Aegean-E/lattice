@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `31`
-- **Total Classes**: `39`
-- **Total Top-Level Functions**: `147`
-- **Total Class Methods**: `181`
-- **Total Source Lines**: `7109`
+- **Total Python Modules**: `32`
+- **Total Classes**: `41`
+- **Total Top-Level Functions**: `155`
+- **Total Class Methods**: `194`
+- **Total Source Lines**: `7839`
 
 ---
 
@@ -33,7 +33,7 @@
 ### [`lattice/analysis.py`](lattice/analysis.py)
 > *Scientific contradiction detection, keystone entity centrality, and Paper x Question evidence matrices.*
 
-**Size**: `340` lines (`12790` bytes)
+**Size**: `343` lines (`12907` bytes)
 
 **Classes:**
 - `class ContradictionPair` - *An opposing pair of empirical claims sharing a research question or high domain keyword overlap.*
@@ -81,7 +81,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `504` lines (`22128` bytes)
+**Size**: `508` lines (`22273` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -114,12 +114,15 @@
 ### [`lattice/database.py`](lattice/database.py)
 > *SQLite connection, versioned schema and migration veil for the knowledge graph.*
 
-**Size**: `117` lines (`4146` bytes)
+**Size**: `164` lines (`6270` bytes)
 
 **Functions:**
 - `def utc_now()` - *An ISO-8601 UTC timestamp with a stable seconds precision.*
 - `def open_database(path)` - *Open or create the database, verify its schema version and return it.*
-- `def _ensure_schema(connection)` - *Create the schema once and refuse a database written by a newer version.*
+- `def _ensure_schema(connection)` - *Create the schema once, migrate v1 and refuse a database from a newer version.*
+- `def _set_schema_version(connection, version)` - *Persist the schema version after a fresh create or a completed migration.*
+- `def _add_column_if_missing(connection, table, column, definition)` - *Add one column once, so an interrupted migration can be retried.*
+- `def _migrate_v1_to_v2(connection)` - *Add searchable tags and study type, backfilling them for existing papers.*
 - `def schema_version(connection)` - *The declared schema version, or 0 when the metadata row is missing.*
 
 ---
@@ -127,7 +130,7 @@
 ### [`lattice/discovery.py`](lattice/discovery.py)
 > *Pluggable automated literature discovery: arXiv, Crossref, OpenAlex, EuropePMC, and offline corpus.*
 
-**Size**: `539` lines (`22412` bytes)
+**Size**: `571` lines (`24042` bytes)
 
 **Classes:**
 - `class PaperCandidate` - *Immutable DTO returned by any literature discovery provider.*
@@ -209,7 +212,7 @@
 ### [`lattice/ingest.py`](lattice/ingest.py)
 > *Parsers for the text bibliography formats lattice accepts, with no third-party dependencies.*
 
-**Size**: `232` lines (`8447` bytes)
+**Size**: `253` lines (`9238` bytes)
 
 **Functions:**
 - `def empty_record()` - *A record with every supported metadata field present.*
@@ -275,7 +278,7 @@
 ### [`lattice/models.py`](lattice/models.py)
 > *Value objects and the validation rules shared by storage, ingestion and queries.*
 
-**Size**: `216` lines (`6634` bytes)
+**Size**: `331` lines (`11378` bytes)
 
 **Classes:**
 - `class Paper` - *A source record: bibliographic metadata plus its stable identifier.*
@@ -289,6 +292,10 @@
 
 **Functions:**
 - `def normalize_text(value)` - *Lowercase and collapse punctuation for identity comparisons.*
+- `def normalize_tags(value)` - *Normalize comma- or semicolon-separated tags into one lowercase, deduplicated string.*
+- `def derive_tags(title, abstract, limit)` - *Derive deterministic keyword tags, weighting title words over abstract words.*
+- `def normalize_study_type(value)` - *Trim a study type and map common abbreviations to a canonical label.*
+- `def infer_study_type(title, abstract)` - *Classify a paper by design markers in its title and abstract.*
 - `def paper_id(title, doi, arxiv)` - *A stable identifier derived from DOI, then arXiv ID, then normalized title.*
 - `def next_id(prefix, rows)` - *The next sequential identifier for a table whose ids share a prefix.*
 - `def validate_stance(stance)` - *A claim stance must be one of `STANCES`.*
@@ -304,7 +311,7 @@
 ### [`lattice/repository.py`](lattice/repository.py)
 > *The knowledge graph API: papers, claims, questions, typed edges and evidence queries.*
 
-**Size**: `506` lines (`24359` bytes)
+**Size**: `598` lines (`28737` bytes)
 
 **Classes:**
 - `class Repository` - *One connection's view of the graph; every write is committed before it returns.*
@@ -318,6 +325,7 @@
   - Method `.get_question(identifier)` - *A question by bare id or reference.*
   - Method `.get(ref)` - *One entity and every edge attached to it.*
   - Method `.search(query, limit, stance, min_confidence, year)` - *Search papers, claims and questions by phrase or multi-term lexical overlap.*
+  - Method `.search_literature(query, tags, study_type, year, limit)` - *Search papers by tags, words, sentences, study type or year.*
   - Method `.set_question_status(question, status)` - *Update a question's lifecycle status ('open', 'answered' or 'abandoned').*
   - Method `.subgraph(ref, depth)` - *Return the multi-hop neighborhood of nodes and edges around `ref`.*
   - Method `.neighbors(ref, kind)` - *Every edge touching `ref`, optionally narrowed to one kind.*
@@ -331,6 +339,7 @@
   - Method `._claim_dict(claim)` - *A claim plus a compact citation summary of its paper.*
   - Method `._safe_summary(ref)` - *Summary of an entity, or a missing marker instead of raising.*
   - Method `._summary(ref)` - *A compact JSON representation of any entity, with paper context for claims.*
+  - Method `._study_type(ref)` - *The study type behind a paper or claim, or every type linked to a question.*
   - Method `._log(action, payload)` - *Append an immutable audit event.*
   - Method `._search_papers(raw_query, terms, year, limit)` - *Rank papers by exact substring match first, then multi-term lexical overlap.*
   - Method `._search_claims(raw_query, terms, stance, min_confidence, year, limit)` - *Rank claims by phrase or multi-term overlap and apply optional filters.*
@@ -388,7 +397,7 @@
 ### [`lattice/web.py`](lattice/web.py)
 > *Zero-dependency web server and human-friendly Research Studio UI for Lattice.*
 
-**Size**: `1456` lines (`56153` bytes)
+**Size**: `1620` lines (`63309` bytes)
 
 **Classes:**
 - `class WebResponse` - *Immutable HTTP response returned by `dispatch_web_request`.*
@@ -398,6 +407,7 @@
 - `def _dispatch_post(repository, route, payload)` - *Handle JSON POST routes for mutations, discovery, extraction, and demo seeding.*
 - `def _build_overview(repository)` - *Assemble full workspace state for the Human UI dashboard.*
 - `def _handle_search(repository, query)` - *Run filtered search from query parameters.*
+- `def _handle_literature(repository, query)` - *Search the literature by tags, words, sentences, study type and year.*
 - `def _handle_subgraph(repository, query)` - *Run multi-hop subgraph traversal from query parameters.*
 - `def _handle_synthesize(repository, query)` - *Run scientific literature synthesis from query parameters.*
 - `def _build_matrix_bundle(repository)` - *Assemble the Paper x Question evidence matrix, contradictions, and keystone ranking.*
@@ -474,10 +484,22 @@
 
 ---
 
+### [`tests/test_database.py`](tests/test_database.py)
+> *Schema migration from the first release keeps an existing graph usable.*
+
+**Size**: `85` lines (`2717` bytes)
+
+**Classes:**
+- `class MigrationTests` - *A version 1 database gains the literature metadata columns without losing papers.*
+  - Method `.setUp()`
+  - Method `.test_v1_database_migrates_tags_and_study_type()`
+
+---
+
 ### [`tests/test_discovery.py`](tests/test_discovery.py)
 > *Tests for pluggable automated literature discovery (arXiv, Crossref, and offline corpus).*
 
-**Size**: `213` lines (`8823` bytes)
+**Size**: `222` lines (`9254` bytes)
 
 **Classes:**
 - `class DiscoveryTests` - *Verify the 4-layer discovery boundary: DTOs, registry, providers, and service DI.*
@@ -512,19 +534,23 @@
 ### [`tests/test_ingest.py`](tests/test_ingest.py)
 > *Format parsers stay dependency-free and deterministic.*
 
-**Size**: `106` lines (`3756` bytes)
+**Size**: `138` lines (`5141` bytes)
 
 **Classes:**
 - `class BibtexTests` - *BibTeX braces, authors and identifiers.*
   - Method `.test_two_entries()`
   - Method `.test_unbalanced_braces_fail()`
+  - Method `.test_keywords_and_study_type_fields()`
 - `class RisTests` - *RIS tag handling.*
   - Method `.test_single_record()`
+  - Method `.test_keywords_and_study_type_tags()`
 - `class CsvTests` - *CSV headers map to metadata fields case-insensitively.*
   - Method `.test_header_mapping()`
+  - Method `.test_keyword_and_study_type_aliases()`
 - `class MarkdownTests` - *Front matter and heading fallbacks.*
   - Method `.test_front_matter()`
   - Method `.test_heading_and_filename_fallbacks()`
+  - Method `.test_front_matter_carries_tags_and_study_type()`
 - `class FileTests` - *Suffix dispatch and readable failures.*
   - Method `.setUp()`
   - Method `.write(name, content)`
@@ -582,7 +608,7 @@
 ### [`tests/test_models.py`](tests/test_models.py)
 > *Identity, validation and budget helpers.*
 
-**Size**: `71` lines (`2174` bytes)
+**Size**: `110` lines (`3576` bytes)
 
 **Classes:**
 - `class IdentityTests` - *Stable identifiers make dedupe and citations reproducible.*
@@ -598,13 +624,16 @@
   - Method `.test_edge_kind()`
   - Method `.test_reference_forms()`
   - Method `.test_tokens_are_positive()`
+- `class LiteratureMetadataTests` - *Study types and tags are normalized deterministically from paper metadata.*
+  - Method `.test_study_type_inference()`
+  - Method `.test_tag_normalization_and_derivation()`
 
 ---
 
 ### [`tests/test_repository.py`](tests/test_repository.py)
 > *Graph writes, dedupe, references, search and evidence grouping.*
 
-**Size**: `119` lines (`5330` bytes)
+**Size**: `169` lines (`7611` bytes)
 
 **Classes:**
 - `class RepositoryTests` - *Every test gets a fresh in-memory graph.*
@@ -620,6 +649,8 @@
   - Method `.test_self_edge_is_refused()`
   - Method `.test_missing_reference_is_refused()`
   - Method `.test_search_across_entities()`
+  - Method `.test_paper_stores_tags_and_infers_study_type()`
+  - Method `.test_literature_search_matches_tags_words_sentences_and_study_type()`
   - Method `.test_evidence_groups_and_gaps()`
   - Method `.test_stats_and_event_log()`
   - Method `.test_neighbors_filter_by_kind()`
@@ -659,7 +690,7 @@
 ### [`tests/test_web.py`](tests/test_web.py)
 > *Tests for the web-based human UI and JSON API dispatcher (zero sockets).*
 
-**Size**: `168` lines (`6715` bytes)
+**Size**: `205` lines (`8344` bytes)
 
 **Classes:**
 - `class WebInterfaceTests` - *Verify HTML rendering and REST API handlers via pure request dispatch.*
@@ -670,6 +701,7 @@
   - Method `.test_create_entities_and_synthesize_via_web_api()`
   - Method `.test_discover_extract_and_search_endpoints()`
   - Method `.test_ingest_text_matrix_contradictions_and_export()`
+  - Method `.test_literature_search_ui_graph_and_api()`
   - Method `.test_validation_error_and_not_found()`
 
 ---

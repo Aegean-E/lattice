@@ -112,6 +112,32 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   automatically detect and link conflicting claims, and audit Paper x Question evidence matrices
   with zero third-party dependencies.
 
+## ADR-008: Searchable literature metadata and study types on graph nodes (2026-10-19)
+
+- **Status**: Accepted
+- **Context**: Researchers need to find an ingested paper by a remembered tag, a keyword or a full
+  sentence, and the graph must say what kind of study a paper represents so evidence is not read
+  without its design context.
+- **Decision**:
+  1. Extend papers with normalized `tags` and `study_type` fields and raise the SQLite schema to
+     version 2. `open_database` migrates a version 1 file in place with idempotent `ADD COLUMN`
+     statements, backfills tags and study types for existing papers, and refuses versions newer
+     than this build.
+  2. Explicit metadata wins. Otherwise `derive_tags` weights title keywords above abstract
+     keywords, `infer_study_type` classifies design markers (meta-analysis, systematic review,
+     randomized trial, cohort, case-control, cross-sectional, qualitative, case study, in vitro,
+     animal, computational and experimental), and the fallback is `General Study`.
+  3. `Repository.search_literature` matches title, authors, year, venue, DOI, arXiv ID, URL,
+     abstract, tags and study type. A query may be a tag filter, one or more words or an exact
+     sentence; an empty query with filters acts as a browse.
+  4. The Web Research Studio adds a Literature Search panel with tag chips and a study-type filter,
+     and every SVG subgraph node carries a study-type label (papers directly, claims via their
+     source paper, questions as the distinct types of their linked evidence). Ingestion accepts
+     `keywords`/`KW`/`tags` and `studytype`/`M3`/`study_type` in the supported formats.
+- **Consequences**: Existing databases upgrade without data loss, snapshots remain backward
+  compatible because missing fields default to empty, and CLI/MCP/web paper payloads gain two
+  additive fields. Inference is deterministic but heuristic, so callers can always override it.
+
 
 
 

@@ -8,7 +8,17 @@ from typing import Dict, Iterable, List
 from lattice.errors import fail
 
 Record = Dict[str, str]
-_FIELDS = ("title", "authors", "year", "venue", "doi", "arxiv", "url", "abstract", "kind")
+_FIELDS = ("title", "authors", "year", "venue", "doi", "arxiv", "url", "abstract",
+           "tags", "study_type", "kind")
+_CSV_ALIASES = {
+    "tag": "tags",
+    "keyword": "tags",
+    "keywords": "tags",
+    "subject": "tags",
+    "study": "study_type",
+    "study type": "study_type",
+    "type": "study_type",
+}
 
 
 def empty_record() -> Record:
@@ -94,6 +104,10 @@ def parse_bibtex(text: str) -> List[Record]:
                 record["year"] = _clean(value)[:4]
             elif key in ("doi", "url", "abstract"):
                 record[key] = _clean(value)
+            elif key in ("keywords", "keyword"):
+                record["tags"] = _clean(value).replace(" and ", ", ")
+            elif key in ("studytype", "study_type", "study-type"):
+                record["study_type"] = _clean(value)
             elif key == "eprint":
                 record["arxiv"] = _clean(value)
             elif key == "title":
@@ -130,6 +144,10 @@ def parse_ris(text: str) -> List[Record]:
             current["url"] = value
         elif tag == "AB":
             current["abstract"] = value
+        elif tag == "KW":
+            current["tags"] = f"{current['tags']}, {value}".strip(", ")
+        elif tag == "M3":
+            current["study_type"] = value
         elif tag == "AN" and "arxiv" in value.lower():
             current["arxiv"] = value.split(":")[-1].strip()
         elif tag == "ER":
@@ -157,6 +175,9 @@ def parse_csv(text: str) -> List[Record]:
         record = empty_record()
         for field in _FIELDS:
             record[field] = normalized.get(field, "")
+        for alias, field in _CSV_ALIASES.items():
+            if not record[field] and normalized.get(alias):
+                record[field] = normalized[alias]
         if record["title"]:
             records.append(record)
     return records

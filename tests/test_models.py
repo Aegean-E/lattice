@@ -5,7 +5,10 @@ import unittest
 from lattice.errors import LatticeError
 from lattice.models import (
     bare_id,
+    derive_tags,
     estimate_tokens,
+    infer_study_type,
+    normalize_tags,
     normalize_text,
     paper_id,
     parse_confidence,
@@ -65,6 +68,42 @@ class ValidationTests(unittest.TestCase):
 
     def test_tokens_are_positive(self):
         self.assertGreaterEqual(estimate_tokens(""), 1)
+
+
+class LiteratureMetadataTests(unittest.TestCase):
+    """Study types and tags are normalized deterministically from paper metadata."""
+
+    def test_study_type_inference(self):
+        self.assertEqual(
+            infer_study_type("A randomized controlled trial of slow-wave sleep"),
+            "Randomized Controlled Trial",
+        )
+        self.assertEqual(
+            infer_study_type("A meta-analysis of sleep and memory"),
+            "Meta-Analysis",
+        )
+        self.assertEqual(
+            infer_study_type("Sleep and memory in older adults",
+                             "We conducted a cohort study of 1,200 participants."),
+            "Cohort Study",
+        )
+        self.assertEqual(
+            infer_study_type("An in vitro assay of hippocampal cells"),
+            "In Vitro Study",
+        )
+        self.assertEqual(
+            infer_study_type("A study with no design marker"),
+            "General Study",
+        )
+
+    def test_tag_normalization_and_derivation(self):
+        self.assertEqual(normalize_tags("Sleep; Memory, sleep"), "sleep, memory")
+        tags = derive_tags(
+            "Slow-Wave Sleep Consolidates Hippocampal Memory",
+            "Sleep improved recall in older adults.",
+        )
+        self.assertIn("sleep", tags.split(", "))
+        self.assertIn("memory", tags.split(", "))
 
 
 if __name__ == "__main__":

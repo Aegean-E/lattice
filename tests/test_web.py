@@ -153,6 +153,43 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("application/x-ndjson", exp_resp.content_type)
         self.assertIn('"record_type": "paper"', exp_resp.body)
 
+    def test_literature_search_ui_graph_and_api(self) -> None:
+        status, p_res = self.request_json(
+            "POST",
+            "/api/papers",
+            {
+                "title": "A Randomized Controlled Trial of Sleep and Memory",
+                "authors": "Elena Vance",
+                "year": "2024",
+                "tags": "sleep; memory",
+                "study_type": "Randomized Controlled Trial",
+                "abstract": "Slow-wave sleep increased recall accuracy by 28%.",
+            },
+        )
+        self.assertEqual(status, 200)
+        pid = p_res["paper"]["id"]
+
+        status, lit = self.request_json(
+            "GET",
+            "/api/literature?q=Slow-wave%20sleep%20increased%20recall%20accuracy"
+            "&tags=memory&study_type=Randomized%20Controlled%20Trial",
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(len(lit["papers"]), 1)
+        self.assertEqual(lit["papers"][0]["id"], pid)
+        self.assertEqual(lit["papers"][0]["study_type"], "Randomized Controlled Trial")
+        self.assertIn("sleep", lit["papers"][0]["tags"])
+
+        status, sub = self.request_json("GET", f"/api/subgraph?ref={pid}&depth=1")
+        self.assertEqual(status, 200)
+        node = next(node for node in sub["nodes"] if node["ref"] == f"paper:{pid}")
+        self.assertEqual(node["study_type"], "Randomized Controlled Trial")
+
+        html = dispatch_web_request(self.repository, "GET", "/")
+        self.assertIn("Literature Search", html.body)
+        self.assertIn("Search tags, words or sentences", html.body)
+        self.assertIn("n.study_type", html.body)
+
     def test_validation_error_and_not_found(self) -> None:
         status, err = self.request_json("POST", "/api/questions", {"text": ""})
         self.assertEqual(status, 400)

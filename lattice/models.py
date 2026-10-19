@@ -2,12 +2,55 @@
 
 import hashlib
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from lattice.errors import fail
 
 STANCES = ("supports", "contradicts", "mentions")
+STUDY_TYPES = (
+    "Meta-Analysis",
+    "Systematic Review",
+    "Literature Review",
+    "Review",
+    "Randomized Controlled Trial",
+    "Cohort Study",
+    "Case-Control Study",
+    "Cross-Sectional Study",
+    "Observational Study",
+    "Qualitative Study",
+    "Case Study",
+    "Experimental Study",
+    "In Vitro Study",
+    "Animal Study",
+    "Computational Study",
+    "General Study",
+)
+_STUDY_TYPE_RULES = (
+    ("Meta-Analysis", re.compile(r"\bmeta[- ]?analy(?:sis|ses|tic)\b")),
+    ("Systematic Review", re.compile(r"\bsystematic review\b")),
+    ("Literature Review", re.compile(r"\bliterature review\b|\breview of (?:the )?literature\b")),
+    ("Review", re.compile(r"\breview\b")),
+    ("Randomized Controlled Trial",
+     re.compile(r"\brandomi[sz]ed (?:controlled )?(?:trial|study)\b|\brct\b")),
+    ("Cohort Study", re.compile(r"\bcohort\b")),
+    ("Case-Control Study", re.compile(r"\bcase[- ]control\b")),
+    ("Cross-Sectional Study", re.compile(r"\bcross[- ]sectional\b")),
+    ("Observational Study", re.compile(r"\bobservational\b|\bsurvey\b|\bregistry\b")),
+    ("Qualitative Study",
+     re.compile(r"\bqualitative\b|\bfocus group(?:s)?\b|\binterview(?:s)?\b")),
+    ("Case Study", re.compile(r"\bcase (?:study|report|series)\b")),
+    ("In Vitro Study", re.compile(r"\bin vitro\b|\bcell cultur|\bassay\b|\bcultures?\b")),
+    ("Animal Study",
+     re.compile(r"\b(?:mice|mouse|rats?|rodents?|zebrafish|primates?|in vivo)\b")),
+    ("Computational Study",
+     re.compile(r"\bcomputational\b|\bsimulation\b|\bmachine learning\b|\bdeep learning\b"
+                r"|\btransformer\b|\bneural network\b")),
+    ("Experimental Study",
+     re.compile(r"\bexperiment(?:al|s)?\b|\btrial\b|\bintervention\b|\bstimulat(?:ed|ion)\b"
+                r"|\bparticipants?\b")),
+)
 EDGE_KINDS = (
     "cites",
     "supports",
@@ -38,6 +81,8 @@ class Paper:
     arxiv: str = ""
     url: str = ""
     abstract: str = ""
+    tags: str = ""
+    study_type: str = ""
     kind: str = "paper"
     created_at: str = ""
 
@@ -53,6 +98,8 @@ class Paper:
             "arxiv": self.arxiv,
             "url": self.url,
             "abstract": self.abstract,
+            "tags": self.tags,
+            "study_type": self.study_type,
             "kind": self.kind,
             "created_at": self.created_at,
         }
@@ -132,6 +179,74 @@ class Edge:
 def normalize_text(value: str) -> str:
     """Lowercase and collapse punctuation for identity comparisons."""
     return _NORMALIZE.sub(" ", value.lower()).strip()
+
+
+_TAG_SPLIT = re.compile(r"[,;]+")
+_TAG_WORD = re.compile(r"[A-Za-z][A-Za-z0-9-]{2,}")
+_TAG_STOPWORDS = frozenset("""
+a an and are as at be been being by can could did do does for from had has have how in into is
+it its may might more most of on or our over such than that the their them these they this those
+to under using was we were what when where which who why with within without study studies paper
+papers result results method methods approach approaches based new novel
+""".split())
+
+
+def normalize_tags(value: str) -> str:
+    """Normalize comma- or semicolon-separated tags into one lowercase, deduplicated string."""
+    tags: List[str] = []
+    for part in _TAG_SPLIT.split(str(value or "")):
+        tag = normalize_text(part)
+        if tag and tag not in tags:
+            tags.append(tag)
+    return ", ".join(tags)
+
+
+def derive_tags(title: str, abstract: str = "", limit: int = 6) -> str:
+    """Derive deterministic keyword tags, weighting title words over abstract words."""
+    counts: Counter[str] = Counter()
+    order: Dict[str, int] = {}
+    for source, weight in ((title, 3), (abstract, 1)):
+        for match in _TAG_WORD.finditer(source or ""):
+            word = match.group(0).lower()
+            if word in _TAG_STOPWORDS:
+                continue
+            counts[word] += weight
+            order.setdefault(word, len(order))
+    ranked = sorted(counts, key=lambda word: (-counts[word], order[word], word))
+    return ", ".join(ranked[:max(0, int(limit))])
+
+
+def normalize_study_type(value: str) -> str:
+    """Trim a study type and map common abbreviations to a canonical label."""
+    cleaned = " ".join(str(value or "").split())
+    if not cleaned:
+        return ""
+    aliases = {normalize_text(name): name for name in STUDY_TYPES}
+    aliases.update({
+        "meta analysis": "Meta-Analysis",
+        "systematic literature review": "Systematic Review",
+        "randomised controlled trial": "Randomized Controlled Trial",
+        "randomized trial": "Randomized Controlled Trial",
+        "rct": "Randomized Controlled Trial",
+        "cohort": "Cohort Study",
+        "case control": "Case-Control Study",
+        "cross sectional": "Cross-Sectional Study",
+        "qualitative": "Qualitative Study",
+        "case report": "Case Study",
+        "in vitro": "In Vitro Study",
+        "animal": "Animal Study",
+        "computational": "Computational Study",
+    })
+    return aliases.get(normalize_text(cleaned), cleaned)
+
+
+def infer_study_type(title: str, abstract: str = "") -> str:
+    """Classify a paper by design markers in its title and abstract."""
+    text = normalize_text(f"{title or ''} {abstract or ''}")
+    for label, pattern in _STUDY_TYPE_RULES:
+        if pattern.search(text):
+            return label
+    return "General Study"
 
 
 def paper_id(title: str, doi: str = "", arxiv: str = "") -> str:

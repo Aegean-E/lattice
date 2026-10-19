@@ -302,8 +302,11 @@ def _run_search(args: argparse.Namespace, repository: Repository) -> int:
         year=args.year,
     )
     lines = [f"Papers ({len(result['papers'])}):"]
-    lines += [f"  [{paper['id']}] {paper['title']} ({paper.get('year') or 'n.d.'})"
-              for paper in result["papers"]] or ["  none"]
+    lines += [
+        f"  [{paper['id']}] {paper['title']} ({paper.get('year') or 'n.d.'})"
+        f" - {paper.get('study_type') or 'General Study'}"
+        for paper in result["papers"]
+    ] or ["  none"]
     lines += [f"Claims ({len(result['claims'])}):"]
     lines += [f"  [{claim['id']}] {claim['text']}" for claim in result["claims"]] or ["  none"]
     lines += [f"Questions ({len(result['questions'])}):"]
@@ -335,7 +338,8 @@ def _run_subgraph(args: argparse.Namespace, repository: Repository) -> int:
     ]
     for node in result["nodes"]:
         label = node.get("title") or node.get("text") or node.get("ref")
-        lines.append(f"  [{node['ref']}] {label}")
+        study_type = node.get("study_type") or "General Study"
+        lines.append(f"  [{node['ref']}] {label} - {study_type}")
     lines.append(f"Edges ({len(result['edges'])}):")
     for edge in result["edges"]:
         lines.append(f"  {edge['src']} -{edge['kind']}-> {edge['dst']}")

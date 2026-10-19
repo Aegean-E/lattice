@@ -224,7 +224,8 @@ def rank_influential_entities(repo: Repository, limit: int = 10) -> Dict[str, Li
 def build_evidence_matrix(repo: Repository) -> Dict[str, Any]:
     """Build a Paper x Question evidence matrix highlighting stance cells and coverage gaps."""
     paper_rows = repo.connection.execute(
-        "SELECT id, title, authors, year, doi FROM papers ORDER BY year DESC, title"
+        "SELECT id, title, authors, year, doi, tags, study_type FROM papers"
+        " ORDER BY year DESC, title"
     ).fetchall()
     papers = [
         {
@@ -233,6 +234,8 @@ def build_evidence_matrix(repo: Repository) -> Dict[str, Any]:
             "authors": str(row["authors"]),
             "year": str(row["year"]),
             "doi": str(row["doi"]),
+            "tags": str(row["tags"]),
+            "study_type": str(row["study_type"]),
         }
         for row in paper_rows
     ]

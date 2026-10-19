@@ -87,6 +87,56 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(len(found["questions"]), 1)
         self.assertEqual(len(found["papers"]), 0)
 
+    def test_paper_stores_tags_and_infers_study_type(self):
+        paper = self.paper(
+            "A randomized controlled trial of sleep and memory",
+            abstract="Participants improved recall after acoustic stimulation.",
+            tags="Sleep; Memory, sleep",
+        )
+        self.assertEqual(paper.study_type, "Randomized Controlled Trial")
+        self.assertEqual(paper.tags, "sleep, memory")
+        payload = paper.to_dict()
+        self.assertIn("tags", payload)
+        self.assertIn("study_type", payload)
+
+    def test_literature_search_matches_tags_words_sentences_and_study_type(self):
+        sleep_paper = self.paper(
+            "Slow-Wave Sleep Consolidates Declarative Memory",
+            abstract="Slow-wave sleep increased recall accuracy by 28%.",
+            tags="sleep; memory",
+        )
+        computing_paper = self.paper(
+            "Transformer Scaling Under Noisy Pretraining Corpora",
+            abstract="Curated pretraining data improved accuracy by 19%.",
+            study_type="Computational Study",
+        )
+
+        by_words = self.repository.search_literature("slow-wave sleep")
+        self.assertEqual([paper["id"] for paper in by_words["papers"]], [sleep_paper.id])
+
+        by_tag = self.repository.search_literature(tags="memory")
+        self.assertEqual([paper["id"] for paper in by_tag["papers"]], [sleep_paper.id])
+
+        by_sentence = self.repository.search_literature(
+            "Slow-wave sleep increased recall accuracy by 28%."
+        )
+        self.assertEqual([paper["id"] for paper in by_sentence["papers"]], [sleep_paper.id])
+
+        by_normalized_sentence = self.repository.search_literature(
+            "Slow wave sleep, increased recall accuracy by 28!"
+        )
+        self.assertEqual(
+            [paper["id"] for paper in by_normalized_sentence["papers"]], [sleep_paper.id]
+        )
+
+        by_type = self.repository.search_literature(study_type="Computational Study")
+        self.assertEqual([paper["id"] for paper in by_type["papers"]], [computing_paper.id])
+
+        everything = self.repository.search_literature()
+        self.assertEqual(everything["total"], 2)
+        self.assertIn("study_type", everything["papers"][0])
+        self.assertIn("tags", everything["papers"][0])
+
     def test_evidence_groups_and_gaps(self):
         paper = self.paper()
         claim = self.repository.add_claim(paper.id, "It helps", "it helps")

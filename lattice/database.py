@@ -6,7 +6,7 @@ from pathlib import Path
 
 from lattice.errors import fail
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS papers (
     arxiv TEXT NOT NULL DEFAULT '',
     url TEXT NOT NULL DEFAULT '',
     abstract TEXT NOT NULL DEFAULT '',
+    tags TEXT NOT NULL DEFAULT '',
+    study_type TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
 );
 
@@ -97,18 +99,63 @@ def open_database(path: str) -> sqlite3.Connection:
 
 
 def _ensure_schema(connection: sqlite3.Connection) -> None:
-    """Create the schema once and refuse a database written by a newer version."""
+    """Create the schema once, migrate v1 and refuse a database from a newer version."""
     connection.executescript(SCHEMA)
     row = connection.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
     if row is None:
-        connection.execute("INSERT INTO meta(key, value) VALUES('schema_version', ?)",
-                           (str(SCHEMA_VERSION),))
-        connection.commit()
+        _set_schema_version(connection, SCHEMA_VERSION)
         return
-    if str(row["value"]) != str(SCHEMA_VERSION):
+    try:
+        version = int(row["value"])
+    except (TypeError, ValueError):
         fail(f"database schema version {row['value']} is not supported",
-             f"this build reads schema version {SCHEMA_VERSION}",
-             "use the lattice version that wrote the file, or export and re-ingest into a new database")
+             "the metadata row is not a schema version this build understands",
+             "restore a backup written by lattice, or export and re-ingest the graph")
+    if version == SCHEMA_VERSION:
+        return
+    if version == 1:
+        _migrate_v1_to_v2(connection)
+        _set_schema_version(connection, SCHEMA_VERSION)
+        return
+    fail(f"database schema version {row['value']} is not supported",
+         f"this build reads schema version {SCHEMA_VERSION}",
+         "use the lattice version that wrote the file, or export and re-ingest into a new database")
+
+
+def _set_schema_version(connection: sqlite3.Connection, version: int) -> None:
+    """Persist the schema version after a fresh create or a completed migration."""
+    connection.execute(
+        "INSERT OR REPLACE INTO meta(key, value) VALUES('schema_version', ?)", (str(version),)
+    )
+    connection.commit()
+
+
+def _add_column_if_missing(connection: sqlite3.Connection, table: str,
+                           column: str, definition: str) -> None:
+    """Add one column once, so an interrupted migration can be retried."""
+    columns = {str(row["name"]) for row in connection.execute(f"PRAGMA table_info({table})")}
+    if column not in columns:
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def _migrate_v1_to_v2(connection: sqlite3.Connection) -> None:
+    """Add searchable tags and study type, backfilling them for existing papers."""
+    from lattice.models import derive_tags, infer_study_type, normalize_tags
+
+    _add_column_if_missing(connection, "papers", "tags", "TEXT NOT NULL DEFAULT ''")
+    _add_column_if_missing(connection, "papers", "study_type", "TEXT NOT NULL DEFAULT ''")
+    rows = connection.execute(
+        "SELECT id, title, abstract, tags, study_type FROM papers"
+    ).fetchall()
+    for row in rows:
+        tags = normalize_tags(row["tags"] or derive_tags(row["title"], row["abstract"]))
+        study_type = row["study_type"] or infer_study_type(row["title"], row["abstract"])
+        if tags != row["tags"] or study_type != row["study_type"]:
+            connection.execute(
+                "UPDATE papers SET tags = ?, study_type = ? WHERE id = ?",
+                (tags, study_type, row["id"]),
+            )
+    connection.commit()
 
 
 def schema_version(connection: sqlite3.Connection) -> int:

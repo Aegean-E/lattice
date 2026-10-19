@@ -35,6 +35,14 @@ class BibtexTests(unittest.TestCase):
         with self.assertRaises(LatticeError):
             parse_bibtex("@article{x, title={broken}")
 
+    def test_keywords_and_study_type_fields(self):
+        records = parse_bibtex(
+            "@article{x, title={A trial}, keywords={Sleep, Memory}, "
+            "studytype={Randomized Controlled Trial}}"
+        )
+        self.assertEqual(records[0]["tags"], "Sleep, Memory")
+        self.assertEqual(records[0]["study_type"], "Randomized Controlled Trial")
+
 
 class RisTests(unittest.TestCase):
     """RIS tag handling."""
@@ -47,6 +55,15 @@ class RisTests(unittest.TestCase):
         self.assertEqual(records[0]["year"], "2021")
         self.assertEqual(records[0]["doi"], "10.5/x")
 
+    def test_keywords_and_study_type_tags(self):
+        text = (
+            "TY  - JOUR\nTI  - A cohort study\nKW  - sleep\nKW  - memory\n"
+            "M3  - Cohort Study\nER  - \n"
+        )
+        records = parse_ris(text)
+        self.assertEqual(records[0]["tags"], "sleep, memory")
+        self.assertEqual(records[0]["study_type"], "Cohort Study")
+
 
 class CsvTests(unittest.TestCase):
     """CSV headers map to metadata fields case-insensitively."""
@@ -56,6 +73,15 @@ class CsvTests(unittest.TestCase):
         records = parse_csv(text)
         self.assertEqual(records[0]["title"], "A paper")
         self.assertEqual(records[0]["doi"], "10.9/z")
+
+    def test_keyword_and_study_type_aliases(self):
+        text = (
+            "title,keywords,study_type\n"
+            "A paper,\"sleep, memory\",Cohort Study\n"
+        )
+        records = parse_csv(text)
+        self.assertEqual(records[0]["tags"], "sleep, memory")
+        self.assertEqual(records[0]["study_type"], "Cohort Study")
 
 
 class MarkdownTests(unittest.TestCase):
@@ -71,6 +97,12 @@ class MarkdownTests(unittest.TestCase):
     def test_heading_and_filename_fallbacks(self):
         self.assertEqual(parse_markdown("# From heading\nbody", "x.md")[0]["title"], "From heading")
         self.assertEqual(parse_markdown("body only", "my-note.md")[0]["title"], "my note")
+
+    def test_front_matter_carries_tags_and_study_type(self):
+        text = "---\ntitle: Note\ntags: sleep, memory\nstudy_type: Case Study\n---\nBody."
+        record = parse_markdown(text, "note.md")[0]
+        self.assertEqual(record["tags"], "sleep, memory")
+        self.assertEqual(record["study_type"], "Case Study")
 
 
 class FileTests(unittest.TestCase):

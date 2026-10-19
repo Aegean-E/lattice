@@ -32,6 +32,8 @@ SEED_CORPUS: Sequence[Dict[str, str]] = (
             "across 120 human participants. Targeted acoustic stimulation amplified spindle-oscillation "
             "coupling and stabilized hippocampal-neocortical memory traces."
         ),
+        "tags": "sleep, memory, hippocampus, slow-wave",
+        "study_type": "Experimental Study",
     },
     {
         "title": "REM Sleep Deprivation Fails to Impair Motor Skill Retention in Young Adults",
@@ -46,6 +48,8 @@ SEED_CORPUS: Sequence[Dict[str, str]] = (
             "compared with uninterrupted sleep controls. Cortical plasticity markers remained "
             "unchanged after 48 hours of recovery."
         ),
+        "tags": "sleep, rem, motor memory, plasticity",
+        "study_type": "Experimental Study",
     },
     {
         "title": "Quote-Backed Evidence Graphs Eliminate Citation Drift in Scientific Synthesis",
@@ -60,6 +64,8 @@ SEED_CORPUS: Sequence[Dict[str, str]] = (
             "synthesis statements by 73% across 500 biomedical literature reviews. Contradiction "
             "edges surfaced replication failures that flat vector retrieval missed."
         ),
+        "tags": "evidence graph, citation, synthesis, provenance",
+        "study_type": "Literature Review",
     },
     {
         "title": "Transformer Scaling Laws Exhibit Diminishing Returns Under Noisy Pretraining Corpora",
@@ -73,6 +79,8 @@ SEED_CORPUS: Sequence[Dict[str, str]] = (
             "Curated deduplication improved downstream scientific question-answering accuracy by 19% "
             "at one-quarter of the compute budget compared with unfiltered web text."
         ),
+        "tags": "transformer, scaling, pretraining, deduplication",
+        "study_type": "Computational Study",
     },
 )
 
@@ -89,6 +97,8 @@ class PaperCandidate:
     arxiv: str = ""
     url: str = ""
     abstract: str = ""
+    tags: str = ""
+    study_type: str = ""
     source: str = "offline"
 
     def to_metadata(self) -> Dict[str, str]:
@@ -102,6 +112,8 @@ class PaperCandidate:
             "arxiv": self.arxiv,
             "url": self.url,
             "abstract": self.abstract,
+            "tags": self.tags,
+            "study_type": self.study_type,
             "kind": "paper",
         }
 
@@ -250,6 +262,9 @@ class CrossrefProvider:
             venue = " ".join(str(venues[0]).split()) if venues else ""
             raw_abstract = str(item.get("abstract") or "")
             abstract = " ".join(_TAG_RE.sub(" ", raw_abstract).split())
+            tags = ", ".join(
+                str(subject).strip() for subject in (item.get("subject") or []) if str(subject).strip()
+            )
             candidates.append(
                 PaperCandidate(
                     title=title,
@@ -260,6 +275,7 @@ class CrossrefProvider:
                     arxiv="",
                     url=str(item.get("URL") or "").strip(),
                     abstract=abstract,
+                    tags=tags,
                     source="crossref",
                 )
             )
@@ -306,6 +322,11 @@ class OpenAlexProvider:
                 ((item.get("primary_location") or {}).get("source") or {}).get("display_name") or ""
             ).strip()
             abstract = _reconstruct_inverted_abstract(item.get("abstract_inverted_index") or {})
+            tags = ", ".join(
+                str(keyword.get("display_name") if isinstance(keyword, dict) else keyword).strip()
+                for keyword in (item.get("keywords") or [])
+                if str(keyword.get("display_name") if isinstance(keyword, dict) else keyword).strip()
+            )
             candidates.append(
                 PaperCandidate(
                     title=title,
@@ -316,6 +337,7 @@ class OpenAlexProvider:
                     arxiv="",
                     url=str(item.get("id") or "").strip(),
                     abstract=abstract,
+                    tags=tags,
                     source="openalex",
                 )
             )
@@ -353,6 +375,13 @@ class EuropePmcProvider:
             raw_abstract = str(item.get("abstractText") or "")
             abstract = " ".join(_TAG_RE.sub(" ", raw_abstract).split())
             pmid = str(item.get("id") or "").strip()
+            keyword_list = item.get("keywordList") or {}
+            raw_keywords = keyword_list.get("keyword") if isinstance(keyword_list, dict) else []
+            raw_keywords = raw_keywords or []
+            if isinstance(raw_keywords, str):
+                raw_keywords = [raw_keywords]
+            tags = ", ".join(str(keyword).strip() for keyword in raw_keywords
+                             if str(keyword).strip())
             candidates.append(
                 PaperCandidate(
                     title=title,
@@ -363,6 +392,7 @@ class EuropePmcProvider:
                     arxiv="",
                     url=f"https://europepmc.org/article/MED/{pmid}" if pmid else "",
                     abstract=abstract,
+                    tags=tags,
                     source="europepmc",
                 )
             )
@@ -400,6 +430,8 @@ class OfflineCorpusProvider:
                         arxiv=record.get("arxiv", ""),
                         url=record.get("url", ""),
                         abstract=record.get("abstract", ""),
+                        tags=record.get("tags", ""),
+                        study_type=record.get("study_type", ""),
                         source="offline",
                     ),
                 ))

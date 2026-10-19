@@ -59,6 +59,8 @@ def dispatch_web_request(repository: Repository, method: str, path: str,
             )
         if verb == "GET" and route == "/api/search":
             return _json_response(200, _handle_search(repository, query))
+        if verb == "GET" and route == "/api/literature":
+            return _json_response(200, _handle_literature(repository, query))
         if verb == "GET" and route == "/api/subgraph":
             return _json_response(200, _handle_subgraph(repository, query))
         if verb == "GET" and route == "/api/synthesize":
@@ -175,6 +177,10 @@ def _build_overview(repository: Repository) -> Dict[str, Any]:
         ).fetchall()
     ]
     check = run_checks(repository)
+    study_types = sorted({str(paper["study_type"]) for paper in papers
+                          if str(paper.get("study_type") or "").strip()})
+    tags = sorted({tag.strip() for paper in papers
+                   for tag in str(paper.get("tags") or "").split(",") if tag.strip()})
     return {
         "stats": repository.stats(),
         "check": check.to_dict(),
@@ -182,6 +188,8 @@ def _build_overview(repository: Repository) -> Dict[str, Any]:
         "questions": questions,
         "claims": claims,
         "edges": edges,
+        "study_types": study_types,
+        "tags": tags,
     }
 
 
@@ -194,6 +202,18 @@ def _handle_search(repository: Repository, query: Dict[str, List[str]]) -> Dict[
     min_conf = float(min_conf_str) if min_conf_str else None
     year = _first(query, "year") or None
     return repository.search(q, limit=limit, stance=stance, min_confidence=min_conf, year=year)
+
+
+def _handle_literature(repository: Repository, query: Dict[str, List[str]]) -> Dict[str, Any]:
+    """Search the literature by tags, words, sentences, study type and year."""
+    q = _first(query, "q")
+    tags = ",".join(query.get("tags", []) + query.get("tag", []))
+    study_type = _first(query, "study_type") or _first(query, "type")
+    year = _first(query, "year") or None
+    limit = int(_first(query, "limit") or "50")
+    return repository.search_literature(
+        q, tags=tags, study_type=study_type, year=year, limit=limit
+    )
 
 
 def _handle_subgraph(repository: Repository, query: Dict[str, List[str]]) -> Dict[str, Any]:
@@ -595,6 +615,27 @@ WEB_HTML = """<!DOCTYPE html>
     background: rgba(245,158,11,0.2);
     color: #fde68a;
   }
+  .badge.study {
+    background: rgba(168,85,247,0.2);
+    color: #d8b4fe;
+  }
+  .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 6px 0 8px;
+  }
+  .tag {
+    background: #0f172a;
+    color: #7dd3fc;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+  .tag:hover { border-color: var(--accent); }
+  .search-note { color: var(--muted); font-size: 0.8rem; margin: 2px 0 8px; }
   blockquote {
     margin: 6px 0;
     padding: 6px 12px;
@@ -780,6 +821,28 @@ WEB_HTML = """<!DOCTYPE html>
             <input id="paper-doi" placeholder="DOI (optional)" style="flex:1">
           </div>
           <div class="form-row">
+            <input id="paper-study-type" list="study-type-choices"
+                   placeholder="Study type (auto-detected when blank)" style="flex:1">
+            <datalist id="study-type-choices">
+              <option value="Meta-Analysis"></option>
+              <option value="Systematic Review"></option>
+              <option value="Literature Review"></option>
+              <option value="Randomized Controlled Trial"></option>
+              <option value="Cohort Study"></option>
+              <option value="Case-Control Study"></option>
+              <option value="Cross-Sectional Study"></option>
+              <option value="Observational Study"></option>
+              <option value="Qualitative Study"></option>
+              <option value="Case Study"></option>
+              <option value="Experimental Study"></option>
+              <option value="In Vitro Study"></option>
+              <option value="Animal Study"></option>
+              <option value="Computational Study"></option>
+              <option value="General Study"></option>
+            </datalist>
+            <input id="paper-tags" placeholder="Tags (comma separated, optional)" style="flex:1">
+          </div>
+          <div class="form-row">
             <textarea id="paper-abstract" placeholder="Paste abstract so Lattice can automatically extract empirical claims and quotes..."></textarea>
           </div>
           <button class="btn secondary" onclick="addPaperManual()">Save Paper</button>
@@ -787,6 +850,30 @@ WEB_HTML = """<!DOCTYPE html>
       </div>
 
       <div>
+        <div class="card">
+          <h2>
+            <span>Literature Search</span>
+            <span id="lit-count" class="badge">0 papers</span>
+          </h2>
+          <div class="form-row">
+            <input id="lit-query" placeholder="Search tags, words or sentences..."
+                   onkeydown="if (event.key === 'Enter') searchLiterature()">
+          </div>
+          <div class="form-row">
+            <input id="lit-tags" placeholder="Tags (comma separated, optional)" style="flex:1.2"
+                   onkeydown="if (event.key === 'Enter') searchLiterature()">
+            <select id="lit-study-type" style="flex:1">
+              <option value="">Any study type</option>
+            </select>
+            <button class="btn" onclick="searchLiterature()">Search</button>
+            <button class="btn secondary" onclick="clearLiteratureSearch()">Clear</button>
+          </div>
+          <div class="search-note">
+            Search matches title, authors, abstract, venue, DOI, tags and study type. Click a tag
+            on any paper to filter by it.
+          </div>
+        </div>
+
         <div class="card">
           <h2>Ingested Papers in Graph</h2>
           <div id="papers-list" class="item-list"></div>
@@ -983,7 +1070,15 @@ async function refreshOverview() {
   gate.className = 'pill ' + (data.check.passed ? 'ok' : 'fail');
 
   renderQuestions(data.questions);
-  renderPapers(data.papers);
+  renderPaperOptions(data.papers);
+  renderStudyTypeOptions(data.study_types || []);
+  const literatureFiltered = ['lit-query', 'lit-tags', 'lit-study-type'].some(
+    id => document.getElementById(id).value.trim());
+  if (literatureFiltered) {
+    await searchLiterature(true);
+  } else {
+    renderPapers(data.papers, data.papers.length);
+  }
   renderClaims(data.claims);
 }
 
@@ -1020,32 +1115,88 @@ function renderQuestions(questions) {
   `).join('');
 }
 
-function renderPapers(papers) {
+function renderPaperOptions(papers) {
   const sel = document.getElementById('claim-paper');
   sel.innerHTML = papers.map(p => `<option value="${esc(p.id)}">[${esc(p.id)}] ${esc(p.title)} (${esc(p.year || 'n.d.')})</option>`).join('');
+}
+
+function renderStudyTypeOptions(studyTypes) {
+  const sel = document.getElementById('lit-study-type');
+  const current = sel.value;
+  const options = (studyTypes || []).map(type =>
+    `<option value="${esc(type)}">${esc(type)}</option>`).join('');
+  sel.innerHTML = '<option value="">Any study type</option>' + options;
+  if (current) sel.value = current;
+}
+
+function paperTags(p) {
+  return String(p.tags || '').split(',').map(tag => tag.trim()).filter(Boolean);
+}
+
+function renderPapers(papers, total) {
   const list = document.getElementById('papers-list');
+  const counter = document.getElementById('lit-count');
+  const shown = total === undefined ? papers.length : total;
+  if (counter) counter.textContent = `${shown} paper${shown === 1 ? '' : 's'}`;
   if (!papers.length) {
-    list.innerHTML = '<div style="color:var(--muted);font-size:0.85rem">No papers ingested yet.</div>';
+    list.innerHTML = '<div style="color:var(--muted);font-size:0.85rem">No papers matched the search.</div>';
     return;
   }
-  list.innerHTML = papers.map(p => `
+  list.innerHTML = papers.map(p => {
+    const tags = paperTags(p);
+    return `
     <div class="item">
       <div class="item-header">
         <strong>${esc(p.title)}</strong>
-        <span class="badge">${esc(p.year || 'n.d.')}</span>
+        <span>
+          <span class="badge study">${esc(p.study_type || 'General Study')}</span>
+          <span class="badge">${esc(p.year || 'n.d.')}</span>
+        </span>
       </div>
       <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px">
         <code>${esc(p.id)}</code> &middot; ${esc(p.authors || 'Unknown authors')}
         ${p.venue ? ' &middot; <em>' + esc(p.venue) + '</em>' : ''}
         ${p.doi ? ' &middot; doi:' + esc(p.doi) : ''}
       </div>
+      ${tags.length ? `<div class="tag-row">${tags.map(tag =>
+        `<button class="tag" onclick="filterByTag('${esc(tag)}')">${esc(tag)}</button>`).join('')}</div>` : ''}
       ${p.abstract ? `<div style="font-size:0.83rem;color:#cbd5e1;margin-bottom:8px">${esc(p.abstract)}</div>` : ''}
       <div style="display:flex;gap:6px">
         <button class="btn secondary sm" onclick="extractPaper('${esc(p.id)}')">Extract Claims</button>
         <button class="btn secondary sm" onclick="inspectGraph('${esc(p.id)}')">Subgraph</button>
       </div>
     </div>
-  `).join('');
+  `; }).join('');
+}
+
+async function searchLiterature(silent) {
+  const q = document.getElementById('lit-query').value.trim();
+  const tags = document.getElementById('lit-tags').value.trim();
+  const studyType = document.getElementById('lit-study-type').value;
+  try {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (tags) params.set('tags', tags);
+    if (studyType) params.set('study_type', studyType);
+    const res = await api('GET', '/api/literature?' + params.toString());
+    renderPapers(res.papers, res.total);
+    if (!res.total && !silent) notify('No papers matched the literature search', true);
+  } catch (err) {
+    notify(err.message, true);
+  }
+}
+
+function filterByTag(tag) {
+  document.getElementById('lit-query').value = '';
+  document.getElementById('lit-tags').value = tag;
+  searchLiterature();
+}
+
+function clearLiteratureSearch() {
+  document.getElementById('lit-query').value = '';
+  document.getElementById('lit-tags').value = '';
+  document.getElementById('lit-study-type').value = '';
+  searchLiterature();
 }
 
 function renderClaims(claims) {
@@ -1199,10 +1350,15 @@ async function addPaperManual() {
   const venue = document.getElementById('paper-venue').value.trim();
   const doi = document.getElementById('paper-doi').value.trim();
   const abstract = document.getElementById('paper-abstract').value.trim();
+  const study_type = document.getElementById('paper-study-type').value.trim();
+  const tags = document.getElementById('paper-tags').value.trim();
   try {
-    const res = await api('POST', '/api/papers', { title, authors, year, venue, doi, abstract });
+    const res = await api('POST', '/api/papers',
+      { title, authors, year, venue, doi, abstract, study_type, tags });
     document.getElementById('paper-title').value = '';
     document.getElementById('paper-abstract').value = '';
+    document.getElementById('paper-study-type').value = '';
+    document.getElementById('paper-tags').value = '';
     await refreshOverview();
     notify(`Saved paper ${res.paper.id}`);
   } catch (err) {
@@ -1308,10 +1464,13 @@ function renderSvgGraph(data) {
     const color = colors[n.type] || '#64748b';
     const shortId = n.id || n.ref;
     const title = (n.title || n.text || shortId).slice(0, 26);
+    const studyType = n.study_type || (n.paper && n.paper.study_type) || '';
+    const studyLabel = n.type === 'claim' && studyType ? `via ${studyType}` : studyType;
     return `<g style="cursor:pointer" onclick="inspectGraph('${esc(n.ref)}')">
       <circle cx="${pos.x}" cy="${pos.y}" r="20" fill="${color}" stroke="#0f172a" stroke-width="3"/>
       <text x="${pos.x}" y="${pos.y + 4}" fill="#0f172a" font-size="10" font-weight="700" text-anchor="middle">${esc(shortId)}</text>
       <text x="${pos.x}" y="${pos.y + 34}" fill="#e2e8f0" font-size="11" text-anchor="middle">${esc(title)}</text>
+      ${studyLabel ? `<text x="${pos.x}" y="${pos.y + 47}" fill="#c4b5fd" font-size="9" text-anchor="middle">${esc(studyLabel.slice(0, 30))}</text>` : ''}
     </g>`;
   }).join('');
   container.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="100%" height="420">${edgeLines}${nodeCircles}</svg>`;
@@ -1334,7 +1493,9 @@ async function runSearch() {
     const res = await api('GET', '/api/search?' + params.toString());
     const box = document.getElementById('search-results');
     const items = [];
-    (res.papers || []).forEach(p => items.push(`<div class="item"><strong>[Paper ${esc(p.id)}]</strong> ${esc(p.title)} (${esc(p.year || 'n.d.')})</div>`));
+    (res.papers || []).forEach(p => items.push(
+      `<div class="item"><strong>[Paper ${esc(p.id)}]</strong> ${esc(p.title)} (${esc(p.year || 'n.d.')})
+       <span class="badge study">${esc(p.study_type || 'General Study')}</span></div>`));
     (res.claims || []).forEach(c => items.push(`<div class="item"><strong>[Claim ${esc(c.id)}]</strong> <span class="badge ${esc(c.stance)}">${esc(c.stance)}</span> ${esc(c.text)}</div>`));
     (res.questions || []).forEach(qu => items.push(`<div class="item"><strong>[Question ${esc(qu.id)}]</strong> ${esc(qu.text)}</div>`));
     box.innerHTML = items.join('') || '<div style="color:var(--muted)">No matching entities.</div>';
@@ -1405,7 +1566,10 @@ async function loadMatrix() {
       <div class="item">
         <div style="display:flex;justify-content:space-between">
           <strong>[${esc(p.id)}] ${esc(p.title)}</strong>
-          <span class="badge">Centrality: ${esc(p.score)}</span>
+          <span>
+            <span class="badge study">${esc(p.study_type || 'General Study')}</span>
+            <span class="badge">Centrality: ${esc(p.score)}</span>
+          </span>
         </div>
         <div style="font-size:0.78rem;color:var(--muted)">
           ${esc(p.authors)} (${esc(p.year || 'n.d.')}) • Claims: ${esc(p.claim_count)} • Citations: ${esc(p.citation_count)}
@@ -1428,7 +1592,7 @@ async function loadMatrix() {
         if (!cell) return '<td style="padding:8px;border-bottom:1px solid var(--border);color:var(--muted);font-size:0.78rem">—</td>';
         return `<td style="padding:8px;border-bottom:1px solid var(--border)"><span class="badge ${esc(cell.dominant_stance)}">${esc(cell.dominant_stance)} (${esc(cell.claim_ids.length)})</span></td>`;
       }).join('');
-      return `<tr><td style="padding:8px;border-bottom:1px solid var(--border);font-size:0.82rem"><strong>${esc(p.id)}</strong> ${esc(p.title.slice(0, 38))}</td>${cols}</tr>`;
+      return `<tr><td style="padding:8px;border-bottom:1px solid var(--border);font-size:0.82rem"><strong>${esc(p.id)}</strong> ${esc(p.title.slice(0, 38))} <span class="badge study">${esc(p.study_type || 'General Study')}</span></td>${cols}</tr>`;
     }).join('');
     const gapsHtml = (mat.gaps || []).map(g => `<div style="font-size:0.8rem;color:#fbbf24;margin-top:4px">⚠ <strong>${esc(g.question_id)}</strong>: ${esc(g.reason)}</div>`).join('');
     mBox.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="padding:8px;border-bottom:1px solid var(--border);text-align:left;font-size:0.78rem">Paper</th>${headers}</tr></thead><tbody>${rows}</tbody></table></div><div style="margin-top:10px">${gapsHtml}</div>`;

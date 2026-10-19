@@ -39,7 +39,10 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
 - **Knowledge Creation (`extract`)** segments abstracts into empirical sentences, infers stance
   (`supports`, `contradicts`, `mentions`) and confidence, records quote-backed claims with
   locators, and links matching research questions.
-- **Papers** carry bibliographic metadata. DOIs, arXiv IDs and normalized title/year pairs are
+- **Papers** carry bibliographic metadata plus searchable tags and a study type (for example
+  `Randomized Controlled Trial`, `Cohort Study`, `Meta-Analysis`, `Computational Study`). Explicit
+  values win; otherwise the type is inferred from the title and abstract and tags are derived from
+  the most informative title/abstract keywords. DOIs, arXiv IDs and normalized title/year pairs are
   deduplicated; a later record fills fields the first one lacked.
 - **Claims** are the unit of knowledge. Every claim needs assertion text, an exact source quote
   and optionally a locator and confidence. A claim cannot exist without provenance.
@@ -55,8 +58,9 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
 - **Snapshots (`export` / `import`)** write and merge portable JSONL graph bundles atomically.
 - **Web Research Studio (`web`)** serves a local, zero-dependency human UI with one-click demo
   seeding, multi-source literature discovery, browser paste-ingestion (BibTeX/RIS/CSV/Markdown),
-  JSONL snapshot download, consensus synthesis, interactive SVG subgraph exploration, and a
-  `Paper x Question` Evidence Matrix & Contradictions tab.
+  literature search by tag, word, full sentence or study type, JSONL snapshot download, consensus
+  synthesis, interactive SVG subgraph exploration whose paper/claim/question nodes carry the study
+  type, and a `Paper x Question` Evidence Matrix & Contradictions tab.
 - **The gate (`check`)** reports broken endpoints, missing quotes, duplicate identifiers,
   support cycles and unlinked evidence.
 
@@ -97,10 +101,10 @@ stdio with tools (`search`, `discover_papers`, `extract_claims`, `get_entity`, `
 
 | Format | Suffix | Notes |
 |---|---|---|
-| BibTeX | `.bib`, `.bibtex` | nested braces and quoted values |
-| RIS | `.ris` | `TY`, `TI`, `AU`, `PY`, `DO`, `UR`, `AB`, `ER` |
-| CSV | `.csv` | header names map to metadata fields |
-| Markdown | `.md`, `.markdown` | YAML-like front matter, heading or filename title |
+| BibTeX | `.bib`, `.bibtex` | nested braces and quoted values; `keywords` and `studytype` |
+| RIS | `.ris` | `TY`, `TI`, `AU`, `PY`, `DO`, `UR`, `AB`, `KW`, `M3`, `ER` |
+| CSV | `.csv` | header names map to metadata fields; `keywords`/`tags`, `study_type`/`type` |
+| Markdown | `.md`, `.markdown` | YAML-like front matter (including `tags` and `study_type`), heading or filename title |
 | Plain text | `.txt` | filename becomes the title, body the abstract |
 
 PDF extraction is intentionally out of scope; convert a PDF to text first.
@@ -136,6 +140,7 @@ lattice/
     ├── test_analysis.py
     ├── test_checks.py
     ├── test_cli.py
+    ├── test_database.py
     ├── test_discovery.py
     ├── test_extraction.py
     ├── test_ingest.py

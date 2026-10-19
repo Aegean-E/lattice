@@ -32,6 +32,10 @@ SAMPLE_OPENALEX_JSON = """{
         {"author": {"display_name": "Ada Lovelace"}},
         {"author": {"display_name": "Grace Hopper"}}
       ],
+      "keywords": [
+        {"display_name": "Evidence Graphs"},
+        {"display_name": "Citation Networks"}
+      ],
       "abstract_inverted_index": {
         "Quote-backed": [0],
         "graphs": [1],
@@ -113,11 +117,15 @@ class DiscoveryTests(unittest.TestCase):
             arxiv="2501.00001",
             url="https://example.org/paper",
             abstract="Structured claims ground automated literature synthesis.",
+            tags="evidence graphs; citation",
+            study_type="Computational Study",
             source="offline",
         )
         metadata = candidate.to_metadata()
         self.assertEqual(metadata["title"], "Graph Epistemology")
         self.assertEqual(metadata["doi"], "10.1000/jair.2025")
+        self.assertEqual(metadata["tags"], "evidence graphs; citation")
+        self.assertEqual(metadata["study_type"], "Computational Study")
         self.assertEqual(candidate.to_dict()["source"], "offline")
 
     def test_registry_registers_and_resolves_providers(self) -> None:
@@ -167,6 +175,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(first.venue, "Nature Machine Intelligence")
         self.assertEqual(first.doi, "10.1000/raeg.2024.01")
         self.assertEqual(first.abstract, "Quote-backed graphs reduce hallucination by 64%.")
+        self.assertEqual(first.tags, "Evidence Graphs, Citation Networks")
 
     def test_europepmc_provider_parses_biomedical_results(self) -> None:
         provider = EuropePmcProvider(fetcher=lambda _url, _timeout: SAMPLE_EUROPEPMC_JSON)

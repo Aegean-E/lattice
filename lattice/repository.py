@@ -12,8 +12,12 @@ from lattice.models import (
     Paper,
     Question,
     bare_id,
+    derive_tags,
     entity_type,
+    infer_study_type,
     next_id,
+    normalize_study_type,
+    normalize_tags,
     normalize_text,
     paper_id,
     parse_confidence,
@@ -22,14 +26,19 @@ from lattice.models import (
     validate_stance,
 )
 
-PAPER_FIELDS = ("kind", "title", "authors", "year", "venue", "doi", "arxiv", "url", "abstract")
+PAPER_FIELDS = ("kind", "title", "authors", "year", "venue", "doi", "arxiv", "url",
+                "abstract", "tags", "study_type")
+_SEARCH_STOPWORDS = frozenset(
+    "a an and are as at be by for from in into is it of on or that the to was were with".split()
+)
 
 
 def _paper(row: sqlite3.Row) -> Paper:
     """Map a papers row to its value object."""
     return Paper(id=row["id"], title=row["title"], authors=row["authors"], year=row["year"],
                  venue=row["venue"], doi=row["doi"], arxiv=row["arxiv"], url=row["url"],
-                 abstract=row["abstract"], kind=row["kind"], created_at=row["created_at"])
+                 abstract=row["abstract"], tags=row["tags"], study_type=row["study_type"],
+                 kind=row["kind"], created_at=row["created_at"])
 
 
 def _claim(row: sqlite3.Row) -> Claim:
@@ -68,6 +77,13 @@ class Repository:
         normalized["doi"] = _normalize_doi(normalized["doi"])
         normalized["arxiv"] = _normalize_arxiv(normalized["arxiv"])
         normalized["kind"] = normalized["kind"] or "paper"
+        normalized["tags"] = normalize_tags(
+            normalized["tags"] or derive_tags(title, normalized["abstract"])
+        )
+        normalized["study_type"] = (
+            normalize_study_type(normalized["study_type"])
+            or infer_study_type(title, normalized["abstract"])
+        )
         existing = self._find_paper(normalized)
         if existing is not None:
             merged = self._merge_paper(existing, normalized)
@@ -77,11 +93,12 @@ class Repository:
         created = utc_now()
         try:
             self.connection.execute(
-                "INSERT INTO papers(id, kind, title, authors, year, venue, doi, arxiv, url, abstract, created_at)"
-                " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO papers(id, kind, title, authors, year, venue, doi, arxiv, url,"
+                " abstract, tags, study_type, created_at)"
+                " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (identifier, normalized["kind"], title, normalized["authors"], normalized["year"],
                  normalized["venue"], normalized["doi"], normalized["arxiv"], normalized["url"],
-                 normalized["abstract"], created),
+                 normalized["abstract"], normalized["tags"], normalized["study_type"], created),
             )
             self.connection.commit()
         except sqlite3.IntegrityError as exc:
@@ -215,6 +232,56 @@ class Repository:
             "questions": [item.to_dict() for item in questions],
         }
 
+    def search_literature(self, query: str = "", tags: str = "", study_type: str = "",
+                          year: Optional[str] = None, limit: int = 20) -> Dict[str, Any]:
+        """Search papers by tags, words, sentences, study type or year."""
+        value = " ".join(str(query or "").split())
+        tag_filter = [tag for tag in normalize_tags(tags).split(", ") if tag]
+        type_filter = normalize_study_type(study_type).lower()
+        year_filter = str(year).strip() if year else None
+        if int(limit) < 1:
+            fail(f"limit {limit} is not positive", "a literature result set needs at least one row",
+                 "pass limit=1 or more")
+        terms = [term for term in normalize_text(value).split()
+                 if len(term) >= 2 and term not in _SEARCH_STOPWORDS]
+        rows = self.connection.execute(
+            "SELECT * FROM papers ORDER BY year DESC, title"
+        ).fetchall()
+        scored: List[Tuple[int, int, Paper]] = []
+        needle = value.lower()
+        normalized_needle = normalize_text(value)
+        for idx, row in enumerate(rows):
+            paper = _paper(row)
+            if year_filter and paper.year != year_filter:
+                continue
+            paper_tags = {tag for tag in normalize_tags(paper.tags).split(", ") if tag}
+            if tag_filter and not set(tag_filter).issubset(paper_tags):
+                continue
+            if type_filter and type_filter not in paper.study_type.lower():
+                continue
+            if value:
+                blob = (
+                    f"{paper.title} {paper.authors} {paper.year} {paper.venue} {paper.doi} "
+                    f"{paper.arxiv} {paper.url} {paper.abstract} {paper.tags} {paper.study_type}"
+                ).lower()
+                score = _lexical_score(needle, terms, blob, paper.title.lower())
+                if (normalized_needle and needle not in blob
+                        and normalized_needle in normalize_text(blob)):
+                    score += 100
+            else:
+                score = 1
+            if score > 0:
+                scored.append((score, -idx, paper))
+        scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        papers = [item[2] for item in scored[:int(limit)]]
+        return {
+            "query": value,
+            "tags": ", ".join(tag_filter),
+            "study_type": normalize_study_type(study_type),
+            "total": len(scored),
+            "papers": [paper.to_dict() for paper in papers],
+        }
+
     def set_question_status(self, question: str, status: str) -> Question:
         """Update a question's lifecycle status ('open', 'answered' or 'abandoned')."""
         entity = self.get_question(question)
@@ -254,10 +321,11 @@ class Repository:
             frontier = next_frontier
             if not frontier:
                 break
-        nodes = [
-            {"ref": node_ref, **self._safe_summary(node_ref)}
-            for node_ref in sorted(visited_nodes)
-        ]
+        nodes = []
+        for node_ref in sorted(visited_nodes):
+            node = {"ref": node_ref, **self._safe_summary(node_ref)}
+            node["study_type"] = self._study_type(node_ref)
+            nodes.append(node)
         edges = [seen_edges[edge_id] for edge_id in sorted(seen_edges)]
         return {"root": root, "depth": int(depth), "nodes": nodes, "edges": edges}
 
@@ -403,9 +471,33 @@ class Repository:
         paper_row = self._row("SELECT * FROM papers WHERE id = ?", claim.paper_id)
         if paper_row:
             paper = _paper(paper_row)
-            value["paper"] = {"id": paper.id, "title": paper.title, "authors": paper.authors,
-                              "year": paper.year, "doi": paper.doi, "venue": paper.venue}
+            value["paper"] = {
+                "id": paper.id, "title": paper.title, "authors": paper.authors,
+                "year": paper.year, "doi": paper.doi, "venue": paper.venue,
+                "tags": paper.tags, "study_type": paper.study_type,
+            }
+            value["study_type"] = paper.study_type
         return value
+
+    def _study_type(self, ref: str) -> str:
+        """The study type behind a paper or claim, or every type linked to a question."""
+        kind = entity_type(ref)
+        if kind == "paper":
+            return self.get_paper(ref).study_type
+        if kind == "claim":
+            return self.get_paper(self.get_claim(ref).paper_id).study_type
+        rows = self.connection.execute(
+            "SELECT DISTINCT p.study_type FROM edges e"
+            " JOIN claims c ON c.id = CASE WHEN e.src LIKE 'claim:%'"
+            "   THEN substr(e.src, 7) ELSE substr(e.dst, 7) END"
+            " JOIN papers p ON p.id = c.paper_id"
+            " WHERE (e.src = ? OR e.dst = ?)"
+            "   AND (e.src LIKE 'claim:%' OR e.dst LIKE 'claim:%')"
+            "   AND p.study_type != ''"
+            " ORDER BY p.study_type",
+            (ref, ref),
+        ).fetchall()
+        return ", ".join(str(row["study_type"]) for row in rows)
 
     def _log(self, action: str, payload: Dict[str, Any]) -> None:
         """Append an immutable audit event."""
