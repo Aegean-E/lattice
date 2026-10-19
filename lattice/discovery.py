@@ -382,3 +382,4 @@ def _extract_crossref_year(item: Dict[str, Any]) -> str:
             if len(first) == 4 and first.isdigit():
                 return first
     return ""
+

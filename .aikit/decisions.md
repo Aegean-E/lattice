@@ -75,4 +75,20 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   subgraphs, and retrieve consensus-scored scientific syntheses via CLI or MCP without losing
   verbatim quote provenance.
 
+### ADR-006: Zero-dependency web Research Studio with pure request dispatch
+- **Date**: 2026-10-19
+- **Status**: Accepted
+- **Context**: Human researchers need an intuitive visual interface for discovering papers,
+  extracting and curating quote-backed claims, synthesizing evidence, and exploring multi-hop
+  subgraphs without installing external frontend frameworks or web servers.
+- **Decision**: Implement `lattice.web` with a pure `dispatch_web_request(repository, method,
+  path, body)` router returning `WebResponse` DTOs and a thin `ThreadingHTTPServer` wrapper in
+  `serve_web` exposed via `python -m lattice web`. Embed a self-contained single-page Research
+  Studio (`WEB_HTML`) with inline CSS, vanilla JS, and interactive SVG subgraph rendering with
+  zero third-party URLs.
+- **Consequences**: Humans can launch the full visual studio with `python -m lattice web --demo
+  --open` offline or online, while unit tests verify all HTML and JSON API routes in under a
+  millisecond without sockets.
+
+
 

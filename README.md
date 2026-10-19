@@ -49,6 +49,9 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
   groups claims into thematic clusters with verbatim quotes, identifies research gaps and
   follow-up queries, and formats resolved Markdown and BibTeX references.
 - **Snapshots (`export` / `import`)** write and merge portable JSONL graph bundles atomically.
+- **Web Research Studio (`web`)** serves a local, zero-dependency human UI with one-click demo
+  seeding, literature discovery, claim extraction, consensus synthesis, and interactive SVG
+  subgraph exploration.
 - **The gate (`check`)** reports broken endpoints, missing quotes, duplicate identifiers,
   support cycles and unlinked evidence.
 
@@ -74,6 +77,7 @@ python -m lattice [--db PATH] [--json] import PATH
 python -m lattice [--db PATH] [--json] stats
 python -m lattice [--db PATH] check
 python -m lattice [--db PATH] mcp
+python -m lattice [--db PATH] web [--host 127.0.0.1] [--port 8765] [--demo] [--open]
 ```
 
 `--json` prints stable machine-readable payloads. `mcp` serves newline-delimited JSON-RPC on

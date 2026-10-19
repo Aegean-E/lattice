@@ -215,3 +215,4 @@ def _safe_add_edge(repository: Repository, src: str, dst: str,
     if existing is not None:
         return None
     return repository.add_edge(src, dst, kind, note=note)
+

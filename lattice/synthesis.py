@@ -316,3 +316,4 @@ def _render_markdown(query_text: str, mode: str, consensus: Dict[str, Any],
     if estimate_tokens(text) > tokens:
         text = text[: tokens * 4].rstrip() + "\n"
     return text
+
