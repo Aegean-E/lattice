@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `29`
-- **Total Classes**: `37`
-- **Total Top-Level Functions**: `137`
-- **Total Class Methods**: `172`
-- **Total Source Lines**: `6232`
+- **Total Python Modules**: `31`
+- **Total Classes**: `39`
+- **Total Top-Level Functions**: `143`
+- **Total Class Methods**: `178`
+- **Total Source Lines**: `6685`
 
 ---
 
@@ -27,6 +27,25 @@
 > *Run the command-line interface with `python -m lattice`.*
 
 **Size**: `8` lines (`154` bytes)
+
+---
+
+### [`lattice/analysis.py`](lattice/analysis.py)
+> *Scientific contradiction detection, keystone entity centrality, and Paper x Question evidence matrices.*
+
+**Size**: `340` lines (`12790` bytes)
+
+**Classes:**
+- `class ContradictionPair` - *An opposing pair of empirical claims sharing a research question or high domain keyword overlap.*
+  - Method `.to_dict()` - *JSON-serializable representation.*
+
+**Functions:**
+- `def _domain_keywords(text)` - *Extract informative domain keywords of length >= 4 from claim text.*
+- `def _claim_question_map(repo)` - *Map bare claim IDs to bare question IDs linked via edges.*
+- `def _find_or_create_contradicts_edge(repo, claim_a_id, claim_b_id, auto_link)` - *Return existing `contradicts` edge ID between two claims, or create one when `auto_link` is True.*
+- `def detect_contradictions(repo, auto_link)` - *Detect pairs of opposing claims (`supports` vs `contradicts`) across questions or domain topics.*
+- `def rank_influential_entities(repo, limit)` - *Rank keystone papers and claims by evidence centrality, citation degree, and confidence.*
+- `def build_evidence_matrix(repo)` - *Build a Paper x Question evidence matrix highlighting stance cells and coverage gaps.*
 
 ---
 
@@ -392,6 +411,21 @@
 > *Regression suite for lattice.*
 
 **Size**: `1` lines (`36` bytes)
+
+---
+
+### [`tests/test_analysis.py`](tests/test_analysis.py)
+> *Unit tests for scientific contradiction detection, keystone centrality, and evidence matrix analysis.*
+
+**Size**: `113` lines (`5043` bytes)
+
+**Classes:**
+- `class TestAnalysis` - *Verify contradiction detection, keystone entity ranking, and Paper x Question evidence matrix.*
+  - Method `.setUp()`
+  - Method `._seed_conflicting_graph()`
+  - Method `.test_detect_contradictions_and_idempotent_auto_link()`
+  - Method `.test_rank_influential_entities_returns_keystone_papers_and_claims()`
+  - Method `.test_build_evidence_matrix_identifies_cells_and_coverage_gaps()`
 
 ---
 

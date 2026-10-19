@@ -109,10 +109,11 @@ lattice/
 ├── lattice/
 │   ├── __init__.py
 │   ├── __main__.py           <- `python -m lattice`
+│   ├── analysis.py           <- contradiction detection, keystone centrality and evidence matrix
 │   ├── checks.py             <- integrity gate: endpoints, provenance, duplicates, cycles
 │   ├── cli.py                <- argument grammar, handlers and human/JSON output
 │   ├── database.py           <- SQLite schema, connection and version refusal
-│   ├── discovery.py          <- pluggable literature discovery (arXiv, Crossref, offline)
+│   ├── discovery.py          <- pluggable literature discovery (arXiv, Crossref, OpenAlex, EuropePMC, offline)
 │   ├── errors.py             <- the Error/Why/Fix triad
 │   ├── extraction.py         <- automated quote-backed claim and edge extraction
 │   ├── ingest.py             <- BibTeX, RIS, CSV, Markdown and text parsers
@@ -125,6 +126,7 @@ lattice/
 │   └── web.py                <- web-based Research Studio UI and JSON API dispatcher
 └── tests/
     ├── __init__.py
+    ├── test_analysis.py
     ├── test_checks.py
     ├── test_cli.py
     ├── test_discovery.py
