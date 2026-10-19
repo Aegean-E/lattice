@@ -5,7 +5,7 @@
     "last_phase": "phase 4",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1792425679.079386
+    "updated_at": 1792425881.5483868
   },
   "checkpoints": [
     {
@@ -159,6 +159,16 @@
       "status": "in_progress",
       "timestamp": 1792425679.079386,
       "timestamp_str": "2026-10-19 19:01:19"
+    },
+    {
+      "task_id": "lattice-v0.3.0",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[milestone 2/3] Add CLI web subcommand with --host, --port, --open, --demo and --dump-html; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792425881.5483868,
+      "timestamp_str": "2026-10-19 19:04:41"
     }
   ]
 }

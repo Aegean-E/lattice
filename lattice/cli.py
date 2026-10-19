@@ -17,6 +17,7 @@ from lattice.mcp import serve
 from lattice.repository import Repository
 from lattice.snapshots import export_snapshot, import_snapshot
 from lattice.synthesis import synthesize
+from lattice.web import dispatch_web_request, serve_web
 
 DEFAULT_DB = "lattice.db"
 
@@ -127,6 +128,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp = commands.add_parser("mcp", help="serve the graph over MCP stdio JSON-RPC")
     mcp.set_defaults(handler=_run_mcp)
+
+    web = commands.add_parser("web", help="launch the human-friendly Research Studio web UI")
+    web.add_argument("--host", default="127.0.0.1", help="bind address (default: 127.0.0.1)")
+    web.add_argument("--port", type=int, default=8765, help="port number (default: 8765)")
+    web.add_argument("--open", action="store_true", dest="open_browser",
+                     help="open the Research Studio in the default web browser")
+    web.add_argument("--demo", action="store_true",
+                     help="seed the built-in demo corpus and claims before starting")
+    web.add_argument("--dump-html", action="store_true",
+                     help="print the self-contained Studio HTML and exit")
+    web.set_defaults(handler=_run_web)
     return parser
 
 
@@ -413,4 +425,21 @@ def _run_check(args: argparse.Namespace, repository: Repository) -> int:
 def _run_mcp(args: argparse.Namespace, repository: Repository) -> int:
     """Serve MCP on stdio; stdout carries protocol messages only."""
     serve(repository)
+    return 0
+
+
+def _run_web(args: argparse.Namespace, repository: Repository) -> int:
+    """Launch the Research Studio web UI, optionally seeding demo data or dumping HTML."""
+    if args.demo:
+        dispatch_web_request(repository, "POST", "/api/demo", "{}")
+    if args.dump_html:
+        response = dispatch_web_request(repository, "GET", "/")
+        print(response.body)
+        return 0
+    serve_web(
+        db_path=args.db,
+        host=args.host,
+        port=args.port,
+        open_browser=args.open_browser,
+    )
     return 0

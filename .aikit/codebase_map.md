@@ -8,9 +8,9 @@
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `29`
 - **Total Classes**: `35`
-- **Total Top-Level Functions**: `134`
-- **Total Class Methods**: `165`
-- **Total Source Lines**: `5969`
+- **Total Top-Level Functions**: `135`
+- **Total Class Methods**: `166`
+- **Total Source Lines**: `6003`
 
 ---
 
@@ -62,7 +62,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `416` lines (`18868` bytes)
+**Size**: `445` lines (`20197` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -87,6 +87,7 @@
 - `def _run_stats(args, repository)` - *Print counts.*
 - `def _run_check(args, repository)` - *Run the integrity gate and return 1 on any error.*
 - `def _run_mcp(args, repository)` - *Serve MCP on stdio; stdout carries protocol messages only.*
+- `def _run_web(args, repository)` - *Launch the Research Studio web UI, optionally seeding demo data or dumping HTML.*
 
 ---
 
@@ -407,7 +408,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `136` lines (`5486` bytes)
+**Size**: `141` lines (`5697` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
@@ -422,6 +423,7 @@
   - Method `.test_user_error_prints_triad()`
   - Method `.test_search_and_stats()`
   - Method `.test_fetch_extract_synthesize_subgraph_and_snapshots()`
+  - Method `.test_web_subcommand_demo_and_dump_html()`
 
 ---
 

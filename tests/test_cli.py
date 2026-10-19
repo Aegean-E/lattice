@@ -131,6 +131,11 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("imported", out)
 
+    def test_web_subcommand_demo_and_dump_html(self):
+        code, out, _ = self.run_cli("web", "--demo", "--dump-html")
+        self.assertEqual(code, 0)
+        self.assertIn("Lattice Research Studio", out)
+
 
 if __name__ == "__main__":
     unittest.main()
