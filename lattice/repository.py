@@ -190,8 +190,10 @@ class Repository:
         return {"ref": resolved, "entity": self._summary(resolved),
                 "edges": [edge.to_dict() for edge in self.neighbors(resolved)]}
 
-    def search(self, query: str, limit: int = 20) -> Dict[str, Any]:
-        """Substring search across paper metadata, claims, quotes and questions."""
+    def search(self, query: str, limit: int = 20, stance: Optional[str] = None,
+               min_confidence: Optional[float] = None,
+               year: Optional[str] = None) -> Dict[str, Any]:
+        """Search papers, claims and questions by phrase or multi-term lexical overlap."""
         value = str(query or "").strip()
         if not value:
             fail("search needs a query", "an empty query would match everything",
@@ -199,22 +201,65 @@ class Repository:
         if limit < 1:
             fail(f"limit {limit} is not positive", "a result set needs at least one row",
                  "pass --limit 1 or more")
-        like = f"%{value}%"
-        papers = [_paper(row) for row in self.connection.execute(
-            "SELECT * FROM papers WHERE title LIKE ? OR authors LIKE ? OR abstract LIKE ?"
-            " OR doi LIKE ? OR arxiv LIKE ? ORDER BY year DESC, title LIMIT ?",
-            (like, like, like, like, like, limit)).fetchall()]
-        claims = [_claim(row) for row in self.connection.execute(
-            "SELECT * FROM claims WHERE text LIKE ? OR quote LIKE ? ORDER BY id LIMIT ?",
-            (like, like, limit)).fetchall()]
-        questions = [_question(row) for row in self.connection.execute(
-            "SELECT * FROM questions WHERE text LIKE ? ORDER BY id LIMIT ?", (like, limit)).fetchall()]
+        stance_filter = validate_stance(stance) if stance else None
+        conf_filter = parse_confidence(min_confidence) if min_confidence is not None else None
+        year_filter = str(year).strip() if year else None
+        terms = [term for term in normalize_text(value).split() if len(term) >= 2]
+        papers = self._search_papers(value, terms, year_filter, limit)
+        claims = self._search_claims(value, terms, stance_filter, conf_filter, year_filter, limit)
+        questions = self._search_questions(value, terms, limit)
         return {
             "query": value,
             "papers": [item.to_dict() for item in papers],
             "claims": [self._claim_dict(item) for item in claims],
             "questions": [item.to_dict() for item in questions],
         }
+
+    def set_question_status(self, question: str, status: str) -> Question:
+        """Update a question's lifecycle status ('open', 'answered' or 'abandoned')."""
+        entity = self.get_question(question)
+        cleaned = str(status or "").strip().lower()
+        if cleaned not in ("open", "answered", "abandoned"):
+            fail(f"unknown question status '{status}'",
+                 "questions are open, answered or abandoned",
+                 "pass --status open, answered or abandoned")
+        self.connection.execute(
+            "UPDATE questions SET status = ? WHERE id = ?",
+            (cleaned, entity.id),
+        )
+        self.connection.commit()
+        self._log("question.status", {"id": entity.id, "status": cleaned})
+        return self.get_question(entity.id)
+
+    def subgraph(self, ref: str, depth: int = 1) -> Dict[str, Any]:
+        """Return the multi-hop neighborhood of nodes and edges around `ref`."""
+        if int(depth) < 1 or int(depth) > 3:
+            fail(f"subgraph depth {depth} is out of range",
+                 "multi-hop traversal supports depths 1 to 3",
+                 "pass --depth 1, 2 or 3")
+        root = self._resolve(ref)
+        self._summary(root)
+        visited_nodes = {root}
+        frontier = {root}
+        seen_edges: Dict[int, Dict[str, Any]] = {}
+        for _ in range(int(depth)):
+            next_frontier = set()
+            for current in sorted(frontier):
+                for edge in self.neighbors(current):
+                    seen_edges[edge.id] = edge.to_dict()
+                    other = edge.dst if edge.src == current else edge.src
+                    if other not in visited_nodes:
+                        visited_nodes.add(other)
+                        next_frontier.add(other)
+            frontier = next_frontier
+            if not frontier:
+                break
+        nodes = [
+            {"ref": node_ref, **self._safe_summary(node_ref)}
+            for node_ref in sorted(visited_nodes)
+        ]
+        edges = [seen_edges[edge_id] for edge_id in sorted(seen_edges)]
+        return {"root": root, "depth": int(depth), "nodes": nodes, "edges": edges}
 
     def neighbors(self, ref: str, kind: Optional[str] = None) -> List[Edge]:
         """Every edge touching `ref`, optionally narrowed to one kind."""
@@ -369,6 +414,79 @@ class Repository:
             (utc_now(), action, json.dumps(payload, sort_keys=True)),
         )
         self.connection.commit()
+
+    def _search_papers(self, raw_query: str, terms: List[str],
+                       year: Optional[str], limit: int) -> List[Paper]:
+        """Rank papers by exact substring match first, then multi-term lexical overlap."""
+        rows = self.connection.execute(
+            "SELECT * FROM papers ORDER BY year DESC, title"
+        ).fetchall()
+        scored: List[Tuple[int, int, Paper]] = []
+        needle = raw_query.lower()
+        for idx, row in enumerate(rows):
+            paper = _paper(row)
+            if year and paper.year != year:
+                continue
+            blob = f"{paper.title} {paper.authors} {paper.abstract} {paper.doi} {paper.arxiv}".lower()
+            score = _lexical_score(needle, terms, blob, paper.title.lower())
+            if score > 0:
+                scored.append((score, -idx, paper))
+        scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        return [item[2] for item in scored[:limit]]
+
+    def _search_claims(self, raw_query: str, terms: List[str],
+                       stance: Optional[str], min_confidence: Optional[float],
+                       year: Optional[str], limit: int) -> List[Claim]:
+        """Rank claims by phrase or multi-term overlap and apply optional filters."""
+        rows = self.connection.execute("SELECT * FROM claims ORDER BY id").fetchall()
+        paper_years = {
+            str(row["id"]): str(row["year"])
+            for row in self.connection.execute("SELECT id, year FROM papers").fetchall()
+        }
+        scored: List[Tuple[int, int, Claim]] = []
+        needle = raw_query.lower()
+        for idx, row in enumerate(rows):
+            claim = _claim(row)
+            if stance and claim.stance != stance:
+                continue
+            if min_confidence is not None and claim.confidence < min_confidence:
+                continue
+            if year and paper_years.get(claim.paper_id) != year:
+                continue
+            blob = f"{claim.text} {claim.quote}".lower()
+            score = _lexical_score(needle, terms, blob, claim.text.lower())
+            if score > 0:
+                scored.append((score, -idx, claim))
+        scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        return [item[2] for item in scored[:limit]]
+
+    def _search_questions(self, raw_query: str, terms: List[str], limit: int) -> List[Question]:
+        """Rank questions by phrase or multi-term overlap."""
+        rows = self.connection.execute("SELECT * FROM questions ORDER BY id").fetchall()
+        scored: List[Tuple[int, int, Question]] = []
+        needle = raw_query.lower()
+        for idx, row in enumerate(rows):
+            question = _question(row)
+            blob = question.text.lower()
+            score = _lexical_score(needle, terms, blob, blob)
+            if score > 0:
+                scored.append((score, -idx, question))
+        scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        return [item[2] for item in scored[:limit]]
+
+
+def _lexical_score(needle: str, terms: List[str], blob: str, primary: str) -> int:
+    """Compute a deterministic relevance score combining exact substring and multi-term hits."""
+    score = 0
+    if needle in blob:
+        score += 100
+    if needle in primary:
+        score += 50
+    if len(terms) > 1:
+        matched_terms = [term for term in terms if term in blob]
+        if len(matched_terms) >= 2 or (len(terms) == 1 and matched_terms):
+            score += sum(3 if term in primary else 1 for term in matched_terms)
+    return score
 
 
 def _normalize_doi(value: str) -> str:

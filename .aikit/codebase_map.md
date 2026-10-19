@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `23`
-- **Total Classes**: `30`
-- **Total Top-Level Functions**: `98`
-- **Total Class Methods**: `139`
-- **Total Source Lines**: `3398`
+- **Total Python Modules**: `25`
+- **Total Classes**: `31`
+- **Total Top-Level Functions**: `106`
+- **Total Class Methods**: `149`
+- **Total Source Lines**: `3862`
 
 ---
 
@@ -267,7 +267,7 @@
 ### [`lattice/repository.py`](lattice/repository.py)
 > *The knowledge graph API: papers, claims, questions, typed edges and evidence queries.*
 
-**Size**: `388` lines (`18694` bytes)
+**Size**: `506` lines (`24359` bytes)
 
 **Classes:**
 - `class Repository` - *One connection's view of the graph; every write is committed before it returns.*
@@ -280,7 +280,9 @@
   - Method `.get_claim(identifier)` - *A claim by bare id or reference.*
   - Method `.get_question(identifier)` - *A question by bare id or reference.*
   - Method `.get(ref)` - *One entity and every edge attached to it.*
-  - Method `.search(query, limit)` - *Substring search across paper metadata, claims, quotes and questions.*
+  - Method `.search(query, limit, stance, min_confidence, year)` - *Search papers, claims and questions by phrase or multi-term lexical overlap.*
+  - Method `.set_question_status(question, status)` - *Update a question's lifecycle status ('open', 'answered' or 'abandoned').*
+  - Method `.subgraph(ref, depth)` - *Return the multi-hop neighborhood of nodes and edges around `ref`.*
   - Method `.neighbors(ref, kind)` - *Every edge touching `ref`, optionally narrowed to one kind.*
   - Method `.evidence(question)` - *Claims linked to a question, grouped by the stance of the link.*
   - Method `.stats()` - *Entity and edge counts for a quick orientation report.*
@@ -293,14 +295,34 @@
   - Method `._safe_summary(ref)` - *Summary of an entity, or a missing marker instead of raising.*
   - Method `._summary(ref)` - *A compact JSON representation of any entity, with paper context for claims.*
   - Method `._log(action, payload)` - *Append an immutable audit event.*
+  - Method `._search_papers(raw_query, terms, year, limit)` - *Rank papers by exact substring match first, then multi-term lexical overlap.*
+  - Method `._search_claims(raw_query, terms, stance, min_confidence, year, limit)` - *Rank claims by phrase or multi-term overlap and apply optional filters.*
+  - Method `._search_questions(raw_query, terms, limit)` - *Rank questions by phrase or multi-term overlap.*
 
 **Functions:**
 - `def _paper(row)` - *Map a papers row to its value object.*
 - `def _claim(row)` - *Map a claims row to its value object.*
 - `def _question(row)` - *Map a questions row to its value object.*
 - `def _edge(row)` - *Map an edges row to its value object.*
+- `def _lexical_score(needle, terms, blob, primary)` - *Compute a deterministic relevance score combining exact substring and multi-term hits.*
 - `def _normalize_doi(value)` - *Strip resolver prefixes and lowercase a DOI.*
 - `def _normalize_arxiv(value)` - *Strip the arXiv prefix from an identifier.*
+
+---
+
+### [`lattice/snapshots.py`](lattice/snapshots.py)
+> *Portable JSONL graph snapshots with atomic write and idempotent merge import.*
+
+**Size**: `212` lines (`8392` bytes)
+
+**Functions:**
+- `def export_snapshot(repository, path)` - *Write all papers, questions, claims and edges to a portable JSONL file atomically.*
+- `def import_snapshot(repository, path)` - *Import a JSONL snapshot idempotently, remapping entity references as needed.*
+- `def _parse_jsonl(lines, label)` - *Parse non-empty JSONL lines and verify each is an object.*
+- `def _import_question(repository, record)` - *Find an existing question with the same text or create it.*
+- `def _import_claim(repository, record, paper_map)` - *Find an existing claim on the target paper or create it.*
+- `def _import_edge(repository, record, paper_map, claim_map, question_map)` - *Remap endpoints and insert the edge if not already present.*
+- `def _remap_ref(ref, paper_map, claim_map, question_map)` - *Translate an exported entity reference to its imported identifier.*
 
 ---
 
@@ -493,5 +515,20 @@
   - Method `.test_evidence_groups_and_gaps()`
   - Method `.test_stats_and_event_log()`
   - Method `.test_neighbors_filter_by_kind()`
+
+---
+
+### [`tests/test_snapshots.py`](tests/test_snapshots.py)
+> *Tests for knowledge interaction: multi-term search, subgraphs, question status, and snapshots.*
+
+**Size**: `134` lines (`5888` bytes)
+
+**Classes:**
+- `class InteractionAndSnapshotTests` - *Verify multi-term search, subgraph traversal, question status, and JSONL snapshot I/O.*
+  - Method `.setUp()`
+  - Method `.test_multi_term_search_and_filters()`
+  - Method `.test_subgraph_traverses_multi_hop_neighborhood()`
+  - Method `.test_set_question_status_updates_and_validates()`
+  - Method `.test_export_and_import_snapshot_roundtrip_is_idempotent()`
 
 ---

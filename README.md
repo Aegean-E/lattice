@@ -100,7 +100,8 @@ lattice/
 │   ├── inquiry.py            <- ask, token-budgeted brief and review outline
 │   ├── mcp.py                <- MCP stdio server and tool dispatch
 │   ├── models.py             <- value objects, identifiers and validators
-│   └── repository.py         <- graph writes, dedupe, search and evidence queries
+│   ├── repository.py         <- graph writes, dedupe, search and evidence queries
+│   └── snapshots.py          <- atomic JSONL graph snapshot export and merge import
 └── tests/
     ├── __init__.py
     ├── test_checks.py
@@ -111,7 +112,8 @@ lattice/
     ├── test_inquiry.py
     ├── test_mcp.py
     ├── test_models.py
-    └── test_repository.py
+    ├── test_repository.py
+    └── test_snapshots.py
 ```
 
 ## Design Notes

@@ -5,7 +5,7 @@
     "last_phase": "phase 4",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1792424518.0185602
+    "updated_at": 1792424728.359994
   },
   "checkpoints": [
     {
@@ -94,6 +94,16 @@
       "status": "in_progress",
       "timestamp": 1792424518.0185602,
       "timestamp_str": "2026-10-19 18:41:58"
+    },
+    {
+      "task_id": "lattice-v0.2.0",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[milestone 3/5] Add multi-term ranked search, multi-hop subgraphs, question status lifecycle, and atomic JSONL snapshots; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792424728.359994,
+      "timestamp_str": "2026-10-19 18:45:28"
     }
   ]
 }
