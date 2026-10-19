@@ -3,27 +3,12 @@
   "active_task": {
     "task_id": "lattice-start-file",
     "last_phase": "phase 4",
-    "active_phase": 4,
-    "status": "in_progress",
-    "updated_at": 1792440274.0927627
+    "active_phase": 5,
+    "status": "completed",
+    "updated_at": 1792440274.0927627,
+    "completed_at": 1792440291.1455183
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-literature-search-study-type",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/5] Data layer: add paper tags and study_type (schema v2 with v1 migration), deterministic study-type inference, and literature search matching tags, words and sentences, with failing-first tests; [2/5] propagate fields through ingest, discovery and manual paper add; [3/5] Web Studio literature search panel (tag chips, word/sentence search, study-type filter) and study-type labels on paper graph nodes; [4/5] README, ADR and knowledge-map refresh; [5/5] Phase 4 gates and delivery",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792434436.7159772,
-      "timestamp_str": "2026-10-19 21:27:16",
-      "impact_assessment": {
-        "why": "User asked for search by tags, words or sentences in the literature area and for study type to appear on graph points, so literature discovery/curation must expose searchable metadata and graph nodes must carry study-type context.",
-        "benefits": "Researchers can find papers in the literature list by keyword phrase, exact sentence, generated/user tags and study type; graph nodes identify the kind of study behind each paper; AI agents receive the same metadata through the shared repository.",
-        "risks": "contract: paper payloads gain two fields, existing v1 databases must migrate without data loss, CLI/MCP/web payloads stay backward-compatible; dependency: standard library only, no new packages; concurrency: schema migration runs once under SQLite's existing connection/busy timeout, no background writers; state: tags/study_type persist in SQLite and JSONL snapshots, inference is deterministic and leaves explicit values untouched.",
-        "mitigation": "add columns through an idempotent v1->v2 migration with a backup-free ADD COLUMN path, keep defaults empty so old snapshots import, cover migration and search in unit tests, and run the full project gates before committing."
-      }
-    },
     {
       "task_id": "lattice-literature-search-study-type",
       "phase": "phase 4",
@@ -233,6 +218,15 @@
       "status": "in_progress",
       "timestamp": 1792440274.0927627,
       "timestamp_str": "2026-10-19 23:04:34"
+    },
+    {
+      "task_id": "lattice-start-file",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-start-file' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792440291.145521,
+      "timestamp_str": "2026-10-19 23:04:51"
     }
   ]
 }
