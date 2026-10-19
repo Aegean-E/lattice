@@ -44,3 +44,18 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Consequences**: Any MCP-capable client can use the graph, and the transport remains testable
   without spawning processes. The server is single-client and does not implement resources,
   prompts or streaming notifications.
+
+### ADR-004: Pluggable literature discovery with offline seed corpus
+- **Date**: 2026-10-19
+- **Status**: Accepted
+- **Context**: Automated literature search needs access to open scholarly catalogs (arXiv, Crossref)
+  while preserving deterministic offline testing, zero third-party dependencies, and strict
+  subprocess/network timeouts.
+- **Decision**: Define a 4-layer pluggable discovery boundary in `lattice.discovery`: immutable
+  `PaperCandidate` DTO, `LiteratureProvider` protocol, `ProviderRegistry`, and concrete
+  `ArxivProvider`, `CrossrefProvider`, and `OfflineCorpusProvider` wired into `DiscoveryService`
+  with constructor DI. Network providers use `urllib.request.urlopen` with an explicit 10-second
+  timeout and injectable fetcher callables for unit testing.
+- **Consequences**: Agents can discover and deduplicate papers from live catalogs or offline
+  corpora through a single contract while unit tests remain sub-millisecond and network-free.
+

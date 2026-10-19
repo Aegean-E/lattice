@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `19`
-- **Total Classes**: `20`
-- **Total Top-Level Functions**: `85`
-- **Total Class Methods**: `110`
-- **Total Source Lines**: `2567`
+- **Total Python Modules**: `21`
+- **Total Classes**: `28`
+- **Total Top-Level Functions**: `90`
+- **Total Class Methods**: `132`
+- **Total Source Lines**: `3089`
 
 ---
 
@@ -94,6 +94,44 @@
 - `def open_database(path)` - *Open or create the database, verify its schema version and return it.*
 - `def _ensure_schema(connection)` - *Create the schema once and refuse a database written by a newer version.*
 - `def schema_version(connection)` - *The declared schema version, or 0 when the metadata row is missing.*
+
+---
+
+### [`lattice/discovery.py`](lattice/discovery.py)
+> *Pluggable automated literature discovery: arXiv, Crossref, and offline scientific seed corpus.*
+
+**Size**: `384` lines (`15814` bytes)
+
+**Classes:**
+- `class PaperCandidate` - *Immutable DTO returned by any literature discovery provider.*
+  - Method `.to_metadata()` - *Dictionary ready for `Repository.add_paper`.*
+  - Method `.to_dict()` - *JSON-serializable representation including discovery source.*
+- `class LiteratureProvider` - *Contract layer for pluggable scientific literature search providers.*
+  - Method `.search(query, limit)` - *Return up to `limit` candidate papers matching `query`.*
+- `class ProviderRegistry` - *Registry layer mapping provider names to `LiteratureProvider` implementations.*
+  - Method `.__init__()`
+  - Method `.register(name, provider)` - *Register or replace a provider by lowercase key.*
+  - Method `.get(name)` - *Look up a registered provider or raise `LatticeError`.*
+  - Method `.names()` - *Sorted list of registered provider names.*
+- `class ArxivProvider` - *Concrete provider querying the arXiv Atom API.*
+  - Method `.__init__(fetcher, timeout)`
+  - Method `.search(query, limit)` - *Search arXiv by query terms and parse Atom XML entries.*
+- `class CrossrefProvider` - *Concrete provider querying the Crossref REST works endpoint.*
+  - Method `.__init__(fetcher, timeout)`
+  - Method `.search(query, limit)` - *Search Crossref works and normalize bibliographic items.*
+- `class OfflineCorpusProvider` - *Deterministic local provider over a curated seed catalog for offline/instant search.*
+  - Method `.__init__(records)`
+  - Method `.search(query, limit)` - *Rank local corpus records by token overlap with `query`.*
+- `class DiscoveryService` - *Orchestration layer with constructor DI for discovering and ingesting papers.*
+  - Method `.__init__(repository, registry)`
+  - Method `.discover(query, source, limit, ingest)` - *Search `source` for `query` and optionally ingest discovered papers into the graph.*
+
+**Functions:**
+- `def _http_get(url, timeout)` - *Perform a bounded HTTP GET with a scholarly User-Agent header.*
+- `def default_registry()` - *Create the default provider registry with offline, arXiv, and Crossref adapters.*
+- `def _validate_search_args(query, limit)` - *Ensure a discovery query is non-empty and `limit` is positive.*
+- `def _format_crossref_authors(authors)` - *Join Crossref author objects into `Given Family; Given Family`.*
+- `def _extract_crossref_year(item)` - *Extract a 4-digit publication year from Crossref date-parts.*
 
 ---
 
@@ -287,6 +325,23 @@
   - Method `.test_check_passes_and_reports()`
   - Method `.test_user_error_prints_triad()`
   - Method `.test_search_and_stats()`
+
+---
+
+### [`tests/test_discovery.py`](tests/test_discovery.py)
+> *Tests for pluggable automated literature discovery (arXiv, Crossref, and offline corpus).*
+
+**Size**: `138` lines (`5926` bytes)
+
+**Classes:**
+- `class DiscoveryTests` - *Verify the 4-layer discovery boundary: DTOs, registry, providers, and service DI.*
+  - Method `.setUp()`
+  - Method `.test_paper_candidate_is_frozen_and_converts_to_metadata()`
+  - Method `.test_registry_registers_and_resolves_providers()`
+  - Method `.test_arxiv_provider_parses_atom_xml()`
+  - Method `.test_crossref_provider_parses_json_and_strips_jats_tags()`
+  - Method `.test_offline_provider_searches_curated_seed_catalog()`
+  - Method `.test_discovery_service_ingests_and_deduplicates()`
 
 ---
 

@@ -93,6 +93,7 @@ lattice/
 │   ├── checks.py             <- integrity gate: endpoints, provenance, duplicates, cycles
 │   ├── cli.py                <- argument grammar, handlers and human/JSON output
 │   ├── database.py           <- SQLite schema, connection and version refusal
+│   ├── discovery.py          <- pluggable literature discovery (arXiv, Crossref, offline)
 │   ├── errors.py             <- the Error/Why/Fix triad
 │   ├── ingest.py             <- BibTeX, RIS, CSV, Markdown and text parsers
 │   ├── inquiry.py            <- ask, token-budgeted brief and review outline
@@ -103,6 +104,7 @@ lattice/
     ├── __init__.py
     ├── test_checks.py
     ├── test_cli.py
+    ├── test_discovery.py
     ├── test_ingest.py
     ├── test_inquiry.py
     ├── test_mcp.py
