@@ -242,6 +242,21 @@ class CliTests(unittest.TestCase):
         self.assertIn("keystone", payload)
         self.assertIn("matrix", payload)
 
+    def test_start_file_default_and_forwarding(self):
+        import unittest.mock
+        import start as start_module
+
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = start_module.start(["start.py", "--db", self.db, "stats"])
+        self.assertEqual(code, 0)
+        self.assertIn("papers:", out.getvalue())
+
+        with unittest.mock.patch("lattice.cli.serve_web", return_value=0) as mock_serve:
+            code = start_module.start(["start.py"])
+            self.assertEqual(code, 0)
+            mock_serve.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

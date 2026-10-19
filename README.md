@@ -15,6 +15,10 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
   ```
 - **Try it now** (under 10 seconds, from this folder):
   ```bash
+  # Option A: 1-Click interactive Web Research Studio
+  python start.py         # or ./start.sh (Mac/Linux), or double-click start.bat (Windows)
+
+  # Option B: CLI fast path
   python -m lattice init
   python -m lattice question "Does slow-wave sleep consolidate memory?"
   python -m lattice fetch "slow-wave sleep memory" --source offline
@@ -132,6 +136,9 @@ lattice/
 ├── .gitignore                <- local databases and transient AIKit state
 ├── README.md
 ├── pyproject.toml            <- package metadata and the `lattice` console script
+├── start.py                  <- 1-click launcher for Web Research Studio and CLI
+├── start.bat                 <- Windows batch launcher
+├── start.sh                  <- POSIX shell launcher
 ├── lattice/
 │   ├── __init__.py
 │   ├── __main__.py           <- `python -m lattice`

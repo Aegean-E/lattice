@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `34`
+- **Total Python Modules**: `35`
 - **Total Classes**: `43`
-- **Total Top-Level Functions**: `172`
-- **Total Class Methods**: `220`
-- **Total Source Lines**: `9276`
+- **Total Top-Level Functions**: `173`
+- **Total Class Methods**: `221`
+- **Total Source Lines**: `9317`
 
 ---
 
@@ -450,6 +450,16 @@
 
 ---
 
+### [`start.py`](start.py)
+> *Start file launcher for the Lattice Research Studio and CLI.*
+
+**Size**: `26` lines (`772` bytes)
+
+**Functions:**
+- `def start(argv)` - *Launch the Lattice Web Research Studio by default, or forward custom CLI arguments.*
+
+---
+
 ### [`tests/__init__.py`](tests/__init__.py)
 > *Regression suite for lattice.*
 
@@ -499,7 +509,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `248` lines (`10949` bytes)
+**Size**: `263` lines (`11583` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
@@ -519,6 +529,7 @@
   - Method `.test_outline_command_reports_a_cheap_index()`
   - Method `.test_compact_token_views_for_related_subgraph_and_search()`
   - Method `.test_analyze_subcommand()`
+  - Method `.test_start_file_default_and_forwarding()`
 
 ---
 

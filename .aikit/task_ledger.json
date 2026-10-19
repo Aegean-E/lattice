@@ -1,33 +1,13 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "lattice-web-outline-bibtex-export",
+    "task_id": "lattice-start-file",
     "last_phase": "phase 4",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1792440048.6235275,
-    "completed_at": 1792440061.6663306
+    "active_phase": 4,
+    "status": "in_progress",
+    "updated_at": 1792440274.0927627
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-v0.4.0",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[milestone 4/4] ADR-007, README and v0.4.0 release verified (checklists: passed)",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792433918.116369,
-      "timestamp_str": "2026-10-19 21:18:38"
-    },
-    {
-      "task_id": "lattice-v0.4.0",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-v0.4.0' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792433918.264747,
-      "timestamp_str": "2026-10-19 21:18:38"
-    },
     {
       "task_id": "lattice-literature-search-study-type",
       "phase": "phase 2",
@@ -227,6 +207,32 @@
       "status": "completed",
       "timestamp": 1792440061.666332,
       "timestamp_str": "2026-10-19 23:01:01"
+    },
+    {
+      "task_id": "lattice-start-file",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/2] Add start.py launcher with companion start.bat and start.sh for 1-click startup, and tests in test_cli.py. [2/2] Update README, refresh codebase map, and run Phase 4 delivery gates.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792440181.8882012,
+      "timestamp_str": "2026-10-19 23:03:01",
+      "impact_assessment": {
+        "why": "Users need a single intuitive start file (start.py, start.bat, start.sh) to launch the Lattice Research Studio in browser without having to remember the full module syntax.",
+        "benefits": "Allows 1-click double-click startup on Windows, instant terminal launch via python start.py or ./start.sh, and transparent forwarding of custom CLI arguments.",
+        "risks": "contract: existing python -m lattice and lattice CLI entrypoints remain unchanged; dependency: standard library only; concurrency: none; state: none.",
+        "mitigation": "Delegate all execution to existing lattice.cli.main(), keep start.py self-contained, and test default and forwarded invocations in test_cli.py."
+      }
+    },
+    {
+      "task_id": "lattice-start-file",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[1/2]-[2/2] Verified: start.py launcher with companion start.bat and start.sh; defaults to web studio and forwards CLI commands; tests pass; README updated; codebase map regenerated; aikit check lattice 4/4 gates (test, hygiene, guidelines, secrets); checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792440274.0927627,
+      "timestamp_str": "2026-10-19 23:04:34"
     }
   ]
 }
