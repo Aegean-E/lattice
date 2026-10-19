@@ -15,6 +15,7 @@ from lattice.analysis import (
     related_findings,
 )
 from lattice.checks import run_checks
+from lattice.context import compact_related, compact_search, compact_subgraph, outline
 from lattice.database import SCHEMA_VERSION, open_database
 from lattice.discovery import DiscoveryService
 from lattice.errors import LatticeError, fail
@@ -95,6 +96,8 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--stance", default=None, help="filter claims by stance")
     search.add_argument("--min-confidence", type=float, default=None, help="minimum claim confidence")
     search.add_argument("--year", default=None, help="filter papers and claims by publication year")
+    search.add_argument("--tokens", type=int, default=0,
+                        help="compact JSON token budget (0 = full payload)")
     search.set_defaults(handler=_run_search)
 
     show = commands.add_parser("show", help="show one entity and its edges")
@@ -104,6 +107,8 @@ def build_parser() -> argparse.ArgumentParser:
     subgraph = commands.add_parser("subgraph", help="traverse multi-hop neighborhood around an entity")
     subgraph.add_argument("ref", help="paper, claim or question reference")
     subgraph.add_argument("--depth", type=int, default=1, help="traversal depth (1 to 3)")
+    subgraph.add_argument("--tokens", type=int, default=0,
+                          help="compact JSON token budget (0 = full payload)")
     subgraph.set_defaults(handler=_run_subgraph)
 
     related = commands.add_parser(
@@ -111,7 +116,15 @@ def build_parser() -> argparse.ArgumentParser:
     related.add_argument("ref", help="paper, claim or question reference")
     related.add_argument("--limit", type=int, default=10,
                          help="maximum related findings to return (default: 10)")
+    related.add_argument("--tokens", type=int, default=0,
+                         help="compact JSON token budget (0 = full payload)")
     related.set_defaults(handler=_run_related)
+
+    outline_parser = commands.add_parser(
+        "outline", help="cheap graph index: counts, study types and evidenced questions")
+    outline_parser.add_argument("--tokens", type=int, default=400,
+                                help="question-list token budget (default: 400)")
+    outline_parser.set_defaults(handler=_run_outline)
 
     ask_parser = commands.add_parser("ask", help="assemble evidence for a question")
     ask_parser.add_argument("target", help="question reference, question text or phrase")
@@ -322,7 +335,8 @@ def _run_search(args: argparse.Namespace, repository: Repository) -> int:
     lines += [f"Questions ({len(result['questions'])}):"]
     lines += [f"  [{question['id']}] {question['text']}"
               for question in result["questions"]] or ["  none"]
-    _emit(result, lines, args.json)
+    payload = compact_search(result, args.tokens) if args.tokens else result
+    _emit(payload, lines, args.json)
     return 0
 
 
@@ -353,7 +367,8 @@ def _run_subgraph(args: argparse.Namespace, repository: Repository) -> int:
     lines.append(f"Edges ({len(result['edges'])}):")
     for edge in result["edges"]:
         lines.append(f"  {edge['src']} -{edge['kind']}-> {edge['dst']}")
-    _emit(result, lines, args.json)
+    payload = compact_subgraph(result, args.tokens) if args.tokens else result
+    _emit(payload, lines, args.json)
     return 0
 
 
@@ -371,6 +386,32 @@ def _run_related(args: argparse.Namespace, repository: Repository) -> int:
         lines.append(f"    why: {item['reason']}")
     if not result["related"]:
         lines.append("  none")
+    payload = compact_related(result, args.tokens) if args.tokens else result
+    _emit(payload, lines, args.json)
+    return 0
+
+
+def _run_outline(args: argparse.Namespace, repository: Repository) -> int:
+    """Print a cheap orientation index before an agent expands a reference."""
+    result = outline(repository, args.tokens)
+    counts = result["counts"]
+    lines = [f"Graph: {counts['papers']} papers, {counts['claims']} claims, "
+             f"{counts['questions']} questions, {counts['edges']} edges"]
+    if result["edge_kinds"]:
+        kinds = ", ".join(f"{kind} ({count})" for kind, count in result["edge_kinds"].items())
+        lines.append(f"Edges: {kinds}")
+    if result["study_types"]:
+        types = ", ".join(f"{item['study_type']} ({item['papers']})"
+                          for item in result["study_types"])
+        lines.append(f"Study types: {types}")
+    lines.append(f"Questions ({len(result['questions'])} shown, "
+                 f"{result['omitted_questions']} omitted):")
+    for item in result["questions"]:
+        lines.append(f"  [{item['ref']}] {item['text']} - {item['status']}, "
+                     f"{item['evidence']} evidence")
+    if not result["questions"]:
+        lines.append("  none")
+    lines.append(result["next"])
     _emit(result, lines, args.json)
     return 0
 

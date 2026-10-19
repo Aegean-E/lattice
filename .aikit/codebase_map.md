@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `32`
-- **Total Classes**: `42`
-- **Total Top-Level Functions**: `161`
-- **Total Class Methods**: `205`
-- **Total Source Lines**: `8477`
+- **Total Python Modules**: `34`
+- **Total Classes**: `43`
+- **Total Top-Level Functions**: `170`
+- **Total Class Methods**: `216`
+- **Total Source Lines**: `8988`
 
 ---
 
@@ -88,7 +88,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `542` lines (`23893` bytes)
+**Size**: `583` lines (`26155` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -105,6 +105,7 @@
 - `def _run_show(args, repository)` - *Show one entity and each attached edge.*
 - `def _run_subgraph(args, repository)` - *Traverse and print the multi-hop neighborhood around an entity.*
 - `def _run_related(args, repository)` - *List findings connected to an entity, with the reason for each connection.*
+- `def _run_outline(args, repository)` - *Print a cheap orientation index before an agent expands a reference.*
 - `def _run_ask(args, repository)` - *Assemble and print evidence.*
 - `def _run_brief(args, repository)` - *Print a token-budgeted evidence pack.*
 - `def _run_review(args, repository)` - *Print or write a review outline.*
@@ -116,6 +117,23 @@
 - `def _run_mcp(args, repository)` - *Serve MCP on stdio; stdout carries protocol messages only.*
 - `def _run_web(args, repository)` - *Launch the Research Studio web UI, optionally seeding demo data or dumping HTML.*
 - `def _run_analyze(args, repository)` - *Detect contradictions and related findings, rank keystones, and build the matrix.*
+
+---
+
+### [`lattice/context.py`](lattice/context.py)
+> *Token-budgeted context views for AI agents: peek, search, expand, drill down.*
+
+**Size**: `202` lines (`7652` bytes)
+
+**Functions:**
+- `def _budget(tokens)` - *Validate a token budget and return it as an integer.*
+- `def _truncate(text, limit)` - *Collapse whitespace and shorten a value to `limit` characters.*
+- `def _cost(item)` - *Estimated tokens of one JSON item.*
+- `def _pack(items, tokens)` - *Keep as many leading items as fit, returning `(kept, omitted, used_tokens)`.*
+- `def outline(repository, tokens)` - *A cheap orientation map: counts, edge kinds, study types and evidenced questions.*
+- `def compact_search(result, tokens)` - *Search hits as short handles, split across papers, claims and questions.*
+- `def compact_related(result, tokens)` - *Related-finding navigation as short snippets, reasons and next-hop refs.*
+- `def compact_subgraph(result, tokens)` - *A subgraph as short node labels and bare edges, trimmed around a token budget.*
 
 ---
 
@@ -267,7 +285,7 @@
 ### [`lattice/mcp.py`](lattice/mcp.py)
 > *A dependency-free MCP stdio server exposing the graph as JSON-RPC tools.*
 
-**Size**: `328` lines (`16135` bytes)
+**Size**: `343` lines (`17193` bytes)
 
 **Functions:**
 - `def _tool(name, description, properties, required)` - *An MCP tool declaration with a JSON Schema for its arguments.*
@@ -478,7 +496,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `181` lines (`7612` bytes)
+**Size**: `234` lines (`10271` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
@@ -495,7 +513,26 @@
   - Method `.test_search_and_stats()`
   - Method `.test_fetch_extract_synthesize_subgraph_and_snapshots()`
   - Method `.test_web_subcommand_demo_and_dump_html()`
+  - Method `.test_outline_command_reports_a_cheap_index()`
+  - Method `.test_compact_token_views_for_related_subgraph_and_search()`
   - Method `.test_analyze_subcommand()`
+
+---
+
+### [`tests/test_context.py`](tests/test_context.py)
+> *Unit tests for the token-budgeted, RLM-style AI context views.*
+
+**Size**: `153` lines (`6717` bytes)
+
+**Classes:**
+- `class ContextViewTests` - *Verify compact payloads, truncation, omission counts and the budget floor.*
+  - Method `.setUp()`
+  - Method `.test_outline_reports_counts_questions_and_study_types()`
+  - Method `.test_outline_omits_questions_over_a_small_budget()`
+  - Method `.test_compact_search_truncates_items_and_reports_omissions()`
+  - Method `.test_compact_related_drops_full_text_but_keeps_reasons_and_refs()`
+  - Method `.test_compact_subgraph_keeps_only_edges_between_kept_nodes()`
+  - Method `.test_budgets_below_the_floor_fail_with_the_triad()`
 
 ---
 
@@ -599,7 +636,7 @@
 ### [`tests/test_mcp.py`](tests/test_mcp.py)
 > *MCP JSON-RPC contracts and stdio framing.*
 
-**Size**: `174` lines (`8377` bytes)
+**Size**: `221` lines (`11129` bytes)
 
 **Classes:**
 - `class McpTests` - *Call the protocol handler directly; no sockets or spawns.*
@@ -610,6 +647,8 @@
   - Method `.test_tools_list()`
   - Method `.test_related_findings_tool_navigates_and_links()`
   - Method `.test_add_question_and_search()`
+  - Method `.test_search_budget_omits_lower_ranked_hits()`
+  - Method `.test_outline_tool_returns_a_cheap_index()`
   - Method `.test_add_claim_reports_missing_paper()`
   - Method `.test_unknown_method()`
   - Method `.test_invalid_request()`

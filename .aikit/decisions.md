@@ -164,6 +164,38 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   graph during extraction, so every edge carries a human-readable note and can be deleted like any
   other edge; the cap keeps dense corpora readable.
 
+## ADR-010: Token-frugal, RLM-style AI context views (2026-10-19)
+
+- **Status**: Accepted
+- **Context**: The MCP read tools returned full repository payloads: `search` included complete
+  paper abstracts, `subgraph` edges repeated each endpoint's summary inside `details`, and
+  `related_findings` carried whole claim texts plus paper titles. On a three-paper demo those
+  calls cost roughly 944, 1763 and 427 tokens; on a real corpus an agent could exhaust its context
+  before reasoning. The user asked for RLM-style navigation that does not spend many tokens.
+- **Decision**:
+  1. Add `lattice.context` with pure functions over the existing payloads: `outline`,
+     `compact_search`, `compact_related` and `compact_subgraph`. Each truncates long text, keeps a
+     stable `ref` on every item, packs items within a token budget, and reports `omitted_*` counts
+     instead of silently overflowing. Budgets below `MIN_TOKENS` (100) fail with the Error/Why/Fix
+     triad.
+  2. Treat the graph as an external context. `outline` is the cheap first peek (counts, edge
+     kinds, study-type mix and evidenced question refs, about 120 tokens on the demo); compact
+     search and related/subgraph views are bounded expansion steps; `get_entity` remains the
+     explicit full-text drill-down for one chosen ref. Every view ends with a short `next` hint so
+     an agent can recurse without guessing the tool grammar.
+  3. MCP `search`, `related_findings` and `subgraph` return compact views by default and accept a
+     `tokens` argument (800, 600 and 800). Add the MCP `outline` tool (400) and expose `tags` and
+     `study_type` on `add_paper`. `get_entity` and `neighbors` are unchanged.
+  4. The CLI gains `outline [--tokens N]` and `--tokens N` on `search`, `related` and `subgraph`;
+     without the flag humans and scripts keep the full payloads. The web UI continues to use full
+     subgraphs because it renders the complete map.
+- **Consequences**: Default MCP payloads shrink substantially on the demo (`search` 944 to 288,
+  `related` 427 to 316, `subgraph` 1763 to 394 tokens; `outline` 123) while every omitted item
+  stays reachable by ref. Budgets bound the item lists, not the small JSON envelope, so callers
+  should treat them as guidance rather than exact caps. Compact views are additive and the full
+  repository functions are unchanged; only MCP consumers that relied on fields such as `id`,
+  `paper_title`, `text` or edge `details` need to use `ref`/`snippet` and drill down.
+
 
 
 

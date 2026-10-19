@@ -14,6 +14,7 @@ from lattice.analysis import (
     rank_influential_entities,
     related_findings,
 )
+from lattice.context import compact_related, compact_search, compact_subgraph, outline
 from lattice.discovery import DiscoveryService
 from lattice.errors import LatticeError
 from lattice.extraction import extract_all, extract_from_paper
@@ -34,10 +35,12 @@ def _tool(name: str, description: str, properties: Dict[str, Any],
 
 
 TOOLS: List[Dict[str, Any]] = [
-    _tool("search", "Search papers, claims and questions by phrase or multi-term overlap.",
+    _tool("search", "Search papers, claims and questions by phrase or multi-term overlap; "
+          "returns compact refs, snippets and omitted counts under a token budget.",
           {"query": {"type": "string"}, "limit": {"type": "integer", "default": 20},
            "stance": {"type": "string"}, "min_confidence": {"type": "number"},
-           "year": {"type": "string"}}, ["query"]),
+           "year": {"type": "string"}, "tokens": {"type": "integer", "default": 800}},
+          ["query"]),
     _tool("discover_papers", "Search offline, arXiv, Crossref, OpenAlex, or EuropePMC catalogs and ingest papers.",
           {"query": {"type": "string"}, "source": {"type": "string", "default": "offline"},
            "limit": {"type": "integer", "default": 10},
@@ -48,17 +51,23 @@ TOOLS: List[Dict[str, Any]] = [
           {"ref": {"type": "string"}}, ["ref"]),
     _tool("neighbors", "List edges touching an entity, optionally filtered by kind.",
           {"ref": {"type": "string"}, "kind": {"type": "string"}}, ["ref"]),
-    _tool("subgraph", "Traverse the multi-hop neighborhood (depth 1-3) around an entity.",
-          {"ref": {"type": "string"}, "depth": {"type": "integer", "default": 1}}, ["ref"]),
+    _tool("subgraph", "Traverse the multi-hop neighborhood (depth 1-3) around an entity as "
+          "compact refs and bare edges under a token budget; omitted nodes are reported.",
+          {"ref": {"type": "string"}, "depth": {"type": "integer", "default": 1},
+           "tokens": {"type": "integer", "default": 800}}, ["ref"]),
     _tool("related_findings", "List findings connected to a claim, paper or question with the "
-          "relation, the reason and a next-hop reference for each.",
-          {"target": {"type": "string"}, "limit": {"type": "integer", "default": 10}},
-          ["target"]),
+          "relation, reason and next-hop ref; snippets are budgeted and omissions reported.",
+          {"target": {"type": "string"}, "limit": {"type": "integer", "default": 10},
+           "tokens": {"type": "integer", "default": 600}}, ["target"]),
+    _tool("outline", "Cheap orientation map: counts, edge kinds, study-type mix and evidenced "
+          "question refs, so an agent can choose where to expand next.",
+          {"tokens": {"type": "integer", "default": 400}}, []),
     _tool("add_paper", "Ingest one paper; duplicate DOIs, arXiv IDs and titles are merged.",
           {"title": {"type": "string"}, "authors": {"type": "string"},
            "year": {"type": "string"}, "venue": {"type": "string"}, "doi": {"type": "string"},
            "arxiv": {"type": "string"}, "url": {"type": "string"},
-           "abstract": {"type": "string"}}, ["title"]),
+           "abstract": {"type": "string"}, "tags": {"type": "string"},
+           "study_type": {"type": "string"}}, ["title"]),
     _tool("add_claim", "Record a claim with the exact quote that grounds it.",
           {"paper": {"type": "string"}, "text": {"type": "string"},
            "quote": {"type": "string"}, "locator": {"type": "string"},
@@ -205,13 +214,13 @@ def _get_prompt(repository: Repository, request_id: Any, params: Any) -> Dict[st
 def _dispatch(repository: Repository, name: str, arguments: Dict[str, Any]) -> Any:
     """Map a tool name to its repository, discovery, extraction or synthesis operation."""
     if name == "search":
-        return repository.search(
+        return compact_search(repository.search(
             _text(arguments, "query"),
             int(arguments.get("limit", 20)),
             stance=arguments.get("stance"),
             min_confidence=arguments.get("min_confidence"),
             year=arguments.get("year"),
-        )
+        ), int(arguments.get("tokens", 800)))
     if name == "discover_papers":
         service = DiscoveryService(repository)
         return service.discover(
@@ -232,10 +241,16 @@ def _dispatch(repository: Repository, name: str, arguments: Dict[str, Any]) -> A
         return [edge.to_dict() for edge in repository.neighbors(
             _text(arguments, "ref"), arguments.get("kind"))]
     if name == "subgraph":
-        return repository.subgraph(_text(arguments, "ref"), int(arguments.get("depth", 1)))
+        return compact_subgraph(
+            repository.subgraph(_text(arguments, "ref"), int(arguments.get("depth", 1))),
+            int(arguments.get("tokens", 800)))
     if name == "related_findings":
-        return related_findings(repository, _text(arguments, "target"),
-                                int(arguments.get("limit", 10)))
+        return compact_related(
+            related_findings(repository, _text(arguments, "target"),
+                             int(arguments.get("limit", 10))),
+            int(arguments.get("tokens", 600)))
+    if name == "outline":
+        return outline(repository, int(arguments.get("tokens", 400)))
     if name == "add_paper":
         paper, created = repository.add_paper(arguments)
         return {"paper": paper.to_dict(), "created": created}

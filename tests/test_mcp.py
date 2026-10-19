@@ -31,8 +31,11 @@ class McpTests(unittest.TestCase):
 
     def test_tools_list(self):
         names = {tool["name"] for tool in self.call("tools/list")["result"]["tools"]}
-        self.assertTrue({"search", "add_claim", "brief", "review", "stats",
+        self.assertTrue({"search", "add_claim", "brief", "review", "stats", "outline",
                          "related_findings"} <= names)
+        search = next(tool for tool in self.call("tools/list")["result"]["tools"]
+                      if tool["name"] == "search")
+        self.assertEqual(search["inputSchema"]["properties"]["tokens"]["default"], 800)
 
     def test_related_findings_tool_navigates_and_links(self):
         q = json.loads(self.tool("add_question", {"text": "Does sleep consolidate memory?"})
@@ -57,7 +60,10 @@ class McpTests(unittest.TestCase):
         navigation = json.loads(self.tool("related_findings", {
             "target": f"claim:{c1['id']}"})["result"]["content"][0]["text"])
         self.assertEqual(navigation["count"], 1)
-        self.assertEqual(navigation["related"][0]["id"], c2["id"])
+        self.assertEqual(navigation["related"][0]["ref"], f"claim:{c2['id']}")
+        self.assertIn("snippet", navigation["related"][0])
+        self.assertNotIn("text", navigation["related"][0])
+        self.assertEqual(navigation["omitted"], 0)
 
         analysis = json.loads(self.tool("analyze_graph", {"auto_link": True})
                               ["result"]["content"][0]["text"])
@@ -70,6 +76,43 @@ class McpTests(unittest.TestCase):
         self.assertEqual(payload["question"]["id"], "q_000001")
         found = json.loads(self.tool("search", {"query": "sleep"})["result"]["content"][0]["text"])
         self.assertEqual(len(found["questions"]), 1)
+        self.assertEqual(found["questions"][0]["ref"], "question:q_000001")
+        self.assertEqual(found["omitted_questions"], 0)
+
+    def test_search_budget_omits_lower_ranked_hits(self):
+        for index in range(12):
+            self.tool("add_question", {"text": f"Sleep question number {index}?"})
+        generous = json.loads(
+            self.tool("search", {"query": "sleep", "tokens": 800})["result"]["content"][0]["text"])
+        tight = json.loads(
+            self.tool("search", {"query": "sleep", "tokens": 120})["result"]["content"][0]["text"])
+        self.assertGreater(len(generous["questions"]), len(tight["questions"]))
+        self.assertGreater(tight["omitted_questions"], 0)
+
+    def test_outline_tool_returns_a_cheap_index(self):
+        question = json.loads(
+            self.tool("add_question", {"text": "Does sleep consolidate memory?"})
+            ["result"]["content"][0]["text"])["question"]
+        paper = json.loads(
+            self.tool("add_paper", {"title": "Sleep Trial",
+                                    "study_type": "Randomized Controlled Trial"})
+            ["result"]["content"][0]["text"])["paper"]
+        claim = json.loads(
+            self.tool("add_claim", {"paper": paper["id"], "text": "Sleep improved recall.",
+                                    "quote": "Sleep improved recall by 28%."})
+            ["result"]["content"][0]["text"])["claim"]
+        self.tool("add_edge", {"src": f"claim:{claim['id']}",
+                               "dst": f"question:{question['id']}", "kind": "answers"})
+
+        result = json.loads(
+            self.tool("outline", {"tokens": 300})["result"]["content"][0]["text"])
+        self.assertEqual(result["counts"]["papers"], 1)
+        self.assertEqual(result["counts"]["claims"], 1)
+        self.assertEqual(result["questions"][0]["ref"], f"question:{question['id']}")
+        self.assertEqual(result["questions"][0]["evidence"], 1)
+        self.assertEqual(result["study_types"][0]["study_type"],
+                         "Randomized Controlled Trial")
+        self.assertIn("get_entity", result["next"])
 
     def test_add_claim_reports_missing_paper(self):
         response = self.tool("add_claim", {"paper": "p_missing", "text": "Claim",
@@ -120,6 +163,10 @@ class McpTests(unittest.TestCase):
 
         sub = json.loads(self.tool("subgraph", {"ref": qid, "depth": 1})["result"]["content"][0]["text"])
         self.assertGreaterEqual(len(sub["nodes"]), 2)
+        self.assertIn("omitted_nodes", sub)
+        self.assertIn("omitted_edges", sub)
+        self.assertTrue(all(set(edge) == {"src", "dst", "kind"} for edge in sub["edges"]))
+        self.assertNotIn("details", sub["nodes"][0])
 
         status_res = json.loads(self.tool("set_question_status", {"question": qid, "status": "answered"})["result"]["content"][0]["text"])
         self.assertEqual(status_res["question"]["status"], "answered")

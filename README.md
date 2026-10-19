@@ -54,6 +54,11 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
   questions or domain keywords (with optional `--auto-link`), links related findings through
   deterministic `related` edges, ranks keystone papers and claims by evidence centrality, and
   builds a `Paper x Question` evidence matrix with coverage gaps.
+- **Token-frugal AI context (`outline`)** treats the graph as an external context. An agent peeks
+  at a cheap index (counts, edge kinds, study-type mix and evidenced question refs), expands
+  compact search or finding snippets that keep a stable `ref`, and pays for full text only by
+  drilling into one ref. MCP `search`, `related_findings` and `subgraph` are compact and budgeted
+  by default (`tokens` argument), and every trimmed list reports its omissions.
 - **Synthesis (`synthesize`)** computes a confidence-weighted consensus score in `[-1.0, 1.0]`,
   groups claims into thematic clusters with verbatim quotes, identifies research gaps and
   follow-up queries, and formats resolved Markdown and BibTeX references.
@@ -77,10 +82,11 @@ python -m lattice [--db PATH] [--json] extract [PAPER_REF] [--all] [--question Q
 python -m lattice [--db PATH] [--json] claim --paper REF --text TEXT --quote QUOTE
 python -m lattice [--db PATH] [--json] question TEXT
 python -m lattice [--db PATH] [--json] link SRC DST --type KIND
-python -m lattice [--db PATH] [--json] search QUERY [--stance S] [--min-confidence C] [--year Y]
+python -m lattice [--db PATH] [--json] search QUERY [--stance S] [--min-confidence C] [--year Y] [--tokens N]
 python -m lattice [--db PATH] [--json] show REF
-python -m lattice [--db PATH] [--json] subgraph REF [--depth 1..3]
-python -m lattice [--db PATH] [--json] related REF [--limit N]
+python -m lattice [--db PATH] [--json] subgraph REF [--depth 1..3] [--tokens N]
+python -m lattice [--db PATH] [--json] related REF [--limit N] [--tokens N]
+python -m lattice [--db PATH] [--json] outline [--tokens N]
 python -m lattice [--db PATH] [--json] ask TARGET
 python -m lattice [--db PATH] [--json] brief TARGET --tokens N
 python -m lattice [--db PATH] [--json] review TARGET [--out PATH]
@@ -96,10 +102,12 @@ python -m lattice [--db PATH] web [--host 127.0.0.1] [--port 8765] [--demo] [--o
 
 `--json` prints stable machine-readable payloads. `mcp` serves newline-delimited JSON-RPC on
 stdio with tools (`search`, `discover_papers`, `extract_claims`, `get_entity`, `neighbors`,
-`subgraph`, `related_findings`, `add_paper`, `add_claim`, `add_question`, `set_question_status`,
-`add_edge`, `brief`, `review`, `synthesize`, `analyze_graph`, `detect_contradictions`,
-`export_snapshot`, `import_snapshot`, `stats`), resources (`lattice://stats`,
-`lattice://questions`, `lattice://matrix`), and prompts (`literature-synthesis`).
+`subgraph`, `related_findings`, `outline`, `add_paper`, `add_claim`, `add_question`,
+`set_question_status`, `add_edge`, `brief`, `review`, `synthesize`, `analyze_graph`,
+`detect_contradictions`, `export_snapshot`, `import_snapshot`, `stats`), resources
+(`lattice://stats`, `lattice://questions`, `lattice://matrix`), and prompts
+(`literature-synthesis`). `outline` is the cheap first call; `search`, `related_findings` and
+`subgraph` return compact token-budgeted views by default; `get_entity` is the full drill-down.
 
 ### Supported Inputs
 
@@ -127,6 +135,7 @@ lattice/
 │   ├── analysis.py           <- contradiction detection, related-finding links, keystone centrality and evidence matrix
 │   ├── checks.py             <- integrity gate: endpoints, provenance, duplicates, cycles
 │   ├── cli.py                <- argument grammar, handlers and human/JSON output
+│   ├── context.py            <- token-budgeted AI views: outline, compact search/related/subgraph
 │   ├── database.py           <- SQLite schema, connection and version refusal
 │   ├── discovery.py          <- pluggable literature discovery (arXiv, Crossref, OpenAlex, EuropePMC, offline)
 │   ├── errors.py             <- the Error/Why/Fix triad
@@ -144,6 +153,7 @@ lattice/
     ├── test_analysis.py
     ├── test_checks.py
     ├── test_cli.py
+    ├── test_context.py
     ├── test_database.py
     ├── test_discovery.py
     ├── test_extraction.py
@@ -162,4 +172,4 @@ lattice/
 The schema, identifier policy, dedupe order and evidence direction are recorded in
 `.aikit/decisions.md` (ADR-001 and ADR-002). The graph deliberately stores claims rather than
 free-form notes: an agent may only cite an ingested paper, and only through a claim that carries
-the quote it came from.
+the quote it came from. Token budgets and the compact AI views are recorded in ADR-010.

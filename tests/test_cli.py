@@ -166,6 +166,59 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("Lattice Research Studio", out)
 
+    def test_outline_command_reports_a_cheap_index(self):
+        self.run_cli("web", "--demo", "--dump-html")
+        code, out, err = self.run_cli("outline")
+        self.assertEqual(code, 0, err)
+        self.assertIn("papers", out)
+        self.assertIn("Questions", out)
+        self.assertIn("get_entity", out)
+
+        code, out, err = self.run_cli("--json", "outline", "--tokens", "300")
+        self.assertEqual(code, 0, err)
+        payload = json.loads(out)
+        self.assertGreaterEqual(payload["counts"]["papers"], 1)
+        self.assertIn("omitted_questions", payload)
+        self.assertIn("study_types", payload)
+
+    def test_compact_token_views_for_related_subgraph_and_search(self):
+        connection = open_database(self.db)
+        repo = Repository(connection)
+        question = repo.add_question("Does sleep consolidate memory?")
+        paper, _ = repo.add_paper({"title": "Sleep One", "authors": "A",
+                                   "study_type": "Cohort Study"})
+        first = repo.add_claim(paper.id, "Sleep improved memory recall.",
+                               "Sleep improved memory recall by 28%.", stance="supports")
+        second_paper, _ = repo.add_paper({"title": "Sleep Two", "authors": "B"})
+        second = repo.add_claim(second_paper.id, "Sleep enhanced memory recall.",
+                                "Sleep enhanced memory recall across participants.",
+                                stance="supports")
+        repo.add_edge(first.id, question.id, kind="answers")
+        repo.add_edge(second.id, question.id, kind="answers")
+        connection.close()
+
+        code, out, err = self.run_cli("--json", "related", f"claim:{first.id}",
+                                      "--tokens", "300")
+        self.assertEqual(code, 0, err)
+        payload = json.loads(out)
+        self.assertEqual(payload["related"][0]["ref"], f"claim:{second.id}")
+        self.assertIn("snippet", payload["related"][0])
+        self.assertNotIn("id", payload["related"][0])
+
+        code, out, err = self.run_cli("--json", "subgraph", f"question:{question.id}",
+                                      "--tokens", "300")
+        self.assertEqual(code, 0, err)
+        payload = json.loads(out)
+        self.assertTrue(payload["nodes"])
+        self.assertTrue(all("details" not in node for node in payload["nodes"]))
+        self.assertIn("omitted_nodes", payload)
+
+        code, out, err = self.run_cli("--json", "search", "sleep", "--tokens", "300")
+        self.assertEqual(code, 0, err)
+        payload = json.loads(out)
+        self.assertTrue(payload["papers"])
+        self.assertNotIn("abstract", payload["papers"][0])
+
     def test_analyze_subcommand(self):
         self.run_cli("web", "--demo", "--dump-html")
         code, out, _ = self.run_cli("--json", "analyze", "--auto-link", "--limit", "5")
