@@ -113,6 +113,32 @@ class McpTests(unittest.TestCase):
         self.assertGreaterEqual(len(rendered["messages"]), 1)
         self.assertIn("Literature Synthesis", rendered["messages"][0]["content"]["text"])
 
+    def test_analyze_and_contradictions_tools_and_matrix_resource(self):
+        q_resp = json.loads(
+            self.tool("add_question", {"text": "Does sleep consolidate memory?"})["result"]["content"][0]["text"]
+        )
+        qid = q_resp["question"]["id"]
+        self.tool("discover_papers", {"query": "sleep memory", "source": "offline", "limit": 4})
+        self.tool("extract_claims", {"question": qid})
+
+        analyzed = json.loads(
+            self.tool("analyze_graph", {"auto_link": False, "limit": 5})["result"]["content"][0]["text"]
+        )
+        self.assertIn("contradictions", analyzed)
+        self.assertIn("keystone", analyzed)
+        self.assertIn("matrix", analyzed)
+
+        det = json.loads(
+            self.tool("detect_contradictions", {"auto_link": True})["result"]["content"][0]["text"]
+        )
+        self.assertIn("contradictions", det)
+
+        read_mat = self.call("resources/read", {"uri": "lattice://matrix"})["result"]
+        mat_data = json.loads(read_mat["contents"][0]["text"])
+        self.assertIn("papers", mat_data)
+        self.assertIn("questions", mat_data)
+
 
 if __name__ == "__main__":
     unittest.main()
+

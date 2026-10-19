@@ -8,9 +8,9 @@
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `31`
 - **Total Classes**: `39`
-- **Total Top-Level Functions**: `143`
-- **Total Class Methods**: `178`
-- **Total Source Lines**: `6685`
+- **Total Top-Level Functions**: `147`
+- **Total Class Methods**: `181`
+- **Total Source Lines**: `7108`
 
 ---
 
@@ -81,7 +81,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `445` lines (`20197` bytes)
+**Size**: `504` lines (`22128` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -107,6 +107,7 @@
 - `def _run_check(args, repository)` - *Run the integrity gate and return 1 on any error.*
 - `def _run_mcp(args, repository)` - *Serve MCP on stdio; stdout carries protocol messages only.*
 - `def _run_web(args, repository)` - *Launch the Research Studio web UI, optionally seeding demo data or dumping HTML.*
+- `def _run_analyze(args, repository)` - *Detect contradictions, rank keystone papers and claims, and build the Paper x Question matrix.*
 
 ---
 
@@ -255,7 +256,7 @@
 ### [`lattice/mcp.py`](lattice/mcp.py)
 > *A dependency-free MCP stdio server exposing the graph as JSON-RPC tools.*
 
-**Size**: `285` lines (`13795` bytes)
+**Size**: `314` lines (`15348` bytes)
 
 **Functions:**
 - `def _tool(name, description, properties, required)` - *An MCP tool declaration with a JSON Schema for its arguments.*
@@ -387,7 +388,7 @@
 ### [`lattice/web.py`](lattice/web.py)
 > *Zero-dependency web server and human-friendly Research Studio UI for Lattice.*
 
-**Size**: `1198` lines (`44637` bytes)
+**Size**: `1456` lines (`56153` bytes)
 
 **Classes:**
 - `class WebResponse` - *Immutable HTTP response returned by `dispatch_web_request`.*
@@ -399,6 +400,9 @@
 - `def _handle_search(repository, query)` - *Run filtered search from query parameters.*
 - `def _handle_subgraph(repository, query)` - *Run multi-hop subgraph traversal from query parameters.*
 - `def _handle_synthesize(repository, query)` - *Run scientific literature synthesis from query parameters.*
+- `def _build_matrix_bundle(repository)` - *Assemble the Paper x Question evidence matrix, contradictions, and keystone ranking.*
+- `def _handle_ingest_text(repository, payload)` - *Parse raw bibliography or note text (BibTeX, RIS, CSV, Markdown, text) and ingest into the graph.*
+- `def _export_jsonl_string(repository)` - *Serialize all graph entities and edges as portable JSONL text.*
 - `def _seed_demo(repository)` - *Populate the built-in seed corpus, create research questions, and extract claims.*
 - `def _first(query, key)` - *First query parameter value or empty string.*
 - `def _parse_json_body(body)` - *Parse an optional JSON request body into a dictionary.*
@@ -450,7 +454,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `141` lines (`5697` bytes)
+**Size**: `151` lines (`6080` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
@@ -466,6 +470,7 @@
   - Method `.test_search_and_stats()`
   - Method `.test_fetch_extract_synthesize_subgraph_and_snapshots()`
   - Method `.test_web_subcommand_demo_and_dump_html()`
+  - Method `.test_analyze_subcommand()`
 
 ---
 
@@ -552,7 +557,7 @@
 ### [`tests/test_mcp.py`](tests/test_mcp.py)
 > *MCP JSON-RPC contracts and stdio framing.*
 
-**Size**: `118` lines (`5380` bytes)
+**Size**: `144` lines (`6501` bytes)
 
 **Classes:**
 - `class McpTests` - *Call the protocol handler directly; no sockets or spawns.*
@@ -570,6 +575,7 @@
   - Method `.test_stdio_reports_parse_error()`
   - Method `.test_discover_extract_synthesize_and_subgraph_tools()`
   - Method `.test_resources_and_prompts_endpoints()`
+  - Method `.test_analyze_and_contradictions_tools_and_matrix_resource()`
 
 ---
 
@@ -653,7 +659,7 @@
 ### [`tests/test_web.py`](tests/test_web.py)
 > *Tests for the web-based human UI and JSON API dispatcher (zero sockets).*
 
-**Size**: `127` lines (`5073` bytes)
+**Size**: `168` lines (`6715` bytes)
 
 **Classes:**
 - `class WebInterfaceTests` - *Verify HTML rendering and REST API handlers via pure request dispatch.*
@@ -663,6 +669,7 @@
   - Method `.test_demo_seed_and_overview_workflow()`
   - Method `.test_create_entities_and_synthesize_via_web_api()`
   - Method `.test_discover_extract_and_search_endpoints()`
+  - Method `.test_ingest_text_matrix_contradictions_and_export()`
   - Method `.test_validation_error_and_not_found()`
 
 ---

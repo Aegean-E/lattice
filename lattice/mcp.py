@@ -6,6 +6,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, TextIO
 
 from lattice import __version__
+from lattice.analysis import (
+    build_evidence_matrix,
+    detect_contradictions,
+    rank_influential_entities,
+)
 from lattice.discovery import DiscoveryService
 from lattice.errors import LatticeError
 from lattice.extraction import extract_all, extract_from_paper
@@ -30,7 +35,7 @@ TOOLS: List[Dict[str, Any]] = [
           {"query": {"type": "string"}, "limit": {"type": "integer", "default": 20},
            "stance": {"type": "string"}, "min_confidence": {"type": "number"},
            "year": {"type": "string"}}, ["query"]),
-    _tool("discover_papers", "Search offline, arXiv or Crossref catalogs and ingest papers.",
+    _tool("discover_papers", "Search offline, arXiv, Crossref, OpenAlex, or EuropePMC catalogs and ingest papers.",
           {"query": {"type": "string"}, "source": {"type": "string", "default": "offline"},
            "limit": {"type": "integer", "default": 10},
            "ingest": {"type": "boolean", "default": True}}, ["query"]),
@@ -67,6 +72,11 @@ TOOLS: List[Dict[str, Any]] = [
     _tool("synthesize", "Consensus-scored scientific literature synthesis with clusters and BibTeX.",
           {"target": {"type": "string"}, "tokens": {"type": "integer", "default": 2500}},
           ["target"]),
+    _tool("analyze_graph", "Detect contradictions, rank keystone papers/claims, and build the Paper x Question matrix.",
+          {"auto_link": {"type": "boolean", "default": False},
+           "limit": {"type": "integer", "default": 10}}, []),
+    _tool("detect_contradictions", "Find opposing claims across shared questions or domain keywords.",
+          {"auto_link": {"type": "boolean", "default": False}}, []),
     _tool("export_snapshot", "Export the graph to an atomic JSONL snapshot file.",
           {"path": {"type": "string"}}, ["path"]),
     _tool("import_snapshot", "Import a JSONL snapshot file idempotently.",
@@ -80,6 +90,9 @@ RESOURCES: List[Dict[str, Any]] = [
      "mimeType": "application/json"},
     {"uri": "lattice://questions", "name": "Research Questions",
      "description": "All tracked research questions and their status.",
+     "mimeType": "application/json"},
+    {"uri": "lattice://matrix", "name": "Paper x Question Evidence Matrix",
+     "description": "Structured Paper x Question evidence matrix and coverage gaps.",
      "mimeType": "application/json"},
 ]
 
@@ -150,6 +163,8 @@ def _read_resource(repository: Repository, request_id: Any, params: Any) -> Dict
     elif uri == "lattice://questions":
         rows = repository.connection.execute("SELECT * FROM questions ORDER BY id").fetchall()
         payload = {"questions": [dict(row) for row in rows]}
+    elif uri == "lattice://matrix":
+        payload = build_evidence_matrix(repository)
     else:
         return _error(request_id, -32602, f"unknown resource uri: {uri}")
     return _result(request_id, {
@@ -237,6 +252,20 @@ def _dispatch(repository: Repository, name: str, arguments: Dict[str, Any]) -> A
         return synthesize(
             repository, _text(arguments, "target"), int(arguments.get("tokens", 2500))
         ).to_dict()
+    if name == "analyze_graph":
+        auto_link = bool(arguments.get("auto_link", False))
+        limit = int(arguments.get("limit", 10))
+        return {
+            "contradictions": [
+                item.to_dict() for item in detect_contradictions(repository, auto_link=auto_link)
+            ],
+            "keystone": rank_influential_entities(repository, limit=limit),
+            "matrix": build_evidence_matrix(repository),
+        }
+    if name == "detect_contradictions":
+        auto_link = bool(arguments.get("auto_link", False))
+        pairs = [item.to_dict() for item in detect_contradictions(repository, auto_link=auto_link)]
+        return {"count": len(pairs), "contradictions": pairs}
     if name == "export_snapshot":
         return export_snapshot(repository, Path(_text(arguments, "path")))
     if name == "import_snapshot":

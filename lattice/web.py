@@ -7,11 +7,23 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, List, Optional
 
+from lattice.analysis import (
+    build_evidence_matrix,
+    detect_contradictions,
+    rank_influential_entities,
+)
 from lattice.checks import run_checks
 from lattice.database import open_database
 from lattice.discovery import DiscoveryService
 from lattice.errors import LatticeError, fail
 from lattice.extraction import extract_all, extract_from_paper
+from lattice.ingest import (
+    parse_bibtex,
+    parse_csv,
+    parse_markdown,
+    parse_ris,
+    parse_text,
+)
 from lattice.repository import Repository
 from lattice.synthesis import synthesize
 
@@ -37,6 +49,14 @@ def dispatch_web_request(repository: Repository, method: str, path: str,
             return WebResponse(200, "text/html; charset=utf-8", WEB_HTML)
         if verb == "GET" and route == "/api/overview":
             return _json_response(200, _build_overview(repository))
+        if verb == "GET" and route == "/api/matrix":
+            return _json_response(200, _build_matrix_bundle(repository))
+        if verb == "GET" and route == "/api/export":
+            return WebResponse(
+                200,
+                "application/x-ndjson; charset=utf-8",
+                _export_jsonl_string(repository),
+            )
         if verb == "GET" and route == "/api/search":
             return _json_response(200, _handle_search(repository, query))
         if verb == "GET" and route == "/api/subgraph":
@@ -80,6 +100,12 @@ def _dispatch_post(repository: Repository, route: str,
                 "result": out.to_dict(),
             })
         return _json_response(200, extract_all(repository, question_ref=q_ref))
+    if route == "/api/ingest-text":
+        return _json_response(200, _handle_ingest_text(repository, payload))
+    if route == "/api/detect-contradictions":
+        auto_link = bool(payload.get("auto_link", True))
+        pairs = [item.to_dict() for item in detect_contradictions(repository, auto_link=auto_link)]
+        return _json_response(200, {"count": len(pairs), "contradictions": pairs})
     if route == "/api/questions":
         question = repository.add_question(str(payload.get("text") or ""))
         return _json_response(200, {"question": question.to_dict()})
@@ -182,6 +208,83 @@ def _handle_synthesize(repository: Repository, query: Dict[str, List[str]]) -> D
     target = _first(query, "target")
     tokens = int(_first(query, "tokens") or "2500")
     return synthesize(repository, target, tokens=tokens).to_dict()
+
+
+def _build_matrix_bundle(repository: Repository) -> Dict[str, Any]:
+    """Assemble the Paper x Question evidence matrix, contradictions, and keystone ranking."""
+    return {
+        "matrix": build_evidence_matrix(repository),
+        "contradictions": [item.to_dict() for item in detect_contradictions(repository, auto_link=False)],
+        "keystone": rank_influential_entities(repository, limit=10),
+    }
+
+
+def _handle_ingest_text(repository: Repository, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Parse raw bibliography or note text (BibTeX, RIS, CSV, Markdown, text) and ingest into the graph."""
+    raw = str(payload.get("text") or "").strip()
+    if not raw:
+        fail("ingest-text requires non-empty text",
+             "cannot parse an empty bibliography or note",
+             "paste BibTeX, RIS, CSV, or Markdown text")
+    fmt = str(payload.get("format") or "bibtex").strip().lower()
+    source_name = str(payload.get("source_name") or "web-paste").strip() or "web-paste"
+    if fmt in ("bibtex", "bib"):
+        records = parse_bibtex(raw)
+    elif fmt == "ris":
+        records = parse_ris(raw)
+    elif fmt == "csv":
+        records = parse_csv(raw)
+    elif fmt in ("markdown", "md"):
+        records = parse_markdown(raw, source_name)
+    elif fmt in ("text", "txt"):
+        records = parse_text(raw, source_name)
+    else:
+        fail(f"unsupported text format '{fmt}'",
+             "supported formats are bibtex, ris, csv, markdown, and text",
+             "pass format='bibtex', 'ris', 'csv', 'markdown', or 'text'")
+    if not records:
+        fail("no paper records could be parsed from the pasted text",
+             "the parser found zero entries with a title",
+             "verify the format matches the pasted bibliography")
+    papers_out = []
+    created_count = 0
+    claims_created = 0
+    edges_created = 0
+    q_ref = str(payload.get("question") or "").strip() or None
+    do_extract = bool(payload.get("extract", True))
+    for record in records:
+        paper, created = repository.add_paper(record)
+        if created:
+            created_count += 1
+        papers_out.append(paper.to_dict())
+        if do_extract and paper.abstract.strip():
+            extracted = extract_from_paper(repository, paper.id, question_ref=q_ref)
+            claims_created += len(extracted.claims)
+            edges_created += len(extracted.edges)
+    return {
+        "format": fmt,
+        "parsed": len(records),
+        "ingested": len(papers_out),
+        "created": created_count,
+        "claims_created": claims_created,
+        "edges_created": edges_created,
+        "papers": papers_out,
+    }
+
+
+def _export_jsonl_string(repository: Repository) -> str:
+    """Serialize all graph entities and edges as portable JSONL text."""
+    lines: List[str] = []
+    for table, record_type in (
+        ("papers", "paper"),
+        ("questions", "question"),
+        ("claims", "claim"),
+        ("edges", "edge"),
+    ):
+        for row in repository.connection.execute(f"SELECT * FROM {table} ORDER BY id").fetchall():
+            lines.append(json.dumps({"record_type": record_type, **dict(row)}, sort_keys=True))
+    return "\n".join(lines) + ("\n" if lines else "")
+
 
 
 def _seed_demo(repository: Repository) -> Dict[str, Any]:
@@ -554,6 +657,7 @@ WEB_HTML = """<!DOCTYPE html>
     <div class="pill ok" id="st-gate">Gate: PASS</div>
     <button class="btn sm" onclick="loadDemo()">Load Demo Corpus</button>
     <button class="btn secondary sm" onclick="extractAllClaims()">Extract All Claims</button>
+    <button class="btn secondary sm" onclick="downloadSnapshot()">Download Snapshot</button>
   </div>
 </header>
 
@@ -562,6 +666,7 @@ WEB_HTML = """<!DOCTYPE html>
   <button class="tab-btn" onclick="switchTab('discover', this)">2. Discover &amp; Ingest</button>
   <button class="tab-btn" onclick="switchTab('curate', this)">3. Questions &amp; Claims</button>
   <button class="tab-btn" onclick="switchTab('graph', this)">4. Graph Explorer &amp; Search</button>
+  <button class="tab-btn" onclick="switchTab('matrix', this); loadMatrix();">5. Evidence Matrix &amp; Contradictions</button>
 </nav>
 
 <main>
@@ -629,8 +734,11 @@ WEB_HTML = """<!DOCTYPE html>
               <label>Catalog Source</label>
               <select id="disc-source">
                 <option value="offline">Offline Curated Corpus (Instant)</option>
+                <option value="openalex">OpenAlex Live Works API</option>
+                <option value="europepmc">EuropePMC Live Biomedical API</option>
                 <option value="arxiv">arXiv Live Atom API</option>
                 <option value="crossref">Crossref Live REST API</option>
+                <option value="offline,openalex,europepmc">Federated Multi-Source Search</option>
               </select>
             </div>
             <div style="width:110px">
@@ -639,6 +747,23 @@ WEB_HTML = """<!DOCTYPE html>
             </div>
           </div>
           <button class="btn" onclick="discoverPapers()">Discover &amp; Ingest Papers</button>
+        </div>
+
+        <div class="card">
+          <h2>Paste BibTeX / RIS / CSV / Markdown</h2>
+          <div class="form-row">
+            <select id="paste-format" style="flex:1">
+              <option value="bibtex">BibTeX (.bib)</option>
+              <option value="ris">RIS (.ris)</option>
+              <option value="csv">CSV (.csv)</option>
+              <option value="markdown">Markdown Note (.md)</option>
+              <option value="text">Plain Text (.txt)</option>
+            </select>
+            <button class="btn secondary" onclick="ingestPastedText()">Parse &amp; Ingest</button>
+          </div>
+          <div class="form-row">
+            <textarea id="paste-text" placeholder="Paste @article{...} BibTeX entries, RIS records, or Markdown notes here to ingest papers and automatically extract empirical claims..."></textarea>
+          </div>
         </div>
 
         <div class="card">
@@ -779,6 +904,33 @@ WEB_HTML = """<!DOCTYPE html>
           <div id="svg-container" style="background:#090e1a;border:1px solid var(--border);border-radius:10px;min-height:420px;display:flex;align-items:center;justify-content:center;overflow:hidden">
             <span style="color:var(--muted);font-size:0.88rem">Select an entity to visualize its connected claims, papers, and questions.</span>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 5: EVIDENCE MATRIX & CONTRADICTIONS -->
+  <section id="tab-matrix" class="tab-pane">
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <h2>
+            <span>Contradiction Detector</span>
+            <button class="btn sm" onclick="autoLinkContradictions()">Auto-Link Contradictions</button>
+          </h2>
+          <div id="contradictions-list" class="item-list"></div>
+        </div>
+
+        <div class="card">
+          <h2>Keystone Papers &amp; Claims (Centrality)</h2>
+          <div id="keystone-list" class="item-list"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h2>Paper &times; Question Evidence Matrix</h2>
+          <div id="matrix-output"></div>
         </div>
       </div>
     </div>
@@ -1191,8 +1343,114 @@ async function runSearch() {
   }
 }
 
+async function ingestPastedText() {
+  const fmt = document.getElementById('paste-format').value;
+  const text = document.getElementById('paste-text').value.trim();
+  if (!text) {
+    notify('Paste BibTeX, RIS, CSV, or Markdown text first', true);
+    return;
+  }
+  try {
+    const res = await api('POST', '/api/ingest-text', { format: fmt, text, extract: true });
+    document.getElementById('paste-text').value = '';
+    notify(`Ingested ${res.ingested} paper(s) and extracted ${res.claims_created} claim(s)`);
+    await refreshOverview();
+  } catch (err) {
+    notify(err.message, true);
+  }
+}
+
+async function downloadSnapshot() {
+  try {
+    const res = await fetch('/api/export');
+    const text = await res.text();
+    const blob = new Blob([text], { type: 'application/x-ndjson' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'lattice_snapshot.jsonl';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    notify('Snapshot downloaded (lattice_snapshot.jsonl)');
+  } catch (err) {
+    notify(err.message, true);
+  }
+}
+
+async function loadMatrix() {
+  try {
+    const data = await api('GET', '/api/matrix');
+    const cBox = document.getElementById('contradictions-list');
+    const pairs = data.contradictions || [];
+    cBox.innerHTML = pairs.map(p => `
+      <div class="item">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <strong>${esc(p.claim_a_id)} vs ${esc(p.claim_b_id)}</strong>
+          <span class="badge contradicts">Score: ${esc(p.score)}</span>
+        </div>
+        <div style="font-size:0.82rem;color:#86efac">+ ${esc(p.claim_a_text)}</div>
+        <div style="font-size:0.82rem;color:#fca5a5">- ${esc(p.claim_b_text)}</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:4px">
+          Shared keywords: ${esc((p.shared_keywords || []).join(', ') || 'question link')}
+          ${p.linked_edge_id ? ' • <span style="color:#38bdf8">Linked (edge #' + esc(p.linked_edge_id) + ')</span>' : ''}
+        </div>
+      </div>
+    `).join('') || '<div style="color:var(--muted)">No opposing claim pairs detected yet.</div>';
+
+    const kBox = document.getElementById('keystone-list');
+    const kp = (data.keystone && data.keystone.papers) || [];
+    kBox.innerHTML = kp.map(p => `
+      <div class="item">
+        <div style="display:flex;justify-content:space-between">
+          <strong>[${esc(p.id)}] ${esc(p.title)}</strong>
+          <span class="badge">Centrality: ${esc(p.score)}</span>
+        </div>
+        <div style="font-size:0.78rem;color:var(--muted)">
+          ${esc(p.authors)} (${esc(p.year || 'n.d.')}) • Claims: ${esc(p.claim_count)} • Citations: ${esc(p.citation_count)}
+        </div>
+      </div>
+    `).join('') || '<div style="color:var(--muted)">No papers ranked yet.</div>';
+
+    const mBox = document.getElementById('matrix-output');
+    const mat = data.matrix || { papers: [], questions: [], cells: [], gaps: [] };
+    const cellMap = {};
+    (mat.cells || []).forEach(c => { cellMap[c.paper_id + '::' + c.question_id] = c; });
+    if (!mat.questions.length || !mat.papers.length) {
+      mBox.innerHTML = '<div style="color:var(--muted)">Add papers and questions (or click Load Demo Corpus) to view the Paper &times; Question matrix.</div>';
+      return;
+    }
+    const headers = mat.questions.map(q => `<th style="padding:8px;border-bottom:1px solid var(--border);text-align:left;font-size:0.78rem">${esc(q.id)}: ${esc(q.prompt.slice(0, 42))}...</th>`).join('');
+    const rows = mat.papers.map(p => {
+      const cols = mat.questions.map(q => {
+        const cell = cellMap[p.id + '::' + q.id];
+        if (!cell) return '<td style="padding:8px;border-bottom:1px solid var(--border);color:var(--muted);font-size:0.78rem">—</td>';
+        return `<td style="padding:8px;border-bottom:1px solid var(--border)"><span class="badge ${esc(cell.dominant_stance)}">${esc(cell.dominant_stance)} (${esc(cell.claim_ids.length)})</span></td>`;
+      }).join('');
+      return `<tr><td style="padding:8px;border-bottom:1px solid var(--border);font-size:0.82rem"><strong>${esc(p.id)}</strong> ${esc(p.title.slice(0, 38))}</td>${cols}</tr>`;
+    }).join('');
+    const gapsHtml = (mat.gaps || []).map(g => `<div style="font-size:0.8rem;color:#fbbf24;margin-top:4px">⚠ <strong>${esc(g.question_id)}</strong>: ${esc(g.reason)}</div>`).join('');
+    mBox.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="padding:8px;border-bottom:1px solid var(--border);text-align:left;font-size:0.78rem">Paper</th>${headers}</tr></thead><tbody>${rows}</tbody></table></div><div style="margin-top:10px">${gapsHtml}</div>`;
+  } catch (err) {
+    notify(err.message, true);
+  }
+}
+
+async function autoLinkContradictions() {
+  try {
+    const res = await api('POST', '/api/detect-contradictions', { auto_link: true });
+    notify(`Linked ${res.count} contradiction pair(s) in the knowledge graph`);
+    await refreshOverview();
+    await loadMatrix();
+  } catch (err) {
+    notify(err.message, true);
+  }
+}
+
 refreshOverview();
 </script>
 </body>
 </html>
 """
+

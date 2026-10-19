@@ -113,6 +113,46 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertGreaterEqual(len(search["papers"]), 1)
 
+    def test_ingest_text_matrix_contradictions_and_export(self) -> None:
+        bib = (
+            "@article{vance2023,\n"
+            "  title = {Slow-Wave Sleep Consolidates Hippocampal Memory},\n"
+            "  author = {Elena Vance},\n"
+            "  year = {2023},\n"
+            "  doi = {10.1000/sws.bib.1},\n"
+            "  abstract = {Slow-wave sleep stimulation significantly improved hippocampal declarative memory recall by 24%.}\n"
+            "}"
+        )
+        status, ing = self.request_json(
+            "POST",
+            "/api/ingest-text",
+            {"format": "bibtex", "text": bib, "extract": True},
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(ing["ingested"], 1)
+        self.assertGreaterEqual(ing["claims_created"], 1)
+
+        status, demo = self.request_json("POST", "/api/demo", {})
+        self.assertEqual(status, 200)
+
+        status, mat = self.request_json("GET", "/api/matrix")
+        self.assertEqual(status, 200)
+        self.assertIn("matrix", mat)
+        self.assertIn("contradictions", mat)
+        self.assertIn("keystone", mat)
+        self.assertGreaterEqual(len(mat["matrix"]["papers"]), 3)
+
+        status, det = self.request_json(
+            "POST", "/api/detect-contradictions", {"auto_link": True}
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("contradictions", det)
+
+        exp_resp = dispatch_web_request(self.repository, "GET", "/api/export")
+        self.assertEqual(exp_resp.status, 200)
+        self.assertIn("application/x-ndjson", exp_resp.content_type)
+        self.assertIn('"record_type": "paper"', exp_resp.body)
+
     def test_validation_error_and_not_found(self) -> None:
         status, err = self.request_json("POST", "/api/questions", {"text": ""})
         self.assertEqual(status, 400)
@@ -125,3 +165,4 @@ class WebInterfaceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

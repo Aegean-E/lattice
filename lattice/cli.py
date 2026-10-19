@@ -6,6 +6,11 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+from lattice.analysis import (
+    build_evidence_matrix,
+    detect_contradictions,
+    rank_influential_entities,
+)
 from lattice.checks import run_checks
 from lattice.database import SCHEMA_VERSION, open_database
 from lattice.discovery import DiscoveryService
@@ -40,9 +45,16 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("paths", nargs="+", help="one or more files to ingest")
     ingest.set_defaults(handler=_run_ingest)
 
-    fetch = commands.add_parser("fetch", help="discover papers from offline, arXiv or Crossref")
+    fetch = commands.add_parser(
+        "fetch",
+        help="discover papers from offline, arxiv, crossref, openalex, europepmc, or comma-separated list",
+    )
     fetch.add_argument("query", help="scientific search query")
-    fetch.add_argument("--source", default="offline", help="offline, arxiv or crossref")
+    fetch.add_argument(
+        "--source",
+        default="offline",
+        help="offline, arxiv, crossref, openalex, europepmc, or comma-separated list",
+    )
     fetch.add_argument("--limit", type=int, default=10, help="maximum candidate papers")
     fetch.add_argument("--no-ingest", action="store_true", help="preview without storing")
     fetch.set_defaults(handler=_run_fetch)
@@ -139,6 +151,23 @@ def build_parser() -> argparse.ArgumentParser:
     web.add_argument("--dump-html", action="store_true",
                      help="print the self-contained Studio HTML and exit")
     web.set_defaults(handler=_run_web)
+
+    analyze = commands.add_parser(
+        "analyze",
+        help="detect contradictions, rank keystone papers/claims, and build evidence matrix",
+    )
+    analyze.add_argument(
+        "--auto-link",
+        action="store_true",
+        help="automatically add contradicts edges between opposing claims",
+    )
+    analyze.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="maximum keystone papers and claims to rank (default: 10)",
+    )
+    analyze.set_defaults(handler=_run_analyze)
     return parser
 
 
@@ -443,3 +472,33 @@ def _run_web(args: argparse.Namespace, repository: Repository) -> int:
         open_browser=args.open_browser,
     )
     return 0
+
+
+def _run_analyze(args: argparse.Namespace, repository: Repository) -> int:
+    """Detect contradictions, rank keystone papers and claims, and build the Paper x Question matrix."""
+    contradictions = [
+        item.to_dict() for item in detect_contradictions(repository, auto_link=bool(args.auto_link))
+    ]
+    keystone = rank_influential_entities(repository, limit=int(args.limit))
+    matrix = build_evidence_matrix(repository)
+    payload = {
+        "contradictions": contradictions,
+        "keystone": keystone,
+        "matrix": matrix,
+    }
+    lines = [
+        f"Contradictions detected: {len(contradictions)}",
+        f"Keystone papers ranked: {len(keystone['papers'])}",
+        f"Evidence matrix cells: {len(matrix['cells'])} (gaps: {len(matrix['gaps'])})",
+    ]
+    for pair in contradictions[:5]:
+        lines.append(
+            f"  [CONTRADICTION {pair['score']}] {pair['claim_a_id']} vs {pair['claim_b_id']}"
+        )
+    for paper in keystone["papers"][:5]:
+        lines.append(
+            f"  [KEYSTONE {paper['score']}] {paper['id']}  {paper['title']}"
+        )
+    _emit(payload, lines, args.json)
+    return 0
+

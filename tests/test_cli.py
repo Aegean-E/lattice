@@ -136,6 +136,16 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("Lattice Research Studio", out)
 
+    def test_analyze_subcommand(self):
+        self.run_cli("web", "--demo", "--dump-html")
+        code, out, _ = self.run_cli("--json", "analyze", "--auto-link", "--limit", "5")
+        self.assertEqual(code, 0)
+        payload = json.loads(out)
+        self.assertIn("contradictions", payload)
+        self.assertIn("keystone", payload)
+        self.assertIn("matrix", payload)
+
 
 if __name__ == "__main__":
     unittest.main()
+
