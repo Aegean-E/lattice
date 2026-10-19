@@ -66,6 +66,27 @@ class ExtractionTests(unittest.TestCase):
         self.assertEqual(len(repeat.claims), 0)
         self.assertEqual(self.repository.stats()["claims"], 2)
 
+    def test_extract_from_paper_links_related_findings_automatically(self) -> None:
+        question = self.repository.add_question("Does slow-wave sleep consolidate memory?")
+        paper, _ = self.repository.add_paper({
+            "title": "Slow-Wave Sleep and Recall",
+            "authors": "Mira Sol",
+            "year": "2024",
+            "abstract": (
+                "Slow-wave sleep improved memory recall accuracy by 28% in participants. "
+                "Slow-wave sleep enhanced memory recall across the same participants."
+            ),
+        })
+        result = extract_from_paper(self.repository, paper.id, question_ref=question.id)
+        self.assertEqual(len(result.claims), 2)
+        related = [edge for edge in result.edges if edge.kind == "related"]
+        self.assertEqual(len(related), 1)
+        self.assertIn("Auto-detected related findings", related[0].note)
+
+        repeat = extract_from_paper(self.repository, paper.id, question_ref=question.id)
+        self.assertEqual(len(repeat.claims), 0)
+        self.assertEqual([edge for edge in repeat.edges if edge.kind == "related"], [])
+
     def test_extract_all_processes_every_paper_and_auto_matches_questions(self) -> None:
         question = self.repository.add_question("Does slow-wave sleep improve declarative memory?")
         self.repository.add_paper({

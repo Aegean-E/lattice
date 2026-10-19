@@ -9,7 +9,10 @@ from lattice import __version__
 from lattice.analysis import (
     build_evidence_matrix,
     detect_contradictions,
+    find_related_findings,
+    link_related_findings,
     rank_influential_entities,
+    related_findings,
 )
 from lattice.discovery import DiscoveryService
 from lattice.errors import LatticeError
@@ -47,6 +50,10 @@ TOOLS: List[Dict[str, Any]] = [
           {"ref": {"type": "string"}, "kind": {"type": "string"}}, ["ref"]),
     _tool("subgraph", "Traverse the multi-hop neighborhood (depth 1-3) around an entity.",
           {"ref": {"type": "string"}, "depth": {"type": "integer", "default": 1}}, ["ref"]),
+    _tool("related_findings", "List findings connected to a claim, paper or question with the "
+          "relation, the reason and a next-hop reference for each.",
+          {"target": {"type": "string"}, "limit": {"type": "integer", "default": 10}},
+          ["target"]),
     _tool("add_paper", "Ingest one paper; duplicate DOIs, arXiv IDs and titles are merged.",
           {"title": {"type": "string"}, "authors": {"type": "string"},
            "year": {"type": "string"}, "venue": {"type": "string"}, "doi": {"type": "string"},
@@ -72,7 +79,7 @@ TOOLS: List[Dict[str, Any]] = [
     _tool("synthesize", "Consensus-scored scientific literature synthesis with clusters and BibTeX.",
           {"target": {"type": "string"}, "tokens": {"type": "integer", "default": 2500}},
           ["target"]),
-    _tool("analyze_graph", "Detect contradictions, rank keystone papers/claims, and build the Paper x Question matrix.",
+    _tool("analyze_graph", "Detect contradictions and related findings, rank keystone papers/claims, and build the Paper x Question matrix.",
           {"auto_link": {"type": "boolean", "default": False},
            "limit": {"type": "integer", "default": 10}}, []),
     _tool("detect_contradictions", "Find opposing claims across shared questions or domain keywords.",
@@ -226,6 +233,9 @@ def _dispatch(repository: Repository, name: str, arguments: Dict[str, Any]) -> A
             _text(arguments, "ref"), arguments.get("kind"))]
     if name == "subgraph":
         return repository.subgraph(_text(arguments, "ref"), int(arguments.get("depth", 1)))
+    if name == "related_findings":
+        return related_findings(repository, _text(arguments, "target"),
+                                int(arguments.get("limit", 10)))
     if name == "add_paper":
         paper, created = repository.add_paper(arguments)
         return {"paper": paper.to_dict(), "created": created}
@@ -255,10 +265,14 @@ def _dispatch(repository: Repository, name: str, arguments: Dict[str, Any]) -> A
     if name == "analyze_graph":
         auto_link = bool(arguments.get("auto_link", False))
         limit = int(arguments.get("limit", 10))
+        related_pairs = find_related_findings(repository)
+        related_links = link_related_findings(repository) if auto_link else []
         return {
             "contradictions": [
                 item.to_dict() for item in detect_contradictions(repository, auto_link=auto_link)
             ],
+            "related_pairs": len(related_pairs),
+            "related_links_created": len(related_links),
             "keystone": rank_influential_entities(repository, limit=limit),
             "matrix": build_evidence_matrix(repository),
         }

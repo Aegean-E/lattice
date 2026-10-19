@@ -7,10 +7,10 @@
 
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `32`
-- **Total Classes**: `41`
-- **Total Top-Level Functions**: `155`
-- **Total Class Methods**: `194`
-- **Total Source Lines**: `7839`
+- **Total Classes**: `42`
+- **Total Top-Level Functions**: `161`
+- **Total Class Methods**: `205`
+- **Total Source Lines**: `8477`
 
 ---
 
@@ -31,12 +31,14 @@
 ---
 
 ### [`lattice/analysis.py`](lattice/analysis.py)
-> *Scientific contradiction detection, keystone entity centrality, and Paper x Question evidence matrices.*
+> *Contradiction detection, related-finding links, keystone ranking and evidence matrices.*
 
-**Size**: `343` lines (`12907` bytes)
+**Size**: `610` lines (`25235` bytes)
 
 **Classes:**
 - `class ContradictionPair` - *An opposing pair of empirical claims sharing a research question or high domain keyword overlap.*
+  - Method `.to_dict()` - *JSON-serializable representation.*
+- `class RelatedPair` - *Two findings related by a shared research question or a domain-keyword overlap.*
   - Method `.to_dict()` - *JSON-serializable representation.*
 
 **Functions:**
@@ -44,6 +46,11 @@
 - `def _claim_question_map(repo)` - *Map bare claim IDs to bare question IDs linked via edges.*
 - `def _find_or_create_contradicts_edge(repo, claim_a_id, claim_b_id, auto_link)` - *Return existing `contradicts` edge ID between two claims, or create one when `auto_link` is True.*
 - `def detect_contradictions(repo, auto_link)` - *Detect pairs of opposing claims (`supports` vs `contradicts`) across questions or domain topics.*
+- `def _connected_claim_pairs(repo)` - *Unordered bare claim-ID pairs that any claim-to-claim edge already joins.*
+- `def find_related_findings(repo, claim_ids, limit_per_claim)` - *Detect findings sharing a research question or enough domain keywords to be related.*
+- `def link_related_findings(repo, claim_ids, limit_per_claim)` - *Create `related` edges for detected finding pairs that are not linked yet.*
+- `def _related_reason(entry)` - *Human-readable explanation of why a finding is related.*
+- `def related_findings(repo, ref, limit)` - *Findings connected to a claim, paper or question, with reasons and next-hop references.*
 - `def rank_influential_entities(repo, limit)` - *Rank keystone papers and claims by evidence centrality, citation degree, and confidence.*
 - `def build_evidence_matrix(repo)` - *Build a Paper x Question evidence matrix highlighting stance cells and coverage gaps.*
 
@@ -81,7 +88,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `508` lines (`22273` bytes)
+**Size**: `542` lines (`23893` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -97,6 +104,7 @@
 - `def _run_search(args, repository)` - *Search and print the three result sections.*
 - `def _run_show(args, repository)` - *Show one entity and each attached edge.*
 - `def _run_subgraph(args, repository)` - *Traverse and print the multi-hop neighborhood around an entity.*
+- `def _run_related(args, repository)` - *List findings connected to an entity, with the reason for each connection.*
 - `def _run_ask(args, repository)` - *Assemble and print evidence.*
 - `def _run_brief(args, repository)` - *Print a token-budgeted evidence pack.*
 - `def _run_review(args, repository)` - *Print or write a review outline.*
@@ -107,7 +115,7 @@
 - `def _run_check(args, repository)` - *Run the integrity gate and return 1 on any error.*
 - `def _run_mcp(args, repository)` - *Serve MCP on stdio; stdout carries protocol messages only.*
 - `def _run_web(args, repository)` - *Launch the Research Studio web UI, optionally seeding demo data or dumping HTML.*
-- `def _run_analyze(args, repository)` - *Detect contradictions, rank keystone papers and claims, and build the Paper x Question matrix.*
+- `def _run_analyze(args, repository)` - *Detect contradictions and related findings, rank keystones, and build the matrix.*
 
 ---
 
@@ -191,7 +199,7 @@
 ### [`lattice/extraction.py`](lattice/extraction.py)
 > *Automated knowledge creation: extract quote-backed claims and question links from papers.*
 
-**Size**: `218` lines (`8658` bytes)
+**Size**: `222` lines (`8833` bytes)
 
 **Classes:**
 - `class ExtractionResult` - *Immutable summary of claims and edges extracted from a single paper.*
@@ -259,7 +267,7 @@
 ### [`lattice/mcp.py`](lattice/mcp.py)
 > *A dependency-free MCP stdio server exposing the graph as JSON-RPC tools.*
 
-**Size**: `314` lines (`15348` bytes)
+**Size**: `328` lines (`16135` bytes)
 
 **Functions:**
 - `def _tool(name, description, properties, required)` - *An MCP tool declaration with a JSON Schema for its arguments.*
@@ -397,7 +405,7 @@
 ### [`lattice/web.py`](lattice/web.py)
 > *Zero-dependency web server and human-friendly Research Studio UI for Lattice.*
 
-**Size**: `1620` lines (`63309` bytes)
+**Size**: `1655` lines (`64947` bytes)
 
 **Classes:**
 - `class WebResponse` - *Immutable HTTP response returned by `dispatch_web_request`.*
@@ -431,13 +439,19 @@
 ### [`tests/test_analysis.py`](tests/test_analysis.py)
 > *Unit tests for scientific contradiction detection, keystone centrality, and evidence matrix analysis.*
 
-**Size**: `113` lines (`5043` bytes)
+**Size**: `290` lines (`14779` bytes)
 
 **Classes:**
 - `class TestAnalysis` - *Verify contradiction detection, keystone entity ranking, and Paper x Question evidence matrix.*
   - Method `.setUp()`
   - Method `._seed_conflicting_graph()`
   - Method `.test_detect_contradictions_and_idempotent_auto_link()`
+  - Method `.test_find_and_link_related_findings_is_deterministic_and_idempotent()`
+  - Method `.test_related_link_requires_question_or_two_shared_keywords()`
+  - Method `.test_related_linking_skips_opposing_and_already_connected_pairs()`
+  - Method `.test_related_linking_caps_links_per_claim()`
+  - Method `.test_related_findings_navigates_claim_paper_and_question()`
+  - Method `.test_related_findings_navigation_works_before_linking()`
   - Method `.test_rank_influential_entities_returns_keystone_papers_and_claims()`
   - Method `.test_build_evidence_matrix_identifies_cells_and_coverage_gaps()`
 
@@ -464,13 +478,14 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `151` lines (`6080` bytes)
+**Size**: `181` lines (`7612` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
   - Method `.setUp()`
   - Method `.run_cli(*arguments)`
   - Method `.ingest_fixture()`
+  - Method `.test_related_command_reports_and_links_findings()`
   - Method `.test_init_is_idempotent()`
   - Method `.test_ingest_question_claim_link_ask()`
   - Method `.test_json_output()`
@@ -518,7 +533,7 @@
 ### [`tests/test_extraction.py`](tests/test_extraction.py)
 > *Tests for automated knowledge creation and claim extraction from ingested papers.*
 
-**Size**: `93` lines (`4183` bytes)
+**Size**: `114` lines (`5305` bytes)
 
 **Classes:**
 - `class ExtractionTests` - *Verify deterministic sentence splitting, stance/confidence scoring, and claim/edge creation.*
@@ -526,6 +541,7 @@
   - Method `.test_split_empirical_sentences_handles_abbreviations_and_decimals()`
   - Method `.test_infer_stance_and_confidence()`
   - Method `.test_extract_from_paper_creates_claims_and_links_question()`
+  - Method `.test_extract_from_paper_links_related_findings_automatically()`
   - Method `.test_extract_all_processes_every_paper_and_auto_matches_questions()`
   - Method `.test_extract_from_missing_paper_raises_lattice_error()`
 
@@ -583,7 +599,7 @@
 ### [`tests/test_mcp.py`](tests/test_mcp.py)
 > *MCP JSON-RPC contracts and stdio framing.*
 
-**Size**: `144` lines (`6501` bytes)
+**Size**: `174` lines (`8377` bytes)
 
 **Classes:**
 - `class McpTests` - *Call the protocol handler directly; no sockets or spawns.*
@@ -592,6 +608,7 @@
   - Method `.tool(name, arguments)`
   - Method `.test_initialize()`
   - Method `.test_tools_list()`
+  - Method `.test_related_findings_tool_navigates_and_links()`
   - Method `.test_add_question_and_search()`
   - Method `.test_add_claim_reports_missing_paper()`
   - Method `.test_unknown_method()`
@@ -690,13 +707,14 @@
 ### [`tests/test_web.py`](tests/test_web.py)
 > *Tests for the web-based human UI and JSON API dispatcher (zero sockets).*
 
-**Size**: `205` lines (`8344` bytes)
+**Size**: `231` lines (`9819` bytes)
 
 **Classes:**
 - `class WebInterfaceTests` - *Verify HTML rendering and REST API handlers via pure request dispatch.*
   - Method `.setUp()`
   - Method `.request_json(method, path, payload)`
   - Method `.test_index_serves_self_contained_human_ui()`
+  - Method `.test_link_related_endpoint_and_map_legend()`
   - Method `.test_demo_seed_and_overview_workflow()`
   - Method `.test_create_entities_and_synthesize_via_web_api()`
   - Method `.test_discover_extract_and_search_endpoints()`

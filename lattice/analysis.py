@@ -1,10 +1,10 @@
-"""Scientific contradiction detection, keystone entity centrality, and Paper x Question evidence matrices."""
+"""Contradiction detection, related-finding links, keystone ranking and evidence matrices."""
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from lattice.inquiry import STOPWORDS
-from lattice.models import bare_id, entity_type, normalize_text
+from lattice.models import Edge, bare_id, entity_type, normalize_text
 from lattice.repository import Repository
 
 _EXTRA_STOPWORDS = {
@@ -53,6 +53,38 @@ class ContradictionPair:
             "shared_keywords": list(self.shared_keywords),
             "score": self.score,
             "linked_edge_id": self.linked_edge_id,
+        }
+
+
+_RELATED_LINK_LIMIT = 3
+
+
+@dataclass(frozen=True)
+class RelatedPair:
+    """Two findings related by a shared research question or a domain-keyword overlap."""
+
+    claim_a_id: str
+    claim_b_id: str
+    claim_a_text: str
+    claim_b_text: str
+    paper_a_id: str
+    paper_b_id: str
+    shared_question_ids: Tuple[str, ...]
+    shared_keywords: Tuple[str, ...]
+    score: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        """JSON-serializable representation."""
+        return {
+            "claim_a_id": self.claim_a_id,
+            "claim_b_id": self.claim_b_id,
+            "claim_a_text": self.claim_a_text,
+            "claim_b_text": self.claim_b_text,
+            "paper_a_id": self.paper_a_id,
+            "paper_b_id": self.paper_b_id,
+            "shared_question_ids": list(self.shared_question_ids),
+            "shared_keywords": list(self.shared_keywords),
+            "score": self.score,
         }
 
 
@@ -150,6 +182,241 @@ def detect_contradictions(repo: Repository, auto_link: bool = False) -> List[Con
             )
     pairs.sort(key=lambda item: (item.score, len(item.shared_question_ids), len(item.shared_keywords)), reverse=True)
     return pairs
+
+
+def _connected_claim_pairs(repo: Repository) -> Set[Tuple[str, str]]:
+    """Unordered bare claim-ID pairs that any claim-to-claim edge already joins."""
+    pairs: Set[Tuple[str, str]] = set()
+    for row in repo.connection.execute("SELECT src, dst FROM edges").fetchall():
+        src, dst = str(row["src"]), str(row["dst"])
+        if entity_type(src) == "claim" and entity_type(dst) == "claim":
+            pairs.add(tuple(sorted((bare_id(src), bare_id(dst)))))
+    return pairs
+
+
+def find_related_findings(repo: Repository, claim_ids: Optional[Sequence[str]] = None,
+                          limit_per_claim: int = _RELATED_LINK_LIMIT) -> List[RelatedPair]:
+    """Detect findings sharing a research question or enough domain keywords to be related.
+
+    The pass is deterministic: claims are visited in identifier order, candidates rank by
+    shared-question count, shared-keyword count and identifier, and each claim gains at most
+    ``limit_per_claim`` new links. Pairs already joined by any claim-to-claim edge and pairs
+    with opposing stances (owned by contradiction detection) are skipped.
+    """
+    cap = max(1, int(limit_per_claim))
+    scope = None if claim_ids is None else {
+        bare_id(str(item)) if ":" in str(item) else str(item) for item in claim_ids
+    }
+    rows = repo.connection.execute(
+        "SELECT id, paper_id, text, stance FROM claims ORDER BY id"
+    ).fetchall()
+    claim_ids_all = [str(row["id"]) for row in rows]
+    if len(claim_ids_all) < 2:
+        return []
+    text_by_id = {str(row["id"]): str(row["text"]) for row in rows}
+    paper_by_id = {str(row["id"]): str(row["paper_id"]) for row in rows}
+    stance_by_id = {str(row["id"]): str(row["stance"]) for row in rows}
+    keywords = {claim_id: _domain_keywords(text) for claim_id, text in text_by_id.items()}
+    question_map = _claim_question_map(repo)
+    connected = _connected_claim_pairs(repo)
+    degree: Dict[str, int] = {claim_id: 0 for claim_id in claim_ids_all}
+    for left, right in connected:
+        if left in degree:
+            degree[left] += 1
+        if right in degree:
+            degree[right] += 1
+    seeds = sorted(scope & set(claim_ids_all)) if scope is not None else claim_ids_all
+    chosen: List[RelatedPair] = []
+    selected: Set[Tuple[str, str]] = set()
+    for current in seeds:
+        if degree.get(current, 0) >= cap:
+            continue
+        candidates = []
+        for other in claim_ids_all:
+            if other == current:
+                continue
+            pair = tuple(sorted((current, other)))
+            if pair in connected or pair in selected:
+                continue
+            if {stance_by_id[current], stance_by_id[other]} == {"supports", "contradicts"}:
+                continue
+            shared_questions = tuple(sorted(
+                question_map.get(current, set()) & question_map.get(other, set())))
+            shared_keywords = tuple(sorted(keywords[current] & keywords[other]))
+            if not shared_questions and len(shared_keywords) < 2:
+                continue
+            candidates.append((len(shared_questions), len(shared_keywords), other,
+                               shared_questions, shared_keywords))
+        candidates.sort(key=lambda item: (-item[0], -item[1], item[2]))
+        for _, _, other, shared_questions, shared_keywords in candidates:
+            if degree.get(current, 0) >= cap:
+                break
+            pair = tuple(sorted((current, other)))
+            if pair in selected or degree.get(other, 0) >= cap:
+                continue
+            selected.add(pair)
+            degree[current] = degree.get(current, 0) + 1
+            degree[other] = degree.get(other, 0) + 1
+            first, second = pair
+            score = round(min(1.0, (len(shared_questions) * 0.5)
+                              + (len(shared_keywords) * 0.15)), 3)
+            chosen.append(RelatedPair(
+                claim_a_id=first,
+                claim_b_id=second,
+                claim_a_text=text_by_id[first],
+                claim_b_text=text_by_id[second],
+                paper_a_id=paper_by_id[first],
+                paper_b_id=paper_by_id[second],
+                shared_question_ids=shared_questions,
+                shared_keywords=shared_keywords,
+                score=score,
+            ))
+    return chosen
+
+
+def link_related_findings(repo: Repository, claim_ids: Optional[Sequence[str]] = None,
+                          limit_per_claim: int = _RELATED_LINK_LIMIT) -> List[Edge]:
+    """Create `related` edges for detected finding pairs that are not linked yet."""
+    created: List[Edge] = []
+    for pair in find_related_findings(repo, claim_ids=claim_ids, limit_per_claim=limit_per_claim):
+        reasons = []
+        if pair.shared_question_ids:
+            reasons.append("shared question " + ", ".join(pair.shared_question_ids))
+        if pair.shared_keywords:
+            reasons.append("keywords: " + ", ".join(pair.shared_keywords[:4]))
+        created.append(repo.add_edge(
+            f"claim:{pair.claim_a_id}", f"claim:{pair.claim_b_id}", "related",
+            note="Auto-detected related findings (" + "; ".join(reasons) + ")",
+        ))
+    return created
+
+
+def _related_reason(entry: Dict[str, Any]) -> str:
+    """Human-readable explanation of why a finding is related."""
+    parts = []
+    if entry.get("edge_id") is not None:
+        parts.append(f"linked by a {entry['relation']} edge")
+    if entry["shared_questions"]:
+        parts.append("shares question " + ", ".join(sorted(entry["shared_questions"])))
+    if entry["shared_keywords"]:
+        parts.append("keywords: " + ", ".join(sorted(entry["shared_keywords"])[:4]))
+    return "; ".join(parts) or "same topic"
+
+
+def related_findings(repo: Repository, ref: str, limit: int = 10) -> Dict[str, Any]:
+    """Findings connected to a claim, paper or question, with reasons and next-hop references.
+
+    For a claim the seeds are the claim itself. For a paper the seeds are its findings, and for
+    a question its linked evidence. Direct claim-to-claim edges are reported first, then findings
+    sharing a question (co-evidence) and finally findings that only share domain keywords.
+    """
+    entity = repo.get(ref)
+    resolved = str(entity["ref"])
+    kind = entity_type(resolved)
+    cap = max(1, int(limit))
+    rows = repo.connection.execute(
+        "SELECT id, paper_id, text, stance, confidence FROM claims ORDER BY id"
+    ).fetchall()
+    by_id = {str(row["id"]): row for row in rows}
+    text_by_id = {claim_id: str(row["text"]) for claim_id, row in by_id.items()}
+    paper_by_id = {claim_id: str(row["paper_id"]) for claim_id, row in by_id.items()}
+    stance_by_id = {claim_id: str(row["stance"]) for claim_id, row in by_id.items()}
+    confidence_by_id = {claim_id: float(row["confidence"]) for claim_id, row in by_id.items()}
+    keywords_by_id = {claim_id: _domain_keywords(text) for claim_id, text in text_by_id.items()}
+    question_map = _claim_question_map(repo)
+    paper_rows = repo.connection.execute("SELECT id, title, study_type FROM papers").fetchall()
+    paper_titles = {str(row["id"]): str(row["title"]) for row in paper_rows}
+    study_types = {str(row["id"]): str(row["study_type"]) for row in paper_rows}
+    if kind == "claim":
+        seeds = [bare_id(resolved)]
+    elif kind == "paper":
+        paper_id = bare_id(resolved)
+        seeds = [claim_id for claim_id, paper in paper_by_id.items() if paper == paper_id]
+    else:
+        seeds = []
+        for row in repo.connection.execute(
+                "SELECT src, dst FROM edges WHERE (src = ? OR dst = ?)"
+                " AND kind IN ('supports', 'contradicts', 'answers')",
+                (resolved, resolved)).fetchall():
+            src, dst = str(row["src"]), str(row["dst"])
+            if entity_type(src) == "claim" and entity_type(dst) == "question":
+                seeds.append(bare_id(src))
+            elif entity_type(dst) == "claim" and entity_type(src) == "question":
+                seeds.append(bare_id(dst))
+    seeds = sorted(set(seeds))
+    seed_set = set(seeds)
+    entries: Dict[str, Dict[str, Any]] = {}
+    for row in repo.connection.execute("SELECT * FROM edges ORDER BY id").fetchall():
+        src, dst, edge_kind = str(row["src"]), str(row["dst"]), str(row["kind"])
+        if entity_type(src) != "claim" or entity_type(dst) != "claim":
+            continue
+        left, right = bare_id(src), bare_id(dst)
+        if left in seed_set and right not in seed_set:
+            other, via = right, left
+        elif right in seed_set and left not in seed_set:
+            other, via = left, right
+        else:
+            continue
+        entry = entries.setdefault(other, {
+            "relation": edge_kind,
+            "edge_id": int(row["id"]),
+            "via": set(),
+            "shared_questions": set(),
+            "shared_keywords": set(),
+        })
+        entry["via"].add(via)
+    for other in sorted(set(by_id) - seed_set):
+        entry = entries.get(other)
+        shared_questions: Set[str] = set()
+        shared_keywords: Set[str] = set()
+        via: Set[str] = set()
+        for seed in seeds:
+            seed_questions = question_map.get(seed, set()) & question_map.get(other, set())
+            seed_keywords = keywords_by_id.get(seed, set()) & keywords_by_id.get(other, set())
+            shared_questions |= seed_questions
+            shared_keywords |= seed_keywords
+            if seed_questions or len(seed_keywords) >= 2:
+                via.add(seed)
+        if entry is None:
+            if not shared_questions and len(shared_keywords) < 2:
+                continue
+            entry = {
+                "relation": "co-evidence" if shared_questions else "topic-overlap",
+                "edge_id": None,
+                "via": set(),
+                "shared_questions": set(),
+                "shared_keywords": set(),
+            }
+            entries[other] = entry
+        entry["via"] |= via
+        entry["shared_questions"] |= shared_questions
+        entry["shared_keywords"] |= shared_keywords
+    rank = {"contradicts": 0, "supports": 1, "related": 2, "replicates": 3,
+            "extends": 4, "mentions": 5, "co-evidence": 6, "topic-overlap": 7}
+    related: List[Dict[str, Any]] = []
+    for other, entry in entries.items():
+        paper = paper_by_id.get(other, "")
+        related.append({
+            "ref": f"claim:{other}",
+            "id": other,
+            "text": text_by_id.get(other, ""),
+            "stance": stance_by_id.get(other, ""),
+            "confidence": confidence_by_id.get(other, 0.0),
+            "paper": paper,
+            "paper_title": paper_titles.get(paper, ""),
+            "study_type": study_types.get(paper, ""),
+            "relation": entry["relation"],
+            "edge_id": entry["edge_id"],
+            "via": sorted(entry["via"]),
+            "shared_questions": sorted(entry["shared_questions"]),
+            "shared_keywords": sorted(entry["shared_keywords"]),
+            "reason": _related_reason(entry),
+        })
+    related.sort(key=lambda item: (rank.get(item["relation"], 9),
+                                   -len(item["shared_questions"]),
+                                   -len(item["shared_keywords"]), item["id"]))
+    return {"root": resolved, "type": kind, "seeds": [f"claim:{seed}" for seed in seeds],
+            "count": len(related[:cap]), "related": related[:cap]}
 
 
 def rank_influential_entities(repo: Repository, limit: int = 10) -> Dict[str, List[Dict[str, Any]]]:

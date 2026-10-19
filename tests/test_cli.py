@@ -33,6 +33,36 @@ class CliTests(unittest.TestCase):
             " doi={10.1/sleep}}", encoding="utf-8")
         return path
 
+    def test_related_command_reports_and_links_findings(self):
+        connection = open_database(self.db)
+        repo = Repository(connection)
+        question = repo.add_question("Does sleep consolidate memory?")
+        first, _ = repo.add_paper({"title": "Sleep One", "authors": "A"})
+        second, _ = repo.add_paper({"title": "Sleep Two", "authors": "B"})
+        c1 = repo.add_claim(first.id, "Sleep improved memory recall.",
+                            "Sleep improved memory recall by 28%.", stance="supports")
+        c2 = repo.add_claim(second.id, "Sleep enhanced memory recall.",
+                            "Sleep enhanced memory recall across participants.", stance="supports")
+        repo.add_edge(c1.id, question.id, kind="answers")
+        repo.add_edge(c2.id, question.id, kind="answers")
+        connection.close()
+
+        code, out, err = self.run_cli("--json", "related", f"claim:{c1.id}")
+        self.assertEqual(code, 0, err)
+        payload = json.loads(out)
+        self.assertEqual(payload["root"], f"claim:{c1.id}")
+        self.assertEqual(payload["count"], 1)
+        self.assertEqual(payload["related"][0]["id"], c2.id)
+
+        code, out, err = self.run_cli("analyze", "--auto-link", "--limit", "3")
+        self.assertEqual(code, 0, err)
+        self.assertIn("Related finding pairs detected: 1 (linked: 1)", out)
+
+        code, out, err = self.run_cli("related", f"claim:{c1.id}")
+        self.assertEqual(code, 0, err)
+        self.assertIn("related", out)
+        self.assertIn(c2.id, out)
+
     def test_init_is_idempotent(self):
         first, _, _ = self.run_cli("init")
         second, _, _ = self.run_cli("init")

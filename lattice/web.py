@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 from lattice.analysis import (
     build_evidence_matrix,
     detect_contradictions,
+    link_related_findings,
     rank_influential_entities,
 )
 from lattice.checks import run_checks
@@ -108,6 +109,10 @@ def _dispatch_post(repository: Repository, route: str,
         auto_link = bool(payload.get("auto_link", True))
         pairs = [item.to_dict() for item in detect_contradictions(repository, auto_link=auto_link)]
         return _json_response(200, {"count": len(pairs), "contradictions": pairs})
+    if route == "/api/link-related":
+        edges = link_related_findings(repository)
+        return _json_response(200, {"created": len(edges),
+                                    "edge_ids": [edge.id for edge in edges]})
     if route == "/api/questions":
         question = repository.add_question(str(payload.get("text") or ""))
         return _json_response(200, {"question": question.to_dict()})
@@ -987,7 +992,17 @@ WEB_HTML = """<!DOCTYPE html>
 
       <div>
         <div class="card">
-          <h2>Interactive Provenance Subgraph</h2>
+          <h2>
+            <span>Interactive Provenance Subgraph</span>
+            <button class="btn sm" onclick="linkRelatedFindings()">Connect Findings</button>
+          </h2>
+          <div class="legend" style="display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:0.72rem;margin:2px 0 8px">
+            <span><b style="color:#22c55e">&#9644;</b> supports</span>
+            <span><b style="color:#ef4444">&#9644;</b> contradicts</span>
+            <span><b style="color:#f59e0b">&#9644;</b> related (dashed)</span>
+            <span><b style="color:#a855f7">&#9644;</b> answers</span>
+            <span><b style="color:#64748b">&#9644;</b> other</span>
+          </div>
           <div id="svg-container" style="background:#090e1a;border:1px solid var(--border);border-radius:10px;min-height:420px;display:flex;align-items:center;justify-content:center;overflow:hidden">
             <span style="color:var(--muted);font-size:0.88rem">Select an entity to visualize its connected claims, papers, and questions.</span>
           </div>
@@ -1451,13 +1466,20 @@ function renderSvgGraph(data) {
     }
   });
   const colors = { question: '#a855f7', claim: '#22c55e', paper: '#38bdf8' };
+  const edgeStyles = {
+    supports: '#22c55e', contradicts: '#ef4444', related: '#f59e0b',
+    answers: '#a855f7', replicates: '#14b8a6', extends: '#06b6d4',
+    cites: '#64748b', uses_method: '#64748b', measures: '#64748b', mentions: '#475569'
+  };
   const edgeLines = edges.map(e => {
     const p1 = positions[e.src] || { x: cx, y: cy };
     const p2 = positions[e.dst] || { x: cx, y: cy };
     const mx = Math.round((p1.x + p2.x) / 2);
     const my = Math.round((p1.y + p2.y) / 2);
-    return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="#475569" stroke-width="2"/>
-            <text x="${mx}" y="${my - 4}" fill="#94a3b8" font-size="10" text-anchor="middle">${esc(e.kind)}</text>`;
+    const stroke = edgeStyles[e.kind] || '#475569';
+    const dash = e.kind === 'related' ? ' stroke-dasharray="6 4"' : '';
+    return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${stroke}" stroke-width="2"${dash}/>
+            <text x="${mx}" y="${my - 4}" fill="${stroke}" font-size="10" text-anchor="middle">${esc(e.kind)}</text>`;
   }).join('');
   const nodeCircles = nodes.map(n => {
     const pos = positions[n.ref];
@@ -1607,6 +1629,19 @@ async function autoLinkContradictions() {
     notify(`Linked ${res.count} contradiction pair(s) in the knowledge graph`);
     await refreshOverview();
     await loadMatrix();
+  } catch (err) {
+    notify(err.message, true);
+  }
+}
+
+async function linkRelatedFindings() {
+  try {
+    const res = await api('POST', '/api/link-related', {});
+    notify(`Connected ${res.created} related finding pair(s) on the map`);
+    await refreshOverview();
+    if (document.getElementById('graph-ref').value.trim()) {
+      await loadSubgraph();
+    }
   } catch (err) {
     notify(err.message, true);
   }

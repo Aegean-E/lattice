@@ -38,7 +38,8 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
   pluggable provider boundary and deduplicates discovered papers automatically.
 - **Knowledge Creation (`extract`)** segments abstracts into empirical sentences, infers stance
   (`supports`, `contradicts`, `mentions`) and confidence, records quote-backed claims with
-  locators, and links matching research questions.
+  locators, links matching research questions, and connects each new finding to related findings
+  that share a question or enough domain keywords.
 - **Papers** carry bibliographic metadata plus searchable tags and a study type (for example
   `Randomized Controlled Trial`, `Cohort Study`, `Meta-Analysis`, `Computational Study`). Explicit
   values win; otherwise the type is inferred from the title and abstract and tags are derived from
@@ -50,8 +51,9 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
   claims to questions; `cites`, `replicates`, `extends`, `uses_method`, `measures`, `mentions`
   and `related` cover the rest of the graph.
 - **Analysis (`analyze`)** detects opposing claim pairs (`supports` vs `contradicts`) on shared
-  questions or domain keywords (with optional `--auto-link`), ranks keystone papers and claims by
-  evidence centrality, and builds a `Paper x Question` evidence matrix with coverage gaps.
+  questions or domain keywords (with optional `--auto-link`), links related findings through
+  deterministic `related` edges, ranks keystone papers and claims by evidence centrality, and
+  builds a `Paper x Question` evidence matrix with coverage gaps.
 - **Synthesis (`synthesize`)** computes a confidence-weighted consensus score in `[-1.0, 1.0]`,
   groups claims into thematic clusters with verbatim quotes, identifies research gaps and
   follow-up queries, and formats resolved Markdown and BibTeX references.
@@ -60,7 +62,8 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
   seeding, multi-source literature discovery, browser paste-ingestion (BibTeX/RIS/CSV/Markdown),
   literature search by tag, word, full sentence or study type, JSONL snapshot download, consensus
   synthesis, interactive SVG subgraph exploration whose paper/claim/question nodes carry the study
-  type, and a `Paper x Question` Evidence Matrix & Contradictions tab.
+  type and whose edges are colored by relation (dashed amber for `related`) with a legend and a
+  Connect Findings action, and a `Paper x Question` Evidence Matrix & Contradictions tab.
 - **The gate (`check`)** reports broken endpoints, missing quotes, duplicate identifiers,
   support cycles and unlinked evidence.
 
@@ -77,6 +80,7 @@ python -m lattice [--db PATH] [--json] link SRC DST --type KIND
 python -m lattice [--db PATH] [--json] search QUERY [--stance S] [--min-confidence C] [--year Y]
 python -m lattice [--db PATH] [--json] show REF
 python -m lattice [--db PATH] [--json] subgraph REF [--depth 1..3]
+python -m lattice [--db PATH] [--json] related REF [--limit N]
 python -m lattice [--db PATH] [--json] ask TARGET
 python -m lattice [--db PATH] [--json] brief TARGET --tokens N
 python -m lattice [--db PATH] [--json] review TARGET [--out PATH]
@@ -92,10 +96,10 @@ python -m lattice [--db PATH] web [--host 127.0.0.1] [--port 8765] [--demo] [--o
 
 `--json` prints stable machine-readable payloads. `mcp` serves newline-delimited JSON-RPC on
 stdio with tools (`search`, `discover_papers`, `extract_claims`, `get_entity`, `neighbors`,
-`subgraph`, `add_paper`, `add_claim`, `add_question`, `set_question_status`, `add_edge`,
-`brief`, `review`, `synthesize`, `analyze_graph`, `detect_contradictions`, `export_snapshot`,
-`import_snapshot`, `stats`), resources (`lattice://stats`, `lattice://questions`,
-`lattice://matrix`), and prompts (`literature-synthesis`).
+`subgraph`, `related_findings`, `add_paper`, `add_claim`, `add_question`, `set_question_status`,
+`add_edge`, `brief`, `review`, `synthesize`, `analyze_graph`, `detect_contradictions`,
+`export_snapshot`, `import_snapshot`, `stats`), resources (`lattice://stats`,
+`lattice://questions`, `lattice://matrix`), and prompts (`literature-synthesis`).
 
 ### Supported Inputs
 
@@ -120,7 +124,7 @@ lattice/
 ├── lattice/
 │   ├── __init__.py
 │   ├── __main__.py           <- `python -m lattice`
-│   ├── analysis.py           <- contradiction detection, keystone centrality and evidence matrix
+│   ├── analysis.py           <- contradiction detection, related-finding links, keystone centrality and evidence matrix
 │   ├── checks.py             <- integrity gate: endpoints, provenance, duplicates, cycles
 │   ├── cli.py                <- argument grammar, handlers and human/JSON output
 │   ├── database.py           <- SQLite schema, connection and version refusal

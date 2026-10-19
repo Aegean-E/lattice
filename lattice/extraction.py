@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from lattice.analysis import link_related_findings
 from lattice.models import Claim, Edge, normalize_text
 from lattice.repository import Repository
 
@@ -153,6 +154,9 @@ def extract_from_paper(repository: Repository, paper_ref: str,
                 )
                 if edge is not None:
                     created_edges.append(edge)
+    created_edges.extend(
+        link_related_findings(repository, claim_ids=[claim.id for claim in created_claims])
+    )
     return ExtractionResult(
         paper_id=paper.id,
         claims=tuple(created_claims),

@@ -1,34 +1,13 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "lattice-literature-search-study-type",
+    "task_id": "lattice-related-findings-navigation",
     "last_phase": "phase 4",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1792435148.109799,
-    "completed_at": 1792435181.2456064
+    "active_phase": 4,
+    "status": "in_progress",
+    "updated_at": 1792438096.757632
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-v0.2.0",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[milestone 1/5] Add pluggable literature discovery (arXiv, Crossref, offline corpus) and DiscoveryService; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792424417.688954,
-      "timestamp_str": "2026-10-19 18:40:17"
-    },
-    {
-      "task_id": "lattice-v0.2.0",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[milestone 2/5] Add automated claim and edge extraction from ingested papers; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792424518.0185602,
-      "timestamp_str": "2026-10-19 18:41:58"
-    },
     {
       "task_id": "lattice-v0.2.0",
       "phase": "phase 4",
@@ -222,6 +201,32 @@
       "status": "completed",
       "timestamp": 1792435181.2456079,
       "timestamp_str": "2026-10-19 21:39:41"
+    },
+    {
+      "task_id": "lattice-related-findings-navigation",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/5] Analysis: detect and link related findings (claims) sharing a research question or at least two domain keywords, excluding opposing stances and existing links, capped at three per claim, deterministic and idempotent with explanatory notes; auto-link new claims during extraction and catch up existing graphs through analyze --auto-link, with failing-first tests. [2/5] AI navigation: related_findings(target, limit) over claims, papers and questions with relation reasons and next-hop refs, plus the CLI related command and the MCP related_findings tool. [3/5] Web map: draw edges by kind with distinct colors and dashes, add a legend, and add a Connect Findings action backed by a JSON endpoint. [4/5] README, ADR-009 and codebase map. [5/5] Phase 4 gates, checklist record and commit.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792437269.1148825,
+      "timestamp_str": "2026-10-19 22:14:29",
+      "impact_assessment": {
+        "why": "The user asked that related findings connect on the map and that an AI agent can navigate those connections easily; today claims only link to questions, so related findings stay isolated and agents must guess relevance.",
+        "benefits": "The map becomes a connected evidence web instead of star-shaped question hubs; an agent can walk from a finding to related, supporting or contradicting findings with the reason and the next-hop reference in one bounded call.",
+        "risks": "contract: extraction edge payloads grow when related links are created, and CLI/MCP gain new surfaces; dependency: standard library only; concurrency: links are added through the existing SQLite connection with the same commit pattern and no background writers; state: related edges persist in SQLite and snapshots, so linking must be idempotent and bounded to avoid duplicate or runaway edges.",
+        "mitigation": "Use deterministic pair ordering and sorted identifiers, skip pairs that already share any claim-to-claim edge, exclude opposing stances owned by contradiction detection, cap links per claim, explain each edge in its note, and cover thresholds, idempotency, extraction, CLI, MCP, web and map rendering with tests before the gates."
+      }
+    },
+    {
+      "task_id": "lattice-related-findings-navigation",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[1/5]-[5/5] Verified: related findings link automatically during extraction (shared question or at least two domain keywords, opposing stances excluded, three-link cap, idempotent deterministic notes) and catch up through analyze --auto-link; related_findings navigation over claims, papers and questions in analysis, CLI (related REF), MCP (related_findings) and POST /api/link-related; web map colors edges by relation with a legend and a Connect Findings action; README and ADR-009 updated; 121/121 tests green (1.1s); UI JavaScript passes node --check; codebase map regenerated; aikit check lattice 4/4 gates (test, hygiene, guidelines, secrets); checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792438096.757632,
+      "timestamp_str": "2026-10-19 22:28:16"
     }
   ]
 }

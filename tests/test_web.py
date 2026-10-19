@@ -30,6 +30,32 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("Lattice Research Studio", resp.body)
         self.assertIn("Load Demo Corpus", resp.body)
 
+    def test_link_related_endpoint_and_map_legend(self) -> None:
+        resp = dispatch_web_request(self.repository, "GET", "/")
+        self.assertIn("Connect Findings", resp.body)
+        self.assertIn("related (dashed)", resp.body)
+        self.assertIn("const edgeStyles", resp.body)
+
+        question = self.repository.add_question("Does sleep consolidate memory?")
+        first, _ = self.repository.add_paper({"title": "Sleep One", "authors": "A"})
+        second, _ = self.repository.add_paper({"title": "Sleep Two", "authors": "B"})
+        c1 = self.repository.add_claim(first.id, "Sleep improved memory recall.",
+                                       "Sleep improved memory recall by 28%.", stance="supports")
+        c2 = self.repository.add_claim(second.id, "Sleep enhanced memory recall.",
+                                       "Sleep enhanced memory recall across participants.",
+                                       stance="supports")
+        self.repository.add_edge(c1.id, question.id, kind="answers")
+        self.repository.add_edge(c2.id, question.id, kind="answers")
+
+        status, payload = self.request_json("POST", "/api/link-related", {})
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["created"], 1)
+        self.assertEqual(len(payload["edge_ids"]), 1)
+
+        status, repeat = self.request_json("POST", "/api/link-related", {})
+        self.assertEqual(status, 200)
+        self.assertEqual(repeat["created"], 0)
+
     def test_demo_seed_and_overview_workflow(self) -> None:
         status, demo = self.request_json("POST", "/api/demo", {})
         self.assertEqual(status, 200)

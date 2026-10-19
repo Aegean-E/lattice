@@ -138,6 +138,32 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   compatible because missing fields default to empty, and CLI/MCP/web paper payloads gain two
   additive fields. Inference is deterministic but heuristic, so callers can always override it.
 
+## ADR-009: Related-finding links and AI-navigable evidence connections (2026-10-19)
+
+- **Status**: Accepted
+- **Context**: Findings linked only to research questions, so the map around a question was a
+  star: two findings that supported the same question were not connected to each other, and an AI
+  agent had to re-derive relevance from raw text instead of walking the graph.
+- **Decision**:
+  1. Add `find_related_findings` and `link_related_findings` to `lattice.analysis`. Findings are
+     related when they share a research question or at least two domain keywords; opposing stances
+     remain the domain of contradiction detection, and pairs already joined by any claim-to-claim
+     edge are skipped. Links are deterministic `related` edges with reason notes, capped at three
+     new links per claim, and idempotent.
+  2. `extract` links each newly created finding automatically; `analyze --auto-link` and its MCP
+     and web counterparts catch up graphs that predate this change.
+  3. Add `related_findings(target, limit)` to `lattice.analysis`, exposed as `lattice related REF`
+     and the MCP tool `related_findings`. It returns connected findings (direct claim-to-claim
+     edges first, then co-evidence on a shared question, then keyword-only overlap) with the
+     relation, the reason, the source paper's study type and a `ref` for the next hop. The view is
+     read-only and works before edges are linked.
+  4. The Web Studio colors edges by kind, renders `related` edges as a dashed amber line with a
+     legend, and adds a Connect Findings action backed by `POST /api/link-related`.
+- **Consequences**: The map becomes an evidence web instead of disconnected satellites, and an
+  agent can traverse finding-to-finding relations in one bounded call. Auto-linking mutates the
+  graph during extraction, so every edge carries a human-readable note and can be deleted like any
+  other edge; the cap keeps dense corpora readable.
+
 
 
 

@@ -31,7 +31,37 @@ class McpTests(unittest.TestCase):
 
     def test_tools_list(self):
         names = {tool["name"] for tool in self.call("tools/list")["result"]["tools"]}
-        self.assertTrue({"search", "add_claim", "brief", "review", "stats"} <= names)
+        self.assertTrue({"search", "add_claim", "brief", "review", "stats",
+                         "related_findings"} <= names)
+
+    def test_related_findings_tool_navigates_and_links(self):
+        q = json.loads(self.tool("add_question", {"text": "Does sleep consolidate memory?"})
+                       ["result"]["content"][0]["text"])["question"]
+        first = json.loads(self.tool("add_paper", {"title": "Sleep One", "authors": "A"})
+                           ["result"]["content"][0]["text"])["paper"]
+        second = json.loads(self.tool("add_paper", {"title": "Sleep Two", "authors": "B"})
+                            ["result"]["content"][0]["text"])["paper"]
+        c1 = json.loads(self.tool("add_claim", {
+            "paper": first["id"], "text": "Sleep improved memory recall.",
+            "quote": "Sleep improved memory recall by 28%.", "stance": "supports"})
+            ["result"]["content"][0]["text"])["claim"]
+        c2 = json.loads(self.tool("add_claim", {
+            "paper": second["id"], "text": "Sleep enhanced memory recall.",
+            "quote": "Sleep enhanced memory recall across participants.", "stance": "supports"})
+            ["result"]["content"][0]["text"])["claim"]
+        self.tool("add_edge", {"src": f"claim:{c1['id']}",
+                               "dst": f"question:{q['id']}", "kind": "answers"})
+        self.tool("add_edge", {"src": f"claim:{c2['id']}",
+                               "dst": f"question:{q['id']}", "kind": "answers"})
+
+        navigation = json.loads(self.tool("related_findings", {
+            "target": f"claim:{c1['id']}"})["result"]["content"][0]["text"])
+        self.assertEqual(navigation["count"], 1)
+        self.assertEqual(navigation["related"][0]["id"], c2["id"])
+
+        analysis = json.loads(self.tool("analyze_graph", {"auto_link": True})
+                              ["result"]["content"][0]["text"])
+        self.assertEqual(analysis["related_links_created"], 1)
 
     def test_add_question_and_search(self):
         added = self.tool("add_question", {"text": "Does sleep help?"})["result"]

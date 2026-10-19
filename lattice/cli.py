@@ -9,7 +9,10 @@ from typing import Any, Dict, List, Optional, Sequence
 from lattice.analysis import (
     build_evidence_matrix,
     detect_contradictions,
+    find_related_findings,
+    link_related_findings,
     rank_influential_entities,
+    related_findings,
 )
 from lattice.checks import run_checks
 from lattice.database import SCHEMA_VERSION, open_database
@@ -103,6 +106,13 @@ def build_parser() -> argparse.ArgumentParser:
     subgraph.add_argument("--depth", type=int, default=1, help="traversal depth (1 to 3)")
     subgraph.set_defaults(handler=_run_subgraph)
 
+    related = commands.add_parser(
+        "related", help="list findings connected to a claim, paper or question")
+    related.add_argument("ref", help="paper, claim or question reference")
+    related.add_argument("--limit", type=int, default=10,
+                         help="maximum related findings to return (default: 10)")
+    related.set_defaults(handler=_run_related)
+
     ask_parser = commands.add_parser("ask", help="assemble evidence for a question")
     ask_parser.add_argument("target", help="question reference, question text or phrase")
     ask_parser.add_argument("--limit", type=int, default=20, help="suggestion search limit")
@@ -159,7 +169,7 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument(
         "--auto-link",
         action="store_true",
-        help="automatically add contradicts edges between opposing claims",
+        help="automatically add contradicts and related edges between detected pairs",
     )
     analyze.add_argument(
         "--limit",
@@ -347,6 +357,24 @@ def _run_subgraph(args: argparse.Namespace, repository: Repository) -> int:
     return 0
 
 
+def _run_related(args: argparse.Namespace, repository: Repository) -> int:
+    """List findings connected to an entity, with the reason for each connection."""
+    result = related_findings(repository, args.ref, args.limit)
+    lines = [
+        f"Related findings around {result['root']} ({result['type']}, {result['count']}):"
+    ]
+    for item in result["related"]:
+        study_type = item["study_type"] or "General Study"
+        lines.append(f"  {item['relation']:<12} [{item['id']}] ({item['stance']}, "
+                     f"{item['confidence']}) {item['text']}")
+        lines.append(f"    paper {item['paper']} ({study_type}): {item['paper_title']}")
+        lines.append(f"    why: {item['reason']}")
+    if not result["related"]:
+        lines.append("  none")
+    _emit(result, lines, args.json)
+    return 0
+
+
 def _run_ask(args: argparse.Namespace, repository: Repository) -> int:
     """Assemble and print evidence."""
     result = ask(repository, args.target, args.limit)
@@ -479,19 +507,25 @@ def _run_web(args: argparse.Namespace, repository: Repository) -> int:
 
 
 def _run_analyze(args: argparse.Namespace, repository: Repository) -> int:
-    """Detect contradictions, rank keystone papers and claims, and build the Paper x Question matrix."""
+    """Detect contradictions and related findings, rank keystones, and build the matrix."""
     contradictions = [
         item.to_dict() for item in detect_contradictions(repository, auto_link=bool(args.auto_link))
     ]
+    related_pairs = find_related_findings(repository)
+    related_links = link_related_findings(repository) if args.auto_link else []
     keystone = rank_influential_entities(repository, limit=int(args.limit))
     matrix = build_evidence_matrix(repository)
     payload = {
         "contradictions": contradictions,
+        "related_pairs": len(related_pairs),
+        "related_links_created": len(related_links),
         "keystone": keystone,
         "matrix": matrix,
     }
     lines = [
         f"Contradictions detected: {len(contradictions)}",
+        f"Related finding pairs detected: {len(related_pairs)} "
+        f"(linked: {len(related_links)})",
         f"Keystone papers ranked: {len(keystone['papers'])}",
         f"Evidence matrix cells: {len(matrix['cells'])} (gaps: {len(matrix['gaps'])})",
     ]
