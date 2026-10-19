@@ -117,7 +117,8 @@ lattice/
 │   ├── models.py             <- value objects, identifiers and validators
 │   ├── repository.py         <- graph writes, dedupe, search and evidence queries
 │   ├── snapshots.py          <- atomic JSONL graph snapshot export and merge import
-│   └── synthesis.py          <- consensus scoring, thematic clusters and BibTeX synthesis
+│   ├── synthesis.py          <- consensus scoring, thematic clusters and BibTeX synthesis
+│   └── web.py                <- web-based Research Studio UI and JSON API dispatcher
 └── tests/
     ├── __init__.py
     ├── test_checks.py
@@ -130,7 +131,8 @@ lattice/
     ├── test_models.py
     ├── test_repository.py
     ├── test_snapshots.py
-    └── test_synthesis.py
+    ├── test_synthesis.py
+    └── test_web.py
 ```
 
 ## Design Notes

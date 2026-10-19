@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `27`
-- **Total Classes**: `33`
-- **Total Top-Level Functions**: `123`
-- **Total Class Methods**: `158`
-- **Total Source Lines**: `4636`
+- **Total Python Modules**: `29`
+- **Total Classes**: `35`
+- **Total Top-Level Functions**: `134`
+- **Total Class Methods**: `165`
+- **Total Source Lines**: `5969`
 
 ---
 
@@ -106,7 +106,7 @@
 ### [`lattice/discovery.py`](lattice/discovery.py)
 > *Pluggable automated literature discovery: arXiv, Crossref, and offline scientific seed corpus.*
 
-**Size**: `384` lines (`15814` bytes)
+**Size**: `385` lines (`15815` bytes)
 
 **Classes:**
 - `class PaperCandidate` - *Immutable DTO returned by any literature discovery provider.*
@@ -159,7 +159,7 @@
 ### [`lattice/extraction.py`](lattice/extraction.py)
 > *Automated knowledge creation: extract quote-backed claims and question links from papers.*
 
-**Size**: `217` lines (`8657` bytes)
+**Size**: `218` lines (`8658` bytes)
 
 **Classes:**
 - `class ExtractionResult` - *Immutable summary of claims and edges extracted from a single paper.*
@@ -321,7 +321,7 @@
 ### [`lattice/snapshots.py`](lattice/snapshots.py)
 > *Portable JSONL graph snapshots with atomic write and idempotent merge import.*
 
-**Size**: `212` lines (`8392` bytes)
+**Size**: `213` lines (`8393` bytes)
 
 **Functions:**
 - `def export_snapshot(repository, path)` - *Write all papers, questions, claims and edges to a portable JSONL file atomically.*
@@ -337,7 +337,7 @@
 ### [`lattice/synthesis.py`](lattice/synthesis.py)
 > *Scientific literature synthesis engine: consensus scoring, thematic clustering, and BibTeX.*
 
-**Size**: `318` lines (`13219` bytes)
+**Size**: `319` lines (`13220` bytes)
 
 **Classes:**
 - `class SynthesisReport` - *Immutable structured synthesis for AI agents and human literature reviews.*
@@ -353,6 +353,29 @@
 - `def _collect_bibliography(repository, claims, extra_papers)` - *Collect unique resolved paper records referenced by claims or search results.*
 - `def _build_follow_up_queries(query_text, consensus, suggestions, bibliography)` - *Generate actionable follow-up scientific queries for AI agents.*
 - `def _render_markdown(query_text, mode, consensus, clusters, gaps, follow_ups, bibliography, tokens)` - *Render a deterministic, token-bounded Markdown literature synthesis report.*
+
+---
+
+### [`lattice/web.py`](lattice/web.py)
+> *Zero-dependency web server and human-friendly Research Studio UI for Lattice.*
+
+**Size**: `1198` lines (`44637` bytes)
+
+**Classes:**
+- `class WebResponse` - *Immutable HTTP response returned by `dispatch_web_request`.*
+
+**Functions:**
+- `def dispatch_web_request(repository, method, path, body)` - *Route an HTTP method and path to the UI or JSON API without network sockets.*
+- `def _dispatch_post(repository, route, payload)` - *Handle JSON POST routes for mutations, discovery, extraction, and demo seeding.*
+- `def _build_overview(repository)` - *Assemble full workspace state for the Human UI dashboard.*
+- `def _handle_search(repository, query)` - *Run filtered search from query parameters.*
+- `def _handle_subgraph(repository, query)` - *Run multi-hop subgraph traversal from query parameters.*
+- `def _handle_synthesize(repository, query)` - *Run scientific literature synthesis from query parameters.*
+- `def _seed_demo(repository)` - *Populate the built-in seed corpus, create research questions, and extract claims.*
+- `def _first(query, key)` - *First query parameter value or empty string.*
+- `def _parse_json_body(body)` - *Parse an optional JSON request body into a dictionary.*
+- `def _json_response(status, payload)` - *Serialize a dictionary as an application/json `WebResponse`.*
+- `def serve_web(db_path, host, port, open_browser, once)` - *Run the local HTTP server for the Lattice Research Studio UI.*
 
 ---
 
@@ -405,7 +428,7 @@
 ### [`tests/test_discovery.py`](tests/test_discovery.py)
 > *Tests for pluggable automated literature discovery (arXiv, Crossref, and offline corpus).*
 
-**Size**: `138` lines (`5926` bytes)
+**Size**: `139` lines (`5927` bytes)
 
 **Classes:**
 - `class DiscoveryTests` - *Verify the 4-layer discovery boundary: DTOs, registry, providers, and service DI.*
@@ -422,7 +445,7 @@
 ### [`tests/test_extraction.py`](tests/test_extraction.py)
 > *Tests for automated knowledge creation and claim extraction from ingested papers.*
 
-**Size**: `92` lines (`4182` bytes)
+**Size**: `93` lines (`4183` bytes)
 
 **Classes:**
 - `class ExtractionTests` - *Verify deterministic sentence splitting, stance/confidence scoring, and claim/edge creation.*
@@ -554,7 +577,7 @@
 ### [`tests/test_snapshots.py`](tests/test_snapshots.py)
 > *Tests for knowledge interaction: multi-term search, subgraphs, question status, and snapshots.*
 
-**Size**: `134` lines (`5888` bytes)
+**Size**: `135` lines (`5889` bytes)
 
 **Classes:**
 - `class InteractionAndSnapshotTests` - *Verify multi-term search, subgraph traversal, question status, and JSONL snapshot I/O.*
@@ -569,7 +592,7 @@
 ### [`tests/test_synthesis.py`](tests/test_synthesis.py)
 > *Tests for scientific literature synthesis: consensus scoring, thematic clusters, and BibTeX.*
 
-**Size**: `120` lines (`5110` bytes)
+**Size**: `121` lines (`5111` bytes)
 
 **Classes:**
 - `class SynthesisTests` - *Verify consensus scoring, thematic clustering, follow-up queries, and BibTeX generation.*
@@ -578,5 +601,22 @@
   - Method `.test_synthesize_question_produces_structured_ai_pack_and_markdown()`
   - Method `.test_synthesize_search_phrase_and_bibtex_formatting()`
   - Method `.test_synthesize_rejects_tiny_token_budget()`
+
+---
+
+### [`tests/test_web.py`](tests/test_web.py)
+> *Tests for the web-based human UI and JSON API dispatcher (zero sockets).*
+
+**Size**: `127` lines (`5073` bytes)
+
+**Classes:**
+- `class WebInterfaceTests` - *Verify HTML rendering and REST API handlers via pure request dispatch.*
+  - Method `.setUp()`
+  - Method `.request_json(method, path, payload)`
+  - Method `.test_index_serves_self_contained_human_ui()`
+  - Method `.test_demo_seed_and_overview_workflow()`
+  - Method `.test_create_entities_and_synthesize_via_web_api()`
+  - Method `.test_discover_extract_and_search_endpoints()`
+  - Method `.test_validation_error_and_not_found()`
 
 ---
