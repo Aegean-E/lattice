@@ -5,7 +5,7 @@
     "last_phase": "phase 4",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1792424417.688954
+    "updated_at": 1792424518.0185602
   },
   "checkpoints": [
     {
@@ -84,6 +84,16 @@
       "status": "in_progress",
       "timestamp": 1792424417.688954,
       "timestamp_str": "2026-10-19 18:40:17"
+    },
+    {
+      "task_id": "lattice-v0.2.0",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[milestone 2/5] Add automated claim and edge extraction from ingested papers; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792424518.0185602,
+      "timestamp_str": "2026-10-19 18:41:58"
     }
   ]
 }

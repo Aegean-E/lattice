@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `21`
-- **Total Classes**: `28`
-- **Total Top-Level Functions**: `90`
-- **Total Class Methods**: `132`
-- **Total Source Lines**: `3089`
+- **Total Python Modules**: `23`
+- **Total Classes**: `30`
+- **Total Top-Level Functions**: `98`
+- **Total Class Methods**: `139`
+- **Total Source Lines**: `3398`
 
 ---
 
@@ -147,6 +147,27 @@
 
 **Functions:**
 - `def fail(message, why, fix)` - *Raise a `LatticeError`; keeps call sites to one line.*
+
+---
+
+### [`lattice/extraction.py`](lattice/extraction.py)
+> *Automated knowledge creation: extract quote-backed claims and question links from papers.*
+
+**Size**: `217` lines (`8657` bytes)
+
+**Classes:**
+- `class ExtractionResult` - *Immutable summary of claims and edges extracted from a single paper.*
+  - Method `.to_dict()` - *JSON-ready representation.*
+
+**Functions:**
+- `def split_empirical_sentences(text, prefix)` - *Split text into `(locator, sentence)` pairs, keeping sentences with empirical findings.*
+- `def infer_stance(sentence)` - *Classify an empirical sentence as `supports`, `contradicts`, or `mentions`.*
+- `def infer_confidence(sentence)` - *Assign a deterministic confidence weight in [0.55, 0.95] from evidential markers.*
+- `def extract_from_paper(repository, paper_ref, question_ref, text)` - *Extract quote-backed claims from a paper and link them to matching or target questions.*
+- `def extract_all(repository, question_ref)` - *Run claim and edge extraction across every ingested paper in the graph.*
+- `def _is_empirical(sentence)` - *Whether a sentence carries quantitative or empirical indicators.*
+- `def _matches_question(sentence, title, question_text)` - *Whether a claim sentence and its paper title share content keywords with a question.*
+- `def _safe_add_edge(repository, src, dst, kind, note)` - *Add an edge if it does not already exist.*
 
 ---
 
@@ -342,6 +363,22 @@
   - Method `.test_crossref_provider_parses_json_and_strips_jats_tags()`
   - Method `.test_offline_provider_searches_curated_seed_catalog()`
   - Method `.test_discovery_service_ingests_and_deduplicates()`
+
+---
+
+### [`tests/test_extraction.py`](tests/test_extraction.py)
+> *Tests for automated knowledge creation and claim extraction from ingested papers.*
+
+**Size**: `92` lines (`4182` bytes)
+
+**Classes:**
+- `class ExtractionTests` - *Verify deterministic sentence splitting, stance/confidence scoring, and claim/edge creation.*
+  - Method `.setUp()`
+  - Method `.test_split_empirical_sentences_handles_abbreviations_and_decimals()`
+  - Method `.test_infer_stance_and_confidence()`
+  - Method `.test_extract_from_paper_creates_claims_and_links_question()`
+  - Method `.test_extract_all_processes_every_paper_and_auto_matches_questions()`
+  - Method `.test_extract_from_missing_paper_raises_lattice_error()`
 
 ---
 

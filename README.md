@@ -95,6 +95,7 @@ lattice/
 │   ├── database.py           <- SQLite schema, connection and version refusal
 │   ├── discovery.py          <- pluggable literature discovery (arXiv, Crossref, offline)
 │   ├── errors.py             <- the Error/Why/Fix triad
+│   ├── extraction.py         <- automated quote-backed claim and edge extraction
 │   ├── ingest.py             <- BibTeX, RIS, CSV, Markdown and text parsers
 │   ├── inquiry.py            <- ask, token-budgeted brief and review outline
 │   ├── mcp.py                <- MCP stdio server and tool dispatch
@@ -105,6 +106,7 @@ lattice/
     ├── test_checks.py
     ├── test_cli.py
     ├── test_discovery.py
+    ├── test_extraction.py
     ├── test_ingest.py
     ├── test_inquiry.py
     ├── test_mcp.py
