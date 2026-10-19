@@ -3,21 +3,12 @@
   "active_task": {
     "task_id": "lattice-token-frugal-navigation",
     "last_phase": "phase 4",
-    "active_phase": 4,
-    "status": "in_progress",
-    "updated_at": 1792439318.4625733
+    "active_phase": 5,
+    "status": "completed",
+    "updated_at": 1792439318.4625733,
+    "completed_at": 1792439392.4439056
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-v0.3.0",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[milestone 2/3] Add CLI web subcommand with --host, --port, --open, --demo and --dump-html; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792425881.5483868,
-      "timestamp_str": "2026-10-19 19:04:41"
-    },
     {
       "task_id": "lattice-v0.3.0",
       "phase": "phase 4",
@@ -227,6 +218,15 @@
       "status": "in_progress",
       "timestamp": 1792439318.4625733,
       "timestamp_str": "2026-10-19 22:48:38"
+    },
+    {
+      "task_id": "lattice-token-frugal-navigation",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-token-frugal-navigation' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792439392.4439065,
+      "timestamp_str": "2026-10-19 22:49:52"
     }
   ]
 }
