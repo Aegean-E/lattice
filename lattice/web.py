@@ -3,7 +3,7 @@
 import json
 import urllib.parse
 import webbrowser
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, List, Optional
 
@@ -36,6 +36,7 @@ class WebResponse:
     status: int
     content_type: str
     body: str
+    headers: Dict[str, str] = field(default_factory=dict)
 
 
 def dispatch_web_request(repository: Repository, method: str, path: str,
@@ -64,6 +65,18 @@ def dispatch_web_request(repository: Repository, method: str, path: str,
             return _json_response(200, _handle_literature(repository, query))
         if verb == "GET" and route == "/api/subgraph":
             return _json_response(200, _handle_subgraph(repository, query))
+        if verb == "GET" and route == "/api/outline":
+            tokens_val = int(_first(query, "tokens") or "400")
+            from lattice.context import outline
+            return _json_response(200, outline(repository, tokens=tokens_val))
+        if verb == "GET" and route == "/api/export-bibtex":
+            bibtex_content = _handle_export_bibtex(repository, query)
+            return WebResponse(
+                200,
+                "application/x-bibtex; charset=utf-8",
+                bibtex_content,
+                headers={"Content-Disposition": 'attachment; filename="lattice-references.bib"'},
+            )
         if verb == "GET" and route == "/api/synthesize":
             return _json_response(200, _handle_synthesize(repository, query))
         if verb == "POST":
@@ -235,6 +248,15 @@ def _handle_synthesize(repository: Repository, query: Dict[str, List[str]]) -> D
     return synthesize(repository, target, tokens=tokens).to_dict()
 
 
+def _handle_export_bibtex(repository: Repository, query: Dict[str, List[str]]) -> str:
+    """Export papers matching query parameters as BibTeX."""
+    q = _first(query, "q")
+    tags = ",".join(query.get("tags", []) + query.get("tag", []))
+    study_type = _first(query, "study_type") or _first(query, "type")
+    year = _first(query, "year") or None
+    return repository.export_bibtex(query=q, tags=tags, study_type=study_type, year=year)
+
+
 def _build_matrix_bundle(repository: Repository) -> Dict[str, Any]:
     """Assemble the Paper x Question evidence matrix, contradictions, and keystone ranking."""
     return {
@@ -388,6 +410,8 @@ def serve_web(db_path: str, host: str = "127.0.0.1", port: int = 8765,
             self.send_response(response.status)
             self.send_header("Content-Type", response.content_type)
             self.send_header("Content-Length", str(len(encoded)))
+            for header_name, header_value in response.headers.items():
+                self.send_header(header_name, header_value)
             self.end_headers()
             self.wfile.write(encoded)
 
@@ -687,6 +711,27 @@ WEB_HTML = """<!DOCTYPE html>
     color: #e2e8f0;
     max-height: 300px;
   }
+  #outline-drawer {
+    display: none;
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 480px;
+    max-width: 90vw;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.6);
+    z-index: 1000;
+    padding: 24px;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+  #outline-backdrop {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15,23,42,0.7);
+    z-index: 999;
+  }
 </style>
 </head>
 <body>
@@ -702,8 +747,10 @@ WEB_HTML = """<!DOCTYPE html>
     <div class="pill">Edges <strong id="st-edges">0</strong></div>
     <div class="pill ok" id="st-gate">Gate: PASS</div>
     <button class="btn sm" onclick="loadDemo()">Load Demo Corpus</button>
+    <button class="btn secondary sm" onclick="openOutlineDrawer()">Corpus Outline</button>
     <button class="btn secondary sm" onclick="extractAllClaims()">Extract All Claims</button>
     <button class="btn secondary sm" onclick="downloadSnapshot()">Download Snapshot</button>
+    <button class="btn secondary sm" onclick="downloadBibtex()">Export BibTeX</button>
   </div>
 </header>
 
@@ -880,7 +927,10 @@ WEB_HTML = """<!DOCTYPE html>
         </div>
 
         <div class="card">
-          <h2>Ingested Papers in Graph</h2>
+          <h2>
+            <span>Ingested Papers in Graph</span>
+            <button class="btn secondary sm" onclick="downloadFilteredBibtex()">Export Filtered BibTeX (.bib)</button>
+          </h2>
           <div id="papers-list" class="item-list"></div>
         </div>
       </div>
@@ -1260,6 +1310,7 @@ async function runSynthesis() {
   }
   try {
     const syn = await api('GET', `/api/synthesize?target=${encodeURIComponent(target)}&tokens=${encodeURIComponent(tokens)}`);
+    currentSynthesis = syn;
     const badge = document.getElementById('syn-consensus-badge');
     badge.textContent = `${syn.consensus.label} (${syn.consensus.score >= 0 ? '+' : ''}${syn.consensus.score})`;
     badge.className = 'badge ' + syn.consensus.label;
@@ -1303,6 +1354,10 @@ async function runSynthesis() {
       <ul style="margin:0 0 14px;padding-left:20px;font-size:0.85rem">${followHtml}</ul>
       <details>
         <summary style="cursor:pointer;color:var(--accent);font-size:0.86rem;font-weight:600">Markdown Synthesis &amp; BibTeX Citations</summary>
+        <div style="display:flex;gap:8px;margin:8px 0">
+          <button class="btn sm" onclick="copySynthesisMarkdown()">Copy Markdown</button>
+          <button class="btn sm secondary" onclick="copySynthesisBibtex()">Copy BibTeX</button>
+        </div>
         <pre class="code-box">${esc(syn.markdown)}</pre>
         <pre class="code-box">${esc(syn.bibtex)}</pre>
       </details>
@@ -1647,8 +1702,147 @@ async function linkRelatedFindings() {
   }
 }
 
+let currentSynthesis = null;
+
+async function copyToClipboard(text, successMsg) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    notify(successMsg);
+  } catch (err) {
+    notify('Failed to copy: ' + err.message, true);
+  }
+}
+
+function copySynthesisMarkdown() {
+  if (!currentSynthesis || !currentSynthesis.markdown) {
+    notify('No synthesis generated yet', true);
+    return;
+  }
+  copyToClipboard(currentSynthesis.markdown, 'Copied Markdown synthesis to clipboard!');
+}
+
+function copySynthesisBibtex() {
+  if (!currentSynthesis || !currentSynthesis.bibtex) {
+    notify('No BibTeX citations generated yet', true);
+    return;
+  }
+  copyToClipboard(currentSynthesis.bibtex, 'Copied BibTeX citations to clipboard!');
+}
+
+function downloadBibtex(params = '') {
+  window.location.href = '/api/export-bibtex' + (params ? ('?' + params) : '');
+}
+
+function downloadFilteredBibtex() {
+  const q = encodeURIComponent((document.getElementById('lit-query') || {}).value || '');
+  const tags = encodeURIComponent((document.getElementById('lit-tags') || {}).value || '');
+  const st = encodeURIComponent((document.getElementById('lit-study-type') || {}).value || '');
+  downloadBibtex(`q=${q}&tags=${tags}&study_type=${st}`);
+}
+
+async function openOutlineDrawer() {
+  document.getElementById('outline-backdrop').style.display = 'block';
+  document.getElementById('outline-drawer').style.display = 'block';
+  document.getElementById('outline-content').innerHTML = '<p style="color:var(--muted)">Loading corpus outline...</p>';
+  try {
+    const res = await api('GET', '/api/outline?tokens=800');
+    let studyTypesHtml = '';
+    if (res.study_types && Object.keys(res.study_types).length) {
+      studyTypesHtml = '<div class="tag-row">' +
+        Object.entries(res.study_types).map(([k, v]) => `<span class="badge study">${esc(k)}: ${v}</span>`).join(' ') +
+        '</div>';
+    } else {
+      studyTypesHtml = '<p style="color:var(--muted);font-size:0.8rem">No study types classified yet.</p>';
+    }
+
+    let edgeKindsHtml = '';
+    if (res.edge_kinds && Object.keys(res.edge_kinds).length) {
+      edgeKindsHtml = '<div class="tag-row">' +
+        Object.entries(res.edge_kinds).map(([k, v]) => `<span class="badge">${esc(k)}: ${v}</span>`).join(' ') +
+        '</div>';
+    } else {
+      edgeKindsHtml = '<p style="color:var(--muted);font-size:0.8rem">No edge connections yet.</p>';
+    }
+
+    let questionsHtml = '';
+    if (res.questions && res.questions.length) {
+      questionsHtml = res.questions.map(q => `
+        <div class="item" style="margin-bottom:8px">
+          <div class="item-header">
+            <strong>${esc(q.ref)}</strong>
+            <span class="badge">${esc(q.status)}</span>
+          </div>
+          <div style="font-size:0.88rem;margin:4px 0">${esc(q.text)}</div>
+          <div style="font-size:0.78rem;color:var(--muted)">
+            Supports: ${q.evidence.supports} &middot; Contradicts: ${q.evidence.contradicts} &middot; Answers: ${q.evidence.answers}
+          </div>
+          <div style="margin-top:6px;display:flex;gap:6px">
+            <button class="btn sm" onclick="closeOutlineDrawer();synthesizeQuestion('${esc(q.ref)}')">Synthesize</button>
+            <button class="btn sm secondary" onclick="closeOutlineDrawer();inspectGraph('${esc(q.ref)}')">Explore Map</button>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      questionsHtml = '<p style="color:var(--muted)">No research questions tracked yet.</p>';
+    }
+
+    document.getElementById('outline-content').innerHTML = `
+      <div style="font-size:0.82rem;color:var(--muted);margin-bottom:12px">
+        Estimated orientation footprint: ~${res.used_tokens} tokens
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <h3 style="margin:0 0 8px;font-size:0.95rem">Corpus Entities</h3>
+        <div class="stats-bar" style="margin:0">
+          <div class="pill">Papers <strong>${res.counts.papers}</strong></div>
+          <div class="pill">Claims <strong>${res.counts.claims}</strong></div>
+          <div class="pill">Questions <strong>${res.counts.questions}</strong></div>
+          <div class="pill">Edges <strong>${res.counts.edges}</strong></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <h3 style="margin:0 0 8px;font-size:0.95rem">Study Types Breakdown</h3>
+        ${studyTypesHtml}
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <h3 style="margin:0 0 8px;font-size:0.95rem">Edge Relations</h3>
+        ${edgeKindsHtml}
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px;font-size:0.95rem">Evidenced Research Questions (${res.questions.length})</h3>
+        <div class="item-list" style="max-height:280px">${questionsHtml}</div>
+      </div>
+    `;
+  } catch (err) {
+    document.getElementById('outline-content').innerHTML = `<p style="color:var(--contradict)">Error loading outline: ${esc(err.message)}</p>`;
+  }
+}
+
+function closeOutlineDrawer() {
+  document.getElementById('outline-backdrop').style.display = 'none';
+  document.getElementById('outline-drawer').style.display = 'none';
+}
+
 refreshOverview();
 </script>
+<div id="outline-backdrop" onclick="closeOutlineDrawer()"></div>
+<div id="outline-drawer">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h2 style="margin:0;font-size:1.15rem">Corpus Outline &amp; Orientation</h2>
+    <button class="btn sm secondary" onclick="closeOutlineDrawer()">&times; Close</button>
+  </div>
+  <div id="outline-content">
+    <p style="color:var(--muted)">Loading corpus outline...</p>
+  </div>
+</div>
 </body>
 </html>
 """

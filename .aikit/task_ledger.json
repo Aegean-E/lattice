@@ -1,69 +1,13 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "lattice-token-frugal-navigation",
+    "task_id": "lattice-web-outline-bibtex-export",
     "last_phase": "phase 4",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1792439318.4625733,
-    "completed_at": 1792439392.4439056
+    "active_phase": 4,
+    "status": "in_progress",
+    "updated_at": 1792440048.6235275
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-v0.3.0",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[milestone 3/3] Bump version to 0.3.0, record ADR-006, and document web Research Studio UI in README; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792425969.9775207,
-      "timestamp_str": "2026-10-19 19:06:09"
-    },
-    {
-      "task_id": "lattice-v0.3.0",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-v0.3.0' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792425970.1350274,
-      "timestamp_str": "2026-10-19 19:06:10"
-    },
-    {
-      "task_id": "lattice-v0.4.0",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/4] Plan lattice v0.4.0: (1) OpenAlex & EuropePMC providers + multi-source federated discovery, (2) contradiction detection, keystone centrality & Paper x Question evidence matrix in lattice/analysis.py, (3) Web Studio paste-ingest, snapshot download & Evidence Matrix tab + CLI/MCP analyze tools, (4) ADR-007, README and v0.4.0 release.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792432699.8712745,
-      "timestamp_str": "2026-10-19 20:58:19",
-      "impact_assessment": {
-        "why": "Continue improving Lattice for automated literature search, knowledge creation, knowledge interaction, scientific synthesis, and human-easy web UI.",
-        "benefits": "Adds biomedical/open-access discovery (OpenAlex, EuropePMC) and federated search, automated claim contradiction detection and Paper x Question evidence matrices, and browser-based BibTeX/RIS/Markdown ingestion.",
-        "risks": "contract: existing CLI, MCP and Web API routes must remain backward-compatible; dependency: stdlib-only constraint; concurrency: multi-provider discovery timeouts; state: idempotent contradiction edge creation.",
-        "mitigation": "Injectable HTTP fetchers with 10s timeouts, pure analysis functions over Repository, idempotent edge insertion, and sub-millisecond unit tests per milestone."
-      }
-    },
-    {
-      "task_id": "lattice-v0.4.0",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[milestone 1/4] OpenAlex and EuropePMC providers plus federated multi-source discovery verified (checklists: passed)",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792432925.6267655,
-      "timestamp_str": "2026-10-19 21:02:05"
-    },
-    {
-      "task_id": "lattice-v0.4.0",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[milestone 2/4] Contradiction detection, keystone centrality and Paper x Question evidence matrix verified (checklists: passed)",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792433228.145572,
-      "timestamp_str": "2026-10-19 21:07:08"
-    },
     {
       "task_id": "lattice-v0.4.0",
       "phase": "phase 4",
@@ -227,6 +171,62 @@
       "status": "completed",
       "timestamp": 1792439392.4439065,
       "timestamp_str": "2026-10-19 22:49:52"
+    },
+    {
+      "task_id": "lattice-web-outline-bibtex-export",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/4] Repository.export_bibtex and CLI export --format jsonl|bibtex (auto-detected from .bib/.jsonl suffix); failing-first tests. [2/4] Web API routes: GET /api/outline and GET /api/export-bibtex; tests in test_web.py. [3/4] Web Research Studio UI: Corpus Outline drawer/modal, 1-click clipboard copy buttons for synthesis Markdown/BibTeX, and BibTeX download actions. [4/4] Verification, ADR-011, README, codebase map refresh, and delivery gates.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792439581.4378324,
+      "timestamp_str": "2026-10-19 22:53:01",
+      "impact_assessment": {
+        "why": "Researchers need quick visual orientation through a Corpus Outline drawer, standard BibTeX bibliography export for paper writing, and 1-click synthesis copying in the Web Studio.",
+        "benefits": "Enables direct export of entire or filtered literature sets into BibTeX for LaTeX reference managers, exposes token-frugal graph outlines directly in the web UI, and streamlines human synthesis workflows with instant clipboard copies.",
+        "risks": "contract: CLI export gains optional --format flag while keeping JSONL default backward-compatible; dependency: standard library only; concurrency: read-only exports over SQLite; state: atomic file writing for exports.",
+        "mitigation": "Default to JSONL if format is omitted unless filename ends in .bib/.bibtex, keep SQLite read transactions short, test CLI, web API and UI handlers with sub-second unit tests before Phase 4 gates."
+      }
+    },
+    {
+      "task_id": "lattice-web-outline-bibtex-export",
+      "phase": "phase 3",
+      "phase_num": 3,
+      "description": "[1/4] done: Repository.export_bibtex and CLI export --format jsonl|bibtex with auto-detection for .bib/.bibtex files; tests green. Next [2/4]: Web API routes GET /api/outline and GET /api/export-bibtex.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792439706.7983491,
+      "timestamp_str": "2026-10-19 22:55:06"
+    },
+    {
+      "task_id": "lattice-web-outline-bibtex-export",
+      "phase": "phase 3",
+      "phase_num": 3,
+      "description": "[2/4] done: Web API routes GET /api/outline and GET /api/export-bibtex implemented and verified; tests 10/10 green. Next [3/4]: Web Research Studio UI (Corpus Outline drawer/modal, 1-click clipboard copy, and export buttons).",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792439796.7312,
+      "timestamp_str": "2026-10-19 22:56:36"
+    },
+    {
+      "task_id": "lattice-web-outline-bibtex-export",
+      "phase": "phase 3",
+      "phase_num": 3,
+      "description": "[3/4] done: Web Research Studio UI with Corpus Outline drawer/modal, 1-click clipboard copy for Markdown/BibTeX syntheses, and BibTeX download actions; UI JS validates via node --check; tests 134/134 green. Next [4/4]: ADR-011, README, codebase map refresh, and Phase 4 delivery gates.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792439985.7445679,
+      "timestamp_str": "2026-10-19 22:59:45"
+    },
+    {
+      "task_id": "lattice-web-outline-bibtex-export",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[1/4]-[4/4] Verified: Repository.export_bibtex and CLI export --format jsonl|bibtex with auto-detection; GET /api/outline and GET /api/export-bibtex; Web Research Studio Corpus Outline quick drawer, 1-click clipboard copy for Markdown/BibTeX syntheses, and BibTeX export download buttons; ADR-011 and README updated; 134/134 tests green (1.3s); UI JS passes node --check; codebase map regenerated; aikit check lattice 4/4 gates (test, hygiene, guidelines, secrets); checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792440048.6235275,
+      "timestamp_str": "2026-10-19 23:00:48"
     }
   ]
 }

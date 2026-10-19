@@ -62,6 +62,34 @@ def export_snapshot(repository: Repository, path: Path) -> Dict[str, Any]:
     }
 
 
+def export_bibtex_file(repository: Repository, path: Path) -> Dict[str, Any]:
+    """Write papers in the graph to a BibTeX file atomically."""
+    target = Path(path).resolve()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    bibtex_str = repository.export_bibtex()
+    payload = (bibtex_str + ("\n" if bibtex_str and not bibtex_str.endswith("\n") else "")).encode("utf-8")
+    temp_path = target.with_name(f".tmp_{target.name}_{os.getpid()}")
+    try:
+        with open(temp_path, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, target)
+    except OSError as exc:
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+        fail(f"could not export BibTeX to {target}: {exc}",
+             "the destination file could not be written atomically",
+             "choose a writable output path")
+    count = len(repository.search_literature(limit=100000)["papers"])
+    return {
+        "path": str(target),
+        "format": "bibtex",
+        "papers": count,
+    }
+
+
+
 def import_snapshot(repository: Repository, path: Path) -> Dict[str, Any]:
     """Import a JSONL snapshot idempotently, remapping entity references as needed."""
     source = Path(path)

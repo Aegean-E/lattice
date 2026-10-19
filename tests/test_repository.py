@@ -164,6 +164,15 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(len(self.repository.neighbors(paper.id)), 2)
         self.assertEqual(len(self.repository.neighbors(paper.id, "supports")), 1)
 
+    def test_export_bibtex(self):
+        self.paper("Sleep Oscillations and Memory Consolidation", year="2021", authors="Diekelmann, S.", venue="Nature")
+        bib = self.repository.export_bibtex()
+        self.assertIn("@article{", bib)
+        self.assertIn("Sleep Oscillations", bib)
+        self.assertIn("year = {2021}", bib)
+        self.assertIn("journal = {Nature}", bib)
+
 
 if __name__ == "__main__":
     unittest.main()
+

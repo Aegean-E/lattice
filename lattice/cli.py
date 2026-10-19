@@ -24,7 +24,7 @@ from lattice.ingest import parse_paths
 from lattice.inquiry import ask, brief, review
 from lattice.mcp import serve
 from lattice.repository import Repository
-from lattice.snapshots import export_snapshot, import_snapshot
+from lattice.snapshots import export_bibtex_file, export_snapshot, import_snapshot
 from lattice.synthesis import synthesize
 from lattice.web import dispatch_web_request, serve_web
 
@@ -147,8 +147,10 @@ def build_parser() -> argparse.ArgumentParser:
     synth_parser.add_argument("--out", default=None, help="write the synthesis Markdown to this file")
     synth_parser.set_defaults(handler=_run_synthesize)
 
-    export_cmd = commands.add_parser("export", help="export portable JSONL graph snapshot")
-    export_cmd.add_argument("path", help="output JSONL file path")
+    export_cmd = commands.add_parser("export", help="export portable JSONL graph snapshot or BibTeX bibliography")
+    export_cmd.add_argument("path", help="output file path (.jsonl, .bib, or custom)")
+    export_cmd.add_argument("--format", choices=["jsonl", "bibtex"], default=None,
+                            help="output format (default: auto-detected from .bib/.bibtex suffix, else jsonl)")
     export_cmd.set_defaults(handler=_run_export)
 
     import_cmd = commands.add_parser("import", help="import portable JSONL graph snapshot")
@@ -483,8 +485,17 @@ def _run_synthesize(args: argparse.Namespace, repository: Repository) -> int:
 
 
 def _run_export(args: argparse.Namespace, repository: Repository) -> int:
-    """Export the graph to an atomic JSONL snapshot."""
-    result = export_snapshot(repository, Path(args.path))
+    """Export the graph to an atomic JSONL snapshot or BibTeX bibliography."""
+    path = Path(args.path)
+    fmt = args.format
+    if not fmt:
+        fmt = "bibtex" if path.suffix.lower() in (".bib", ".bibtex") else "jsonl"
+    if fmt == "bibtex":
+        result = export_bibtex_file(repository, path)
+        lines = [f"[OK] exported {result['papers']} paper(s) in BibTeX format to {result['path']}"]
+        _emit(result, lines, args.json)
+        return 0
+    result = export_snapshot(repository, path)
     lines = [
         f"[OK] exported {result['papers']} paper(s), {result['claims']} claim(s), "
         f"{result['questions']} question(s), {result['edges']} edge(s) to {result['path']}"

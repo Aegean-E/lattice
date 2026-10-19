@@ -196,6 +196,29 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   repository functions are unchanged; only MCP consumers that relied on fields such as `id`,
   `paper_title`, `text` or edge `details` need to use `ref`/`snippet` and drill down.
 
+## ADR-011: Corpus Outline Drawer, Web Clipboard Actions, and BibTeX Exports (2026-10-19)
+
+- **Status**: Accepted
+- **Context**: While token-frugal AI context was introduced in ADR-010, the Web Research Studio had no
+  direct visual access to graph orientation metrics, researchers lacked one-click ways to export
+  ingested bibliographies to BibTeX for reference managers, and copying synthesis reports required
+  manually selecting text across expandable blocks.
+- **Decision**:
+  1. Add `Repository.export_bibtex(query, tags, study_type, year)` and `snapshots.export_bibtex_file(repository, path)`
+     with atomic temp-file replacement. Extend CLI `lattice export PATH [--format jsonl|bibtex]` to
+     automatically detect BibTeX format when the path ends in `.bib` or `.bibtex`, defaulting to JSONL.
+  2. Expose `GET /api/outline` and `GET /api/export-bibtex` in `lattice.web` with content disposition
+     headers (`attachment; filename="lattice-references.bib"`).
+  3. Enhance `WebResponse` with a frozen `headers` map and update `Handler._handle` to send custom headers.
+  4. In the Web Studio, add a "Corpus Outline" quick drawer displaying entity counts, study-type breakdown,
+     edge relations, and evidenced research questions with instant "Synthesize" and "Explore Map" links;
+     add "Copy Markdown" and "Copy BibTeX" 1-click clipboard actions to synthesis results; and add
+     "Export BibTeX" in the stats bar and "Export Filtered BibTeX (.bib)" in Literature Search.
+- **Consequences**: Researchers can instantly export whole or filtered bibliographies in standard BibTeX
+  format, AI agents and humans can access orientation stats in the browser via a lightweight drawer, and
+  synthesis reports can be copied to the clipboard in one click without altering database schemas.
+
+
 
 
 

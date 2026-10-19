@@ -161,6 +161,20 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("imported", out)
 
+        bib_path = Path(self.directory.name) / "references.bib"
+        code, out, _ = self.run_cli("export", str(bib_path))
+        self.assertEqual(code, 0)
+        self.assertTrue(bib_path.is_file())
+        bib_content = bib_path.read_text(encoding="utf-8")
+        self.assertIn("@article{", bib_content)
+        self.assertIn("slow-wave sleep", bib_content.lower())
+
+        custom_path = Path(self.directory.name) / "refs.txt"
+        code, out, _ = self.run_cli("export", str(custom_path), "--format", "bibtex")
+        self.assertEqual(code, 0)
+        self.assertTrue(custom_path.is_file())
+        self.assertIn("@article{", custom_path.read_text(encoding="utf-8"))
+
     def test_web_subcommand_demo_and_dump_html(self):
         code, out, _ = self.run_cli("web", "--demo", "--dump-html")
         self.assertEqual(code, 0)

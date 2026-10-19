@@ -282,6 +282,15 @@ class Repository:
             "papers": [paper.to_dict() for paper in papers],
         }
 
+    def export_bibtex(self, query: str = "", tags: str = "", study_type: str = "",
+                      year: Optional[str] = None) -> str:
+        """Export papers matching filters as deterministic BibTeX entries."""
+        from .synthesis import format_bibtex
+        papers = self.search_literature(
+            query=query, tags=tags, study_type=study_type, year=year, limit=100000
+        )["papers"]
+        return format_bibtex(papers)
+
     def set_question_status(self, question: str, status: str) -> Question:
         """Update a question's lifecycle status ('open', 'answered' or 'abandoned')."""
         entity = self.get_question(question)

@@ -29,6 +29,12 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("text/html", resp.content_type)
         self.assertIn("Lattice Research Studio", resp.body)
         self.assertIn("Load Demo Corpus", resp.body)
+        self.assertIn("Corpus Outline", resp.body)
+        self.assertIn("Export BibTeX", resp.body)
+        self.assertIn("Export Filtered BibTeX", resp.body)
+        self.assertIn("copySynthesisMarkdown", resp.body)
+        self.assertIn("copySynthesisBibtex", resp.body)
+        self.assertIn("outline-drawer", resp.body)
 
     def test_link_related_endpoint_and_map_legend(self) -> None:
         resp = dispatch_web_request(self.repository, "GET", "/")
@@ -224,6 +230,23 @@ class WebInterfaceTests(unittest.TestCase):
         status, missing = self.request_json("GET", "/api/unknown")
         self.assertEqual(status, 404)
         self.assertIn("not found", missing["error"])
+
+    def test_api_outline_endpoint(self) -> None:
+        self.request_json("POST", "/api/demo", {})
+        status, payload = self.request_json("GET", "/api/outline?tokens=350")
+        self.assertEqual(status, 200)
+        self.assertIn("counts", payload)
+        self.assertGreaterEqual(payload["counts"]["papers"], 3)
+        self.assertIn("questions", payload)
+        self.assertIn("study_types", payload)
+
+    def test_api_export_bibtex_endpoint(self) -> None:
+        self.request_json("POST", "/api/demo", {})
+        resp = dispatch_web_request(self.repository, "GET", "/api/export-bibtex")
+        self.assertEqual(resp.status, 200)
+        self.assertIn("application/x-bibtex", resp.content_type)
+        self.assertIn("@article{", resp.body)
+        self.assertIn("filename=", resp.headers.get("Content-Disposition", ""))
 
 
 if __name__ == "__main__":

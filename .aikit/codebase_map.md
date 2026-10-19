@@ -8,9 +8,9 @@
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `34`
 - **Total Classes**: `43`
-- **Total Top-Level Functions**: `170`
-- **Total Class Methods**: `216`
-- **Total Source Lines**: `8988`
+- **Total Top-Level Functions**: `172`
+- **Total Class Methods**: `220`
+- **Total Source Lines**: `9276`
 
 ---
 
@@ -88,7 +88,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `583` lines (`26155` bytes)
+**Size**: `594` lines (`26807` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -110,7 +110,7 @@
 - `def _run_brief(args, repository)` - *Print a token-budgeted evidence pack.*
 - `def _run_review(args, repository)` - *Print or write a review outline.*
 - `def _run_synthesize(args, repository)` - *Generate a consensus-scored scientific synthesis report.*
-- `def _run_export(args, repository)` - *Export the graph to an atomic JSONL snapshot.*
+- `def _run_export(args, repository)` - *Export the graph to an atomic JSONL snapshot or BibTeX bibliography.*
 - `def _run_import(args, repository)` - *Import a JSONL snapshot idempotently.*
 - `def _run_stats(args, repository)` - *Print counts.*
 - `def _run_check(args, repository)` - *Run the integrity gate and return 1 on any error.*
@@ -337,7 +337,7 @@
 ### [`lattice/repository.py`](lattice/repository.py)
 > *The knowledge graph API: papers, claims, questions, typed edges and evidence queries.*
 
-**Size**: `598` lines (`28737` bytes)
+**Size**: `607` lines (`29183` bytes)
 
 **Classes:**
 - `class Repository` - *One connection's view of the graph; every write is committed before it returns.*
@@ -352,6 +352,7 @@
   - Method `.get(ref)` - *One entity and every edge attached to it.*
   - Method `.search(query, limit, stance, min_confidence, year)` - *Search papers, claims and questions by phrase or multi-term lexical overlap.*
   - Method `.search_literature(query, tags, study_type, year, limit)` - *Search papers by tags, words, sentences, study type or year.*
+  - Method `.export_bibtex(query, tags, study_type, year)` - *Export papers matching filters as deterministic BibTeX entries.*
   - Method `.set_question_status(question, status)` - *Update a question's lifecycle status ('open', 'answered' or 'abandoned').*
   - Method `.subgraph(ref, depth)` - *Return the multi-hop neighborhood of nodes and edges around `ref`.*
   - Method `.neighbors(ref, kind)` - *Every edge touching `ref`, optionally narrowed to one kind.*
@@ -385,10 +386,11 @@
 ### [`lattice/snapshots.py`](lattice/snapshots.py)
 > *Portable JSONL graph snapshots with atomic write and idempotent merge import.*
 
-**Size**: `213` lines (`8393` bytes)
+**Size**: `241` lines (`9490` bytes)
 
 **Functions:**
 - `def export_snapshot(repository, path)` - *Write all papers, questions, claims and edges to a portable JSONL file atomically.*
+- `def export_bibtex_file(repository, path)` - *Write papers in the graph to a BibTeX file atomically.*
 - `def import_snapshot(repository, path)` - *Import a JSONL snapshot idempotently, remapping entity references as needed.*
 - `def _parse_jsonl(lines, label)` - *Parse non-empty JSONL lines and verify each is an object.*
 - `def _import_question(repository, record)` - *Find an existing question with the same text or create it.*
@@ -423,7 +425,7 @@
 ### [`lattice/web.py`](lattice/web.py)
 > *Zero-dependency web server and human-friendly Research Studio UI for Lattice.*
 
-**Size**: `1655` lines (`64947` bytes)
+**Size**: `1849` lines (`73244` bytes)
 
 **Classes:**
 - `class WebResponse` - *Immutable HTTP response returned by `dispatch_web_request`.*
@@ -436,6 +438,7 @@
 - `def _handle_literature(repository, query)` - *Search the literature by tags, words, sentences, study type and year.*
 - `def _handle_subgraph(repository, query)` - *Run multi-hop subgraph traversal from query parameters.*
 - `def _handle_synthesize(repository, query)` - *Run scientific literature synthesis from query parameters.*
+- `def _handle_export_bibtex(repository, query)` - *Export papers matching query parameters as BibTeX.*
 - `def _build_matrix_bundle(repository)` - *Assemble the Paper x Question evidence matrix, contradictions, and keystone ranking.*
 - `def _handle_ingest_text(repository, payload)` - *Parse raw bibliography or note text (BibTeX, RIS, CSV, Markdown, text) and ingest into the graph.*
 - `def _export_jsonl_string(repository)` - *Serialize all graph entities and edges as portable JSONL text.*
@@ -496,7 +499,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `234` lines (`10271` bytes)
+**Size**: `248` lines (`10949` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
@@ -689,7 +692,7 @@
 ### [`tests/test_repository.py`](tests/test_repository.py)
 > *Graph writes, dedupe, references, search and evidence grouping.*
 
-**Size**: `169` lines (`7611` bytes)
+**Size**: `178` lines (`7996` bytes)
 
 **Classes:**
 - `class RepositoryTests` - *Every test gets a fresh in-memory graph.*
@@ -710,6 +713,7 @@
   - Method `.test_evidence_groups_and_gaps()`
   - Method `.test_stats_and_event_log()`
   - Method `.test_neighbors_filter_by_kind()`
+  - Method `.test_export_bibtex()`
 
 ---
 
@@ -746,7 +750,7 @@
 ### [`tests/test_web.py`](tests/test_web.py)
 > *Tests for the web-based human UI and JSON API dispatcher (zero sockets).*
 
-**Size**: `231` lines (`9819` bytes)
+**Size**: `254` lines (`10979` bytes)
 
 **Classes:**
 - `class WebInterfaceTests` - *Verify HTML rendering and REST API handlers via pure request dispatch.*
@@ -760,5 +764,7 @@
   - Method `.test_ingest_text_matrix_contradictions_and_export()`
   - Method `.test_literature_search_ui_graph_and_api()`
   - Method `.test_validation_error_and_not_found()`
+  - Method `.test_api_outline_endpoint()`
+  - Method `.test_api_export_bibtex_endpoint()`
 
 ---

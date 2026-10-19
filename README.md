@@ -62,13 +62,16 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
 - **Synthesis (`synthesize`)** computes a confidence-weighted consensus score in `[-1.0, 1.0]`,
   groups claims into thematic clusters with verbatim quotes, identifies research gaps and
   follow-up queries, and formats resolved Markdown and BibTeX references.
-- **Snapshots (`export` / `import`)** write and merge portable JSONL graph bundles atomically.
+- **Snapshots & BibTeX (`export` / `import`)** write and merge portable JSONL graph bundles atomically,
+  or export bibliographies to standard `.bib` files (with auto-detection or `--format bibtex`).
 - **Web Research Studio (`web`)** serves a local, zero-dependency human UI with one-click demo
   seeding, multi-source literature discovery, browser paste-ingestion (BibTeX/RIS/CSV/Markdown),
-  literature search by tag, word, full sentence or study type, JSONL snapshot download, consensus
-  synthesis, interactive SVG subgraph exploration whose paper/claim/question nodes carry the study
-  type and whose edges are colored by relation (dashed amber for `related`) with a legend and a
-  Connect Findings action, and a `Paper x Question` Evidence Matrix & Contradictions tab.
+  literature search by tag, word, full sentence or study type, a Corpus Outline quick drawer with
+  study-type and edge-relation breakdowns, one-click clipboard copy for Markdown and BibTeX syntheses,
+  JSONL snapshot download, direct BibTeX export, interactive SVG subgraph exploration whose
+  paper/claim/question nodes carry the study type and whose edges are colored by relation (dashed amber
+  for `related`) with a legend and a Connect Findings action, and a `Paper x Question` Evidence Matrix
+  & Contradictions tab.
 - **The gate (`check`)** reports broken endpoints, missing quotes, duplicate identifiers,
   support cycles and unlinked evidence.
 
@@ -92,7 +95,7 @@ python -m lattice [--db PATH] [--json] brief TARGET --tokens N
 python -m lattice [--db PATH] [--json] review TARGET [--out PATH]
 python -m lattice [--db PATH] [--json] synthesize TARGET [--tokens N] [--out PATH]
 python -m lattice [--db PATH] [--json] analyze [--auto-link] [--limit N]
-python -m lattice [--db PATH] [--json] export PATH
+python -m lattice [--db PATH] [--json] export PATH [--format jsonl|bibtex]
 python -m lattice [--db PATH] [--json] import PATH
 python -m lattice [--db PATH] [--json] stats
 python -m lattice [--db PATH] check
@@ -172,4 +175,5 @@ lattice/
 The schema, identifier policy, dedupe order and evidence direction are recorded in
 `.aikit/decisions.md` (ADR-001 and ADR-002). The graph deliberately stores claims rather than
 free-form notes: an agent may only cite an ingested paper, and only through a claim that carries
-the quote it came from. Token budgets and the compact AI views are recorded in ADR-010.
+the quote it came from. Token budgets and compact AI views are recorded in ADR-010, and
+the web outline drawer and BibTeX export in ADR-011.
