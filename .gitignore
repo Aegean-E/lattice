@@ -1,0 +1,12 @@
+# AIKit transient state
+.aikit/*.lock
+.aikit/*.bak
+.aikit/*.tmp_*
+.aikit/*.corrupt_*
+# lattice local databases and exports
+*.db
+*.db-wal
+*.db-shm
+*.db.bak
+__pycache__/
+*.pyc

@@ -1,0 +1,405 @@
+# Codebase Map & Symbol Catalog 🗺️
+
+> **AUTO-GENERATED & VERIFIED BY `scripts/update_knowledge_base.py`**
+> This document provides an automated, up-to-date registry of all modules, classes, and exported functions across this repository.
+
+---
+
+## 📊 Codebase Metrics
+- **Total Python Modules**: `19`
+- **Total Classes**: `20`
+- **Total Top-Level Functions**: `85`
+- **Total Class Methods**: `110`
+- **Total Source Lines**: `2567`
+
+---
+
+## 📦 Modules & Exported Symbols
+
+### [`lattice/__init__.py`](lattice/__init__.py)
+> *Lattice: a provenance-first research knowledge graph for humans and AI agents.*
+
+**Size**: `3` lines (`108` bytes)
+
+---
+
+### [`lattice/__main__.py`](lattice/__main__.py)
+> *Run the command-line interface with `python -m lattice`.*
+
+**Size**: `8` lines (`154` bytes)
+
+---
+
+### [`lattice/checks.py`](lattice/checks.py)
+> *Integrity gate: every citation, endpoint, quote and support cycle is decidable locally.*
+
+**Size**: `202` lines (`8098` bytes)
+
+**Classes:**
+- `class CheckIssue` - *One finding, tagged error or warning and named by a stable code.*
+  - Method `.to_dict()` - *JSON-ready representation.*
+- `class CheckReport` - *The gate's complete result; only errors block delivery.*
+  - Property `.errors` - *Blocking findings.*
+  - Property `.warnings` - *Non-blocking findings.*
+  - Property `.passed` - *True when no blocking finding exists.*
+  - Method `.to_dict()` - *JSON-ready representation used by the CLI and MCP clients.*
+
+**Functions:**
+- `def run_checks(repository)` - *Run every integrity check and return one report.*
+- `def _check_schema(connection, report)` - *The database must declare this build's schema version.*
+- `def _check_claims(connection, report)` - *Every claim needs assertion text, a quote and an existing paper.*
+- `def _check_edges(connection, report)` - *Both endpoints of every edge must exist.*
+- `def _check_duplicates(connection, report)` - *DOI, arXiv and normalized title/year duplicates are errors.*
+- `def _check_support_cycles(connection, report)` - *Support and extension relations between claims must stay acyclic.*
+- `def _cycles(graph)` - *Every distinct cycle reachable in a directed graph, each reported once.*
+- `def _canonical_cycle(cycle)` - *A rotation-independent form so the same cycle is reported once.*
+- `def _check_orphans(connection, report)` - *Warnings for questions without evidence and claims with no question link.*
+- `def _exists(connection, ref)` - *Whether a reference's target row exists.*
+- `def summarize(report)` - *Error and warning counts for a compact text report.*
+
+---
+
+### [`lattice/cli.py`](lattice/cli.py)
+> *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
+
+**Size**: `269` lines (`12090` bytes)
+
+**Functions:**
+- `def build_parser()` - *The complete command grammar.*
+- `def main(argv)` - *Parse arguments, open the database and dispatch one command.*
+- `def _emit(payload, lines, as_json)` - *Print either stable JSON or human text.*
+- `def _run_init(args, repository)` - *Create the schema, which opening the database already did.*
+- `def _run_ingest(args, repository)` - *Import every file and report created versus merged records.*
+- `def _run_claim(args, repository)` - *Record one claim.*
+- `def _run_question(args, repository)` - *Record one question.*
+- `def _run_link(args, repository)` - *Record one typed edge.*
+- `def _run_search(args, repository)` - *Search and print the three result sections.*
+- `def _run_show(args, repository)` - *Show one entity and each attached edge.*
+- `def _run_ask(args, repository)` - *Assemble and print evidence.*
+- `def _run_brief(args, repository)` - *Print a token-budgeted evidence pack.*
+- `def _run_review(args, repository)` - *Print or write a review outline.*
+- `def _run_stats(args, repository)` - *Print counts.*
+- `def _run_check(args, repository)` - *Run the integrity gate and return 1 on any error.*
+- `def _run_mcp(args, repository)` - *Serve MCP on stdio; stdout carries protocol messages only.*
+
+---
+
+### [`lattice/database.py`](lattice/database.py)
+> *SQLite connection, versioned schema and migration veil for the knowledge graph.*
+
+**Size**: `117` lines (`4146` bytes)
+
+**Functions:**
+- `def utc_now()` - *An ISO-8601 UTC timestamp with a stable seconds precision.*
+- `def open_database(path)` - *Open or create the database, verify its schema version and return it.*
+- `def _ensure_schema(connection)` - *Create the schema once and refuse a database written by a newer version.*
+- `def schema_version(connection)` - *The declared schema version, or 0 when the metadata row is missing.*
+
+---
+
+### [`lattice/errors.py`](lattice/errors.py)
+> *The one error type every layer raises, carrying the Error/Why/Fix triad.*
+
+**Size**: `22` lines (`738` bytes)
+
+**Classes:**
+- `class LatticeError` - *A user-facing failure: what happened, why it matters and how to fix it.*
+  - Method `.__init__(message, why, fix)`
+  - Method `.render()` - *The full three-line report used by the CLI and the MCP server.*
+
+**Functions:**
+- `def fail(message, why, fix)` - *Raise a `LatticeError`; keeps call sites to one line.*
+
+---
+
+### [`lattice/ingest.py`](lattice/ingest.py)
+> *Parsers for the text bibliography formats lattice accepts, with no third-party dependencies.*
+
+**Size**: `232` lines (`8447` bytes)
+
+**Functions:**
+- `def empty_record()` - *A record with every supported metadata field present.*
+- `def _clean(value)` - *Collapse whitespace and strip one layer of surrounding delimiters.*
+- `def _braced_span(text, start)` - *Index of the brace closing the one at `start`, or -1 when it is unbalanced.*
+- `def _split_top_level(text)` - *Split a BibTeX field list on commas that are not inside braces or quotes.*
+- `def parse_bibtex(text)` - *Parse one or more BibTeX entries into metadata records.*
+- `def parse_ris(text)` - *Parse RIS records into metadata records.*
+- `def parse_csv(text)` - *Parse a CSV with a header row naming any of the supported metadata fields.*
+- `def parse_markdown(text, source_name)` - *Parse one Markdown note: YAML-like front matter, a heading or the filename as title.*
+- `def parse_text(text, source_name)` - *Parse a plain-text note as one record titled by its filename.*
+- `def parse_file(path)` - *Detect a file's format by suffix and parse it.*
+- `def parse_paths(paths)` - *Parse every path in order and concatenate the records.*
+
+---
+
+### [`lattice/inquiry.py`](lattice/inquiry.py)
+> *Evidence-first question answering: `ask`, token-budgeted `brief` and `review` outlines.*
+
+**Size**: `308` lines (`12959` bytes)
+
+**Functions:**
+- `def ask(repository, target, limit)` - *Return evidence for a question, or matching claims when the target is a search phrase.*
+- `def brief(repository, target, tokens)` - *Pack the strongest evidence for an agent under a deterministic token budget.*
+- `def review(repository, target)` - *A Markdown literature-review outline with every citation resolved in the graph.*
+- `def _match_question(repository, target)` - *A question named by reference, exact text or unique substring.*
+- `def _suggestions(repository, question, linked, limit)` - *Unlinked claims whose text matches a keyword from the question.*
+- `def _keywords(text)` - *Distinct lowercase words of at least four letters, without common question words.*
+- `def _question_header(evidence)` - *The fixed header of a question brief.*
+- `def _claim_line(item)` - *One evidence line: claim, confidence, quote and source.*
+- `def _search_line(claim)` - *One search hit line.*
+- `def _suggestion_lines(suggestions)` - *Unlinked claim candidates, one line each.*
+- `def _fits(lines, candidate, tokens)` - *Whether adding one line keeps the estimate under the budget.*
+- `def _fit(lines, candidates, tokens)` - *Append candidate lines while the running estimate stays under the budget.*
+- `def _citation_lines(repository, refs)` - *Resolved citation lines for paper references, in first-seen order.*
+- `def _citation_short(paper)` - *A compact inline source label.*
+- `def _question_review(evidence)` - *Render a question's evidence as a review outline.*
+- `def _review_section(title, items)` - *One evidence section of a review outline.*
+- `def _paper_refs(evidence)` - *Distinct paper references touched by evidence or search results.*
+- `def _search_review(evidence)` - *Render matching papers and claims when the target is not a tracked question.*
+
+---
+
+### [`lattice/mcp.py`](lattice/mcp.py)
+> *A dependency-free MCP stdio server exposing the graph as JSON-RPC tools.*
+
+**Size**: `167` lines (`7872` bytes)
+
+**Functions:**
+- `def _tool(name, description, properties, required)` - *An MCP tool declaration with a JSON Schema for its arguments.*
+- `def handle_message(repository, message)` - *Dispatch one JSON-RPC message; notifications return None.*
+- `def _call_tool(repository, request_id, params)` - *Run one MCP tool call and wrap the result as text content.*
+- `def _dispatch(repository, name, arguments)` - *Map a tool name to its repository or inquiry operation.*
+- `def _text(arguments, name)` - *A required string argument.*
+- `def _result(request_id, result)` - *A JSON-RPC success response.*
+- `def _error(request_id, code, message)` - *A JSON-RPC error response.*
+- `def serve(repository, stdin, stdout)` - *Serve newline-delimited JSON-RPC until the input stream closes.*
+
+---
+
+### [`lattice/models.py`](lattice/models.py)
+> *Value objects and the validation rules shared by storage, ingestion and queries.*
+
+**Size**: `216` lines (`6634` bytes)
+
+**Classes:**
+- `class Paper` - *A source record: bibliographic metadata plus its stable identifier.*
+  - Method `.to_dict()` - *JSON-ready representation.*
+- `class Claim` - *One asserted statement tied to an exact source quote and locator.*
+  - Method `.to_dict()` - *JSON-ready representation.*
+- `class Question` - *A research question whose evidence is assembled from linked claims.*
+  - Method `.to_dict()` - *JSON-ready representation.*
+- `class Edge` - *A typed, directed relation between two entity references.*
+  - Method `.to_dict()` - *JSON-ready representation, including resolved endpoint details when present.*
+
+**Functions:**
+- `def normalize_text(value)` - *Lowercase and collapse punctuation for identity comparisons.*
+- `def paper_id(title, doi, arxiv)` - *A stable identifier derived from DOI, then arXiv ID, then normalized title.*
+- `def next_id(prefix, rows)` - *The next sequential identifier for a table whose ids share a prefix.*
+- `def validate_stance(stance)` - *A claim stance must be one of `STANCES`.*
+- `def parse_confidence(value)` - *Confidence is a number in [0, 1]; the default is 0.5.*
+- `def validate_edge_kind(kind)` - *An edge kind must be one of `EDGE_KINDS`.*
+- `def entity_type(ref)` - *The entity type named by a reference such as `claim:c_000001`.*
+- `def validate_ref(ref)` - *Normalize `claim:c_000001` and reject malformed references.*
+- `def bare_id(ref)` - *The identifier part of a reference.*
+- `def estimate_tokens(text)` - *A deterministic, conservative token estimate used by `brief`.*
+
+---
+
+### [`lattice/repository.py`](lattice/repository.py)
+> *The knowledge graph API: papers, claims, questions, typed edges and evidence queries.*
+
+**Size**: `388` lines (`18694` bytes)
+
+**Classes:**
+- `class Repository` - *One connection's view of the graph; every write is committed before it returns.*
+  - Method `.__init__(connection)`
+  - Method `.add_paper(metadata)` - *Insert a paper, or merge missing metadata into the matching existing record.*
+  - Method `.add_claim(paper, text, quote, locator, stance, confidence)` - *Record one claim with the exact source quote that grounds it.*
+  - Method `.add_question(text)` - *Record a research question that evidence can later be linked to.*
+  - Method `.add_edge(src, dst, kind, note)` - *Add a typed relation after checking both endpoints exist.*
+  - Method `.get_paper(identifier)` - *A paper by bare id or reference.*
+  - Method `.get_claim(identifier)` - *A claim by bare id or reference.*
+  - Method `.get_question(identifier)` - *A question by bare id or reference.*
+  - Method `.get(ref)` - *One entity and every edge attached to it.*
+  - Method `.search(query, limit)` - *Substring search across paper metadata, claims, quotes and questions.*
+  - Method `.neighbors(ref, kind)` - *Every edge touching `ref`, optionally narrowed to one kind.*
+  - Method `.evidence(question)` - *Claims linked to a question, grouped by the stance of the link.*
+  - Method `.stats()` - *Entity and edge counts for a quick orientation report.*
+  - Method `._resolve(value)` - *Accept a full reference or a bare id and return the validated reference.*
+  - Method `._row(query, *args)` - *One row or None.*
+  - Method `._ids(table)` - *Every id in a table, used to allocate the next sequential claim or question id.*
+  - Method `._find_paper(metadata)` - *Find a duplicate by DOI, arXiv ID, or normalized title and year.*
+  - Method `._merge_paper(existing, metadata)` - *Fill fields the existing record lacks; return the names that changed.*
+  - Method `._claim_dict(claim)` - *A claim plus a compact citation summary of its paper.*
+  - Method `._safe_summary(ref)` - *Summary of an entity, or a missing marker instead of raising.*
+  - Method `._summary(ref)` - *A compact JSON representation of any entity, with paper context for claims.*
+  - Method `._log(action, payload)` - *Append an immutable audit event.*
+
+**Functions:**
+- `def _paper(row)` - *Map a papers row to its value object.*
+- `def _claim(row)` - *Map a claims row to its value object.*
+- `def _question(row)` - *Map a questions row to its value object.*
+- `def _edge(row)` - *Map an edges row to its value object.*
+- `def _normalize_doi(value)` - *Strip resolver prefixes and lowercase a DOI.*
+- `def _normalize_arxiv(value)` - *Strip the arXiv prefix from an identifier.*
+
+---
+
+### [`tests/__init__.py`](tests/__init__.py)
+> *Regression suite for lattice.*
+
+**Size**: `1` lines (`36` bytes)
+
+---
+
+### [`tests/test_checks.py`](tests/test_checks.py)
+> *The integrity gate catches broken provenance, endpoints, duplicates and cycles.*
+
+**Size**: `70` lines (`3308` bytes)
+
+**Classes:**
+- `class CheckTests` - *Each test injects one defect into an otherwise clean graph.*
+  - Method `.setUp()`
+  - Method `.test_clean_graph_passes()`
+  - Method `.test_warning_for_unlinked_claim()`
+  - Method `.test_cycle_is_an_error()`
+  - Method `.test_missing_endpoint_is_an_error()`
+  - Method `.test_empty_quote_is_an_error()`
+  - Method `.test_doi_duplicate_is_an_error()`
+  - Method `.test_question_without_evidence_is_a_warning()`
+
+---
+
+### [`tests/test_cli.py`](tests/test_cli.py)
+> *End-to-end command contracts without spawning subprocesses.*
+
+**Size**: `105` lines (`4127` bytes)
+
+**Classes:**
+- `class CliTests` - *Drive the real parser and handlers against a temporary database.*
+  - Method `.setUp()`
+  - Method `.run_cli(*arguments)`
+  - Method `.ingest_fixture()`
+  - Method `.test_init_is_idempotent()`
+  - Method `.test_ingest_question_claim_link_ask()`
+  - Method `.test_json_output()`
+  - Method `.test_brief_and_review_file()`
+  - Method `.test_check_passes_and_reports()`
+  - Method `.test_user_error_prints_triad()`
+  - Method `.test_search_and_stats()`
+
+---
+
+### [`tests/test_ingest.py`](tests/test_ingest.py)
+> *Format parsers stay dependency-free and deterministic.*
+
+**Size**: `106` lines (`3756` bytes)
+
+**Classes:**
+- `class BibtexTests` - *BibTeX braces, authors and identifiers.*
+  - Method `.test_two_entries()`
+  - Method `.test_unbalanced_braces_fail()`
+- `class RisTests` - *RIS tag handling.*
+  - Method `.test_single_record()`
+- `class CsvTests` - *CSV headers map to metadata fields case-insensitively.*
+  - Method `.test_header_mapping()`
+- `class MarkdownTests` - *Front matter and heading fallbacks.*
+  - Method `.test_front_matter()`
+  - Method `.test_heading_and_filename_fallbacks()`
+- `class FileTests` - *Suffix dispatch and readable failures.*
+  - Method `.setUp()`
+  - Method `.write(name, content)`
+  - Method `.test_plain_text()`
+  - Method `.test_parse_paths()`
+  - Method `.test_unsupported_suffix()`
+
+---
+
+### [`tests/test_inquiry.py`](tests/test_inquiry.py)
+> *Ask, brief and review are deterministic and never invent a citation.*
+
+**Size**: `84` lines (`3680` bytes)
+
+**Classes:**
+- `class InquiryTests` - *A small graph with one supporting, one contradicting and one unrelated claim.*
+  - Method `.setUp()`
+  - Method `.test_ask_question()`
+  - Method `.test_ask_by_text()`
+  - Method `.test_ask_search_mode()`
+  - Method `.test_brief_contains_sections_and_citations()`
+  - Method `.test_brief_respects_tight_budget()`
+  - Method `.test_brief_rejects_tiny_budget()`
+  - Method `.test_review_markdown()`
+  - Method `.test_review_search_mode()`
+  - Method `.test_suggestions_exclude_linked_claims()`
+
+---
+
+### [`tests/test_mcp.py`](tests/test_mcp.py)
+> *MCP JSON-RPC contracts and stdio framing.*
+
+**Size**: `79` lines (`3180` bytes)
+
+**Classes:**
+- `class McpTests` - *Call the protocol handler directly; no sockets or spawns.*
+  - Method `.setUp()`
+  - Method `.call(method, params, request_id)`
+  - Method `.tool(name, arguments)`
+  - Method `.test_initialize()`
+  - Method `.test_tools_list()`
+  - Method `.test_add_question_and_search()`
+  - Method `.test_add_claim_reports_missing_paper()`
+  - Method `.test_unknown_method()`
+  - Method `.test_invalid_request()`
+  - Method `.test_notification_has_no_response()`
+  - Method `.test_stdio_serves_one_message()`
+  - Method `.test_stdio_reports_parse_error()`
+
+---
+
+### [`tests/test_models.py`](tests/test_models.py)
+> *Identity, validation and budget helpers.*
+
+**Size**: `71` lines (`2174` bytes)
+
+**Classes:**
+- `class IdentityTests` - *Stable identifiers make dedupe and citations reproducible.*
+  - Method `.test_doi_wins_over_title()`
+  - Method `.test_arxiv_is_next()`
+  - Method `.test_title_normalization()`
+  - Method `.test_empty_identity_is_refused()`
+  - Method `.test_bare_id()`
+- `class ValidationTests` - *User input fails with the triad instead of a traceback.*
+  - Method `.test_stance_accepts_case()`
+  - Method `.test_stance_rejects_unknown()`
+  - Method `.test_confidence_range()`
+  - Method `.test_edge_kind()`
+  - Method `.test_reference_forms()`
+  - Method `.test_tokens_are_positive()`
+
+---
+
+### [`tests/test_repository.py`](tests/test_repository.py)
+> *Graph writes, dedupe, references, search and evidence grouping.*
+
+**Size**: `119` lines (`5330` bytes)
+
+**Classes:**
+- `class RepositoryTests` - *Every test gets a fresh in-memory graph.*
+  - Method `.setUp()`
+  - Method `.paper(title, **values)`
+  - Method `.test_paper_dedupe_by_doi()`
+  - Method `.test_paper_dedupe_by_normalized_title_and_year()`
+  - Method `.test_merge_fills_missing_metadata()`
+  - Method `.test_claim_requires_quote()`
+  - Method `.test_claim_ids_are_sequential()`
+  - Method `.test_question_and_edges()`
+  - Method `.test_duplicate_edge_is_refused()`
+  - Method `.test_self_edge_is_refused()`
+  - Method `.test_missing_reference_is_refused()`
+  - Method `.test_search_across_entities()`
+  - Method `.test_evidence_groups_and_gaps()`
+  - Method `.test_stats_and_event_log()`
+  - Method `.test_neighbors_filter_by_kind()`
+
+---

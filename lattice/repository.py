@@ -1,0 +1,388 @@
+"""The knowledge graph API: papers, claims, questions, typed edges and evidence queries."""
+
+import json
+import sqlite3
+from typing import Any, Dict, List, Optional, Tuple
+
+from lattice.database import utc_now
+from lattice.errors import fail
+from lattice.models import (
+    Claim,
+    Edge,
+    Paper,
+    Question,
+    bare_id,
+    entity_type,
+    next_id,
+    normalize_text,
+    paper_id,
+    parse_confidence,
+    validate_edge_kind,
+    validate_ref,
+    validate_stance,
+)
+
+PAPER_FIELDS = ("kind", "title", "authors", "year", "venue", "doi", "arxiv", "url", "abstract")
+
+
+def _paper(row: sqlite3.Row) -> Paper:
+    """Map a papers row to its value object."""
+    return Paper(id=row["id"], title=row["title"], authors=row["authors"], year=row["year"],
+                 venue=row["venue"], doi=row["doi"], arxiv=row["arxiv"], url=row["url"],
+                 abstract=row["abstract"], kind=row["kind"], created_at=row["created_at"])
+
+
+def _claim(row: sqlite3.Row) -> Claim:
+    """Map a claims row to its value object."""
+    return Claim(id=row["id"], paper_id=row["paper_id"], text=row["text"], quote=row["quote"],
+                 locator=row["locator"], stance=row["stance"], confidence=row["confidence"],
+                 created_at=row["created_at"])
+
+
+def _question(row: sqlite3.Row) -> Question:
+    """Map a questions row to its value object."""
+    return Question(id=row["id"], text=row["text"], status=row["status"],
+                    created_at=row["created_at"])
+
+
+def _edge(row: sqlite3.Row) -> Edge:
+    """Map an edges row to its value object."""
+    return Edge(id=row["id"], src=row["src"], dst=row["dst"], kind=row["kind"],
+                note=row["note"], created_at=row["created_at"])
+
+
+class Repository:
+    """One connection's view of the graph; every write is committed before it returns."""
+
+    def __init__(self, connection: sqlite3.Connection):
+        self.connection = connection
+
+    def add_paper(self, metadata: Dict[str, Any]) -> Tuple[Paper, bool]:
+        """Insert a paper, or merge missing metadata into the matching existing record."""
+        title = str(metadata.get("title") or "").strip()
+        if not title:
+            fail("a paper needs a title", "the title is the human-facing identity",
+                 "pass title in the BibTeX, RIS, CSV or front matter")
+        normalized = {field: str(metadata.get(field) or "").strip() for field in PAPER_FIELDS}
+        normalized["title"] = title
+        normalized["doi"] = _normalize_doi(normalized["doi"])
+        normalized["arxiv"] = _normalize_arxiv(normalized["arxiv"])
+        normalized["kind"] = normalized["kind"] or "paper"
+        existing = self._find_paper(normalized)
+        if existing is not None:
+            merged = self._merge_paper(existing, normalized)
+            self._log("paper.merge", {"id": existing.id, "changed": merged})
+            return self.get_paper(existing.id), False
+        identifier = paper_id(title, normalized["doi"], normalized["arxiv"])
+        created = utc_now()
+        try:
+            self.connection.execute(
+                "INSERT INTO papers(id, kind, title, authors, year, venue, doi, arxiv, url, abstract, created_at)"
+                " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (identifier, normalized["kind"], title, normalized["authors"], normalized["year"],
+                 normalized["venue"], normalized["doi"], normalized["arxiv"], normalized["url"],
+                 normalized["abstract"], created),
+            )
+            self.connection.commit()
+        except sqlite3.IntegrityError as exc:
+            self.connection.rollback()
+            fail(f"could not store paper '{title}': {exc}",
+                 "another record already owns that DOI or arXiv ID",
+                 "merge the duplicates or remove the conflicting identifier")
+        self._log("paper.add", {"id": identifier})
+        return self.get_paper(identifier), True
+
+    def add_claim(self, paper: str, text: str, quote: str, locator: str = "",
+                  stance: str = "mentions", confidence: float = 0.5) -> Claim:
+        """Record one claim with the exact source quote that grounds it."""
+        paper_ref = self._resolve(paper)
+        if entity_type(paper_ref) != "paper":
+            fail(f"'{paper}' is not a paper reference", "claims must point at a source paper",
+                 "pass --paper paper:p_xxx or the bare p_xxx id")
+        if self._row("SELECT 1 FROM papers WHERE id = ?", bare_id(paper_ref)) is None:
+            fail(f"paper '{paper}' does not exist", "a claim must cite an ingested source",
+                 "ingest the paper first, then pass its p_ id")
+        claim_text = " ".join(str(text or "").split())
+        source_quote = " ".join(str(quote or "").split())
+        if not claim_text:
+            fail("a claim needs text", "an empty claim carries no assertion",
+                 "pass the claim as --text")
+        if not source_quote:
+            fail("a claim needs a quote", "provenance is the point of the graph",
+                 "pass the exact source sentence as --quote")
+        identifier = next_id("c", self._ids("claims"))
+        created = utc_now()
+        self.connection.execute(
+            "INSERT INTO claims(id, paper_id, text, quote, locator, stance, confidence, created_at)"
+            " VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+            (identifier, bare_id(paper_ref), claim_text, source_quote, str(locator or "").strip(),
+             validate_stance(stance), parse_confidence(confidence), created),
+        )
+        self.connection.commit()
+        self._log("claim.add", {"id": identifier, "paper": paper_ref})
+        return self.get_claim(identifier)
+
+    def add_question(self, text: str) -> Question:
+        """Record a research question that evidence can later be linked to."""
+        value = " ".join(str(text or "").split())
+        if not value:
+            fail("a question needs text", "an empty question cannot collect evidence",
+                 "pass the question as a quoted argument")
+        identifier = next_id("q", self._ids("questions"))
+        self.connection.execute(
+            "INSERT INTO questions(id, text, status, created_at) VALUES(?, ?, 'open', ?)",
+            (identifier, value, utc_now()),
+        )
+        self.connection.commit()
+        self._log("question.add", {"id": identifier})
+        return self.get_question(identifier)
+
+    def add_edge(self, src: str, dst: str, kind: str, note: str = "") -> Edge:
+        """Add a typed relation after checking both endpoints exist."""
+        source = self._resolve(src)
+        target = self._resolve(dst)
+        if source == target:
+            fail("an edge needs two different endpoints", "a self-relation adds no information",
+                 "link the entity to a different paper, claim or question")
+        edge_kind = validate_edge_kind(kind)
+        try:
+            cursor = self.connection.execute(
+                "INSERT INTO edges(src, dst, kind, note, created_at) VALUES(?, ?, ?, ?, ?)",
+                (source, target, edge_kind, str(note or "").strip(), utc_now()),
+            )
+            self.connection.commit()
+        except sqlite3.IntegrityError:
+            self.connection.rollback()
+            fail(f"edge {source} -{edge_kind}-> {target} already exists",
+                 "the graph stores each typed relation once",
+                 "inspect it with `show`, or use a different kind")
+        self._log("edge.add", {"src": source, "dst": target, "kind": edge_kind})
+        return Edge(id=int(cursor.lastrowid), src=source, dst=target, kind=edge_kind,
+                    note=str(note or "").strip())
+
+    def get_paper(self, identifier: str) -> Paper:
+        """A paper by bare id or reference."""
+        row = self._row("SELECT * FROM papers WHERE id = ?", bare_id(self._resolve(identifier)))
+        if row is None:
+            fail(f"paper '{identifier}' does not exist", "the graph has no such record",
+                 "use `search` to find an ingested paper")
+        return _paper(row)
+
+    def get_claim(self, identifier: str) -> Claim:
+        """A claim by bare id or reference."""
+        row = self._row("SELECT * FROM claims WHERE id = ?", bare_id(self._resolve(identifier)))
+        if row is None:
+            fail(f"claim '{identifier}' does not exist", "the graph has no such record",
+                 "use `search` to find a recorded claim")
+        return _claim(row)
+
+    def get_question(self, identifier: str) -> Question:
+        """A question by bare id or reference."""
+        row = self._row("SELECT * FROM questions WHERE id = ?", bare_id(self._resolve(identifier)))
+        if row is None:
+            fail(f"question '{identifier}' does not exist", "the graph has no such record",
+                 "use `search` or add it with the question command")
+        return _question(row)
+
+    def get(self, ref: str) -> Dict[str, Any]:
+        """One entity and every edge attached to it."""
+        resolved = self._resolve(ref)
+        return {"ref": resolved, "entity": self._summary(resolved),
+                "edges": [edge.to_dict() for edge in self.neighbors(resolved)]}
+
+    def search(self, query: str, limit: int = 20) -> Dict[str, Any]:
+        """Substring search across paper metadata, claims, quotes and questions."""
+        value = str(query or "").strip()
+        if not value:
+            fail("search needs a query", "an empty query would match everything",
+                 "pass a word or phrase")
+        if limit < 1:
+            fail(f"limit {limit} is not positive", "a result set needs at least one row",
+                 "pass --limit 1 or more")
+        like = f"%{value}%"
+        papers = [_paper(row) for row in self.connection.execute(
+            "SELECT * FROM papers WHERE title LIKE ? OR authors LIKE ? OR abstract LIKE ?"
+            " OR doi LIKE ? OR arxiv LIKE ? ORDER BY year DESC, title LIMIT ?",
+            (like, like, like, like, like, limit)).fetchall()]
+        claims = [_claim(row) for row in self.connection.execute(
+            "SELECT * FROM claims WHERE text LIKE ? OR quote LIKE ? ORDER BY id LIMIT ?",
+            (like, like, limit)).fetchall()]
+        questions = [_question(row) for row in self.connection.execute(
+            "SELECT * FROM questions WHERE text LIKE ? ORDER BY id LIMIT ?", (like, limit)).fetchall()]
+        return {
+            "query": value,
+            "papers": [item.to_dict() for item in papers],
+            "claims": [self._claim_dict(item) for item in claims],
+            "questions": [item.to_dict() for item in questions],
+        }
+
+    def neighbors(self, ref: str, kind: Optional[str] = None) -> List[Edge]:
+        """Every edge touching `ref`, optionally narrowed to one kind."""
+        resolved = self._resolve(ref)
+        if kind:
+            rows = self.connection.execute(
+                "SELECT * FROM edges WHERE (src = ? OR dst = ?) AND kind = ? ORDER BY id",
+                (resolved, resolved, validate_edge_kind(kind))).fetchall()
+        else:
+            rows = self.connection.execute(
+                "SELECT * FROM edges WHERE src = ? OR dst = ? ORDER BY id",
+                (resolved, resolved)).fetchall()
+        edges = []
+        for row in rows:
+            edge = _edge(row)
+            other = edge.dst if edge.src == resolved else edge.src
+            edges.append(Edge(id=edge.id, src=edge.src, dst=edge.dst, kind=edge.kind,
+                              note=edge.note, created_at=edge.created_at,
+                              details={"other": self._safe_summary(other)}))
+        return edges
+
+    def evidence(self, question: str) -> Dict[str, Any]:
+        """Claims linked to a question, grouped by the stance of the link."""
+        resolved = self._resolve(question)
+        if entity_type(resolved) != "question":
+            fail(f"'{question}' is not a question reference", "evidence is grouped per question",
+                 "pass a question:q_xxx reference")
+        entity = self.get_question(resolved)
+        groups: Dict[str, List[Dict[str, Any]]] = {"supports": [], "contradicts": [],
+                                                   "answers": [], "other": []}
+        rows = self.connection.execute(
+            "SELECT * FROM edges WHERE src = ? OR dst = ? ORDER BY id",
+            (resolved, resolved)).fetchall()
+        for row in rows:
+            edge = _edge(row)
+            other = edge.dst if edge.src == resolved else edge.src
+            if entity_type(other) != "claim":
+                continue
+            item = {"link": edge.kind, "note": edge.note, "claim": self._safe_summary(other)}
+            bucket = edge.kind if edge.kind in groups else "other"
+            groups[bucket].append(item)
+        total = sum(len(items) for items in groups.values())
+        gaps = []
+        if total == 0:
+            gaps.append("No claims are linked to this question yet.")
+        if not groups["contradicts"]:
+            gaps.append("No contradicting evidence has been linked.")
+        return {"question": entity.to_dict(), "ref": resolved,
+                "supports": groups["supports"], "contradicts": groups["contradicts"],
+                "answers": groups["answers"], "other": groups["other"],
+                "evidence_count": total, "gaps": gaps}
+
+    def stats(self) -> Dict[str, Any]:
+        """Entity and edge counts for a quick orientation report."""
+        counts = {}
+        for table in ("papers", "claims", "questions", "edges"):
+            row = self.connection.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()
+            counts[table] = int(row["n"])
+        kinds = {row["kind"]: int(row["n"]) for row in self.connection.execute(
+            "SELECT kind, COUNT(*) AS n FROM edges GROUP BY kind ORDER BY kind").fetchall()}
+        counts["edge_kinds"] = kinds
+        return counts
+
+    def _resolve(self, value: str) -> str:
+        """Accept a full reference or a bare id and return the validated reference."""
+        text = str(value or "").strip()
+        if ":" in text:
+            resolved = validate_ref(text)
+        elif text[:2] in ("p_", "c_", "q_"):
+            resolved = f"{ {'p': 'paper', 'c': 'claim', 'q': 'question'}[text[0]] }:{text}"
+        else:
+            fail(f"'{value}' is not an entity reference",
+                 "ids look like p_xxx, c_xxx or q_xxx",
+                 "use `search` to find an id, then pass it with its prefix")
+        return resolved
+
+    def _row(self, query: str, *args: Any) -> Optional[sqlite3.Row]:
+        """One row or None."""
+        return self.connection.execute(query, args).fetchone()
+
+    def _ids(self, table: str) -> List[str]:
+        """Every id in a table, used to allocate the next sequential claim or question id."""
+        return [str(row[0]) for row in self.connection.execute(f"SELECT id FROM {table}").fetchall()]
+
+    def _find_paper(self, metadata: Dict[str, str]) -> Optional[Paper]:
+        """Find a duplicate by DOI, arXiv ID, or normalized title and year."""
+        if metadata["doi"]:
+            row = self._row("SELECT * FROM papers WHERE lower(doi) = ?", metadata["doi"].lower())
+            if row:
+                return _paper(row)
+        if metadata["arxiv"]:
+            row = self._row("SELECT * FROM papers WHERE lower(arxiv) = ?", metadata["arxiv"].lower())
+            if row:
+                return _paper(row)
+        wanted = normalize_text(metadata["title"])
+        for row in self.connection.execute("SELECT * FROM papers").fetchall():
+            if normalize_text(row["title"]) != wanted:
+                continue
+            if not metadata["year"] or not row["year"] or row["year"] == metadata["year"]:
+                return _paper(row)
+        return None
+
+    def _merge_paper(self, existing: Paper, metadata: Dict[str, str]) -> List[str]:
+        """Fill fields the existing record lacks; return the names that changed."""
+        changed = []
+        updates = {}
+        for field in PAPER_FIELDS:
+            if metadata[field] and not getattr(existing, field):
+                updates[field] = metadata[field]
+                changed.append(field)
+        if updates:
+            assignments = ", ".join(f"{field} = ?" for field in updates)
+            self.connection.execute(f"UPDATE papers SET {assignments} WHERE id = ?",
+                                    (*updates.values(), existing.id))
+            self.connection.commit()
+        return changed
+
+    def _claim_dict(self, claim: Claim) -> Dict[str, Any]:
+        """A claim plus a compact citation summary of its paper."""
+        value = claim.to_dict()
+        value["paper"] = self._safe_summary(f"paper:{claim.paper_id}")
+        return value
+
+    def _safe_summary(self, ref: str) -> Dict[str, Any]:
+        """Summary of an entity, or a missing marker instead of raising."""
+        try:
+            return self._summary(ref)
+        except Exception:
+            return {"ref": ref, "missing": True}
+
+    def _summary(self, ref: str) -> Dict[str, Any]:
+        """A compact JSON representation of any entity, with paper context for claims."""
+        kind = entity_type(ref)
+        identifier = bare_id(ref)
+        if kind == "paper":
+            return {"type": "paper", **self.get_paper(identifier).to_dict()}
+        if kind == "question":
+            return {"type": "question", **self.get_question(identifier).to_dict()}
+        claim = self.get_claim(identifier)
+        value = {"type": "claim", **claim.to_dict()}
+        paper_row = self._row("SELECT * FROM papers WHERE id = ?", claim.paper_id)
+        if paper_row:
+            paper = _paper(paper_row)
+            value["paper"] = {"id": paper.id, "title": paper.title, "authors": paper.authors,
+                              "year": paper.year, "doi": paper.doi, "venue": paper.venue}
+        return value
+
+    def _log(self, action: str, payload: Dict[str, Any]) -> None:
+        """Append an immutable audit event."""
+        self.connection.execute(
+            "INSERT INTO events(at, action, payload) VALUES(?, ?, ?)",
+            (utc_now(), action, json.dumps(payload, sort_keys=True)),
+        )
+        self.connection.commit()
+
+
+def _normalize_doi(value: str) -> str:
+    """Strip resolver prefixes and lowercase a DOI."""
+    text = value.strip()
+    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+        if text.lower().startswith(prefix):
+            text = text[len(prefix):]
+    return text.strip().lower()
+
+
+def _normalize_arxiv(value: str) -> str:
+    """Strip the arXiv prefix from an identifier."""
+    text = value.strip()
+    if text.lower().startswith("arxiv:"):
+        text = text.split(":", 1)[1]
+    return text.strip()

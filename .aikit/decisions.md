@@ -1,0 +1,46 @@
+# Decisions
+
+Why this project is built the way it is, oldest first. One entry per decision that changes a
+contract, a dependency, a data format or the architecture; IDs are consecutive and never reused.
+
+### ADR-001: One SQLite graph with quote-backed claims and stable identifiers
+- **Date**: 2026-10-19
+- **Status**: Accepted
+- **Context**: Agents need a durable research memory that can prove where every statement came
+  from, while staying local, inspectable and dependency-free.
+- **Decision**: Store papers, claims, questions, edges and an append-only event log in one SQLite
+  file (`schema_version` 1). Paper ids are `p_` plus a SHA-1 prefix of DOI, then arXiv ID, then
+  normalized title. Claims are `c_NNNNNN` and questions `q_NNNNNN`. A claim requires non-empty
+  assertion text, an exact quote and an existing paper; confidence is a float in [0, 1]. Edges
+  use full references such as `claim:c_000001` and are unique per `(src, dst, kind)`. Duplicate
+  DOIs, arXiv IDs and normalized title/year pairs are merged by filling missing metadata.
+- **Consequences**: The file is portable and auditable with standard tools. Sequential claim and
+  question ids are readable but require a table scan to allocate, which is acceptable at research
+  scale. Query performance beyond personal or lab-sized corpora would need indexed full-text search.
+
+### ADR-002: Evidence direction and deterministic review artifacts
+- **Date**: 2026-10-19
+- **Status**: Accepted
+- **Context**: "Ask" must not turn into an untraceable chatbot answer, and agents need bounded
+  context that fits a prompt.
+- **Decision**: Evidence is a claim linked to a question with `supports`, `contradicts` or
+  `answers`. `ask` groups linked claims and suggests unlinked claims by keyword. `brief` renders
+  those groups under a character-based token estimate (`ceil(chars / 4)`) and drops the
+  lowest-ranked evidence first, reporting how many items were omitted. `review` emits Markdown
+  with resolved paper references and never generates a sentence that is not backed by a claim.
+- **Consequences**: Outputs are deterministic and testable, but brief quality depends on the
+  links a human or agent supplied. Keyword suggestions use SQLite substring matching rather than
+  stemming or embeddings.
+
+### ADR-003: MCP is a thin stdio transport over the same repository
+- **Date**: 2026-10-19
+- **Status**: Accepted
+- **Context**: Agents need a standard tool protocol without adding an SDK, a server framework or
+  a network listener to a zero-dependency project.
+- **Decision**: Implement newline-delimited JSON-RPC 2.0 over stdio in `lattice.mcp`, supporting
+  `initialize`, `ping`, `tools/list` and `tools/call`. Every tool maps to an existing repository
+  or inquiry function; user-facing failures become `isError` content with the Error/Why/Fix
+  triad, while protocol errors use standard JSON-RPC codes.
+- **Consequences**: Any MCP-capable client can use the graph, and the transport remains testable
+  without spawning processes. The server is single-client and does not implement resources,
+  prompts or streaming notifications.

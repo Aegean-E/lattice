@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "name": "lattice",
+  "test_command": "python -m unittest discover",
+  "gates": {},
+  "created": "2026-10-19"
+}
