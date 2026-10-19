@@ -8,9 +8,9 @@
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `27`
 - **Total Classes**: `33`
-- **Total Top-Level Functions**: `115`
-- **Total Class Methods**: `155`
-- **Total Source Lines**: `4300`
+- **Total Top-Level Functions**: `123`
+- **Total Class Methods**: `158`
+- **Total Source Lines**: `4636`
 
 ---
 
@@ -19,7 +19,7 @@
 ### [`lattice/__init__.py`](lattice/__init__.py)
 > *Lattice: a provenance-first research knowledge graph for humans and AI agents.*
 
-**Size**: `3` lines (`108` bytes)
+**Size**: `4` lines (`109` bytes)
 
 ---
 
@@ -62,7 +62,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `269` lines (`12090` bytes)
+**Size**: `416` lines (`18868` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -70,14 +70,20 @@
 - `def _emit(payload, lines, as_json)` - *Print either stable JSON or human text.*
 - `def _run_init(args, repository)` - *Create the schema, which opening the database already did.*
 - `def _run_ingest(args, repository)` - *Import every file and report created versus merged records.*
+- `def _run_fetch(args, repository)` - *Discover candidate papers and optionally ingest them.*
+- `def _run_extract(args, repository)` - *Extract quote-backed claims and question links from one or all papers.*
 - `def _run_claim(args, repository)` - *Record one claim.*
 - `def _run_question(args, repository)` - *Record one question.*
 - `def _run_link(args, repository)` - *Record one typed edge.*
 - `def _run_search(args, repository)` - *Search and print the three result sections.*
 - `def _run_show(args, repository)` - *Show one entity and each attached edge.*
+- `def _run_subgraph(args, repository)` - *Traverse and print the multi-hop neighborhood around an entity.*
 - `def _run_ask(args, repository)` - *Assemble and print evidence.*
 - `def _run_brief(args, repository)` - *Print a token-budgeted evidence pack.*
 - `def _run_review(args, repository)` - *Print or write a review outline.*
+- `def _run_synthesize(args, repository)` - *Generate a consensus-scored scientific synthesis report.*
+- `def _run_export(args, repository)` - *Export the graph to an atomic JSONL snapshot.*
+- `def _run_import(args, repository)` - *Import a JSONL snapshot idempotently.*
 - `def _run_stats(args, repository)` - *Print counts.*
 - `def _run_check(args, repository)` - *Run the integrity gate and return 1 on any error.*
 - `def _run_mcp(args, repository)` - *Serve MCP on stdio; stdout carries protocol messages only.*
@@ -221,13 +227,15 @@
 ### [`lattice/mcp.py`](lattice/mcp.py)
 > *A dependency-free MCP stdio server exposing the graph as JSON-RPC tools.*
 
-**Size**: `167` lines (`7872` bytes)
+**Size**: `285` lines (`13795` bytes)
 
 **Functions:**
 - `def _tool(name, description, properties, required)` - *An MCP tool declaration with a JSON Schema for its arguments.*
 - `def handle_message(repository, message)` - *Dispatch one JSON-RPC message; notifications return None.*
 - `def _call_tool(repository, request_id, params)` - *Run one MCP tool call and wrap the result as text content.*
-- `def _dispatch(repository, name, arguments)` - *Map a tool name to its repository or inquiry operation.*
+- `def _read_resource(repository, request_id, params)` - *Return an MCP resource payload by URI.*
+- `def _get_prompt(repository, request_id, params)` - *Render a structured scientific synthesis prompt for an AI agent.*
+- `def _dispatch(repository, name, arguments)` - *Map a tool name to its repository, discovery, extraction or synthesis operation.*
 - `def _text(arguments, name)` - *A required string argument.*
 - `def _result(request_id, result)` - *A JSON-RPC success response.*
 - `def _error(request_id, code, message)` - *A JSON-RPC error response.*
@@ -376,7 +384,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `105` lines (`4127` bytes)
+**Size**: `136` lines (`5486` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
@@ -390,6 +398,7 @@
   - Method `.test_check_passes_and_reports()`
   - Method `.test_user_error_prints_triad()`
   - Method `.test_search_and_stats()`
+  - Method `.test_fetch_extract_synthesize_subgraph_and_snapshots()`
 
 ---
 
@@ -474,7 +483,7 @@
 ### [`tests/test_mcp.py`](tests/test_mcp.py)
 > *MCP JSON-RPC contracts and stdio framing.*
 
-**Size**: `79` lines (`3180` bytes)
+**Size**: `118` lines (`5380` bytes)
 
 **Classes:**
 - `class McpTests` - *Call the protocol handler directly; no sockets or spawns.*
@@ -490,6 +499,8 @@
   - Method `.test_notification_has_no_response()`
   - Method `.test_stdio_serves_one_message()`
   - Method `.test_stdio_reports_parse_error()`
+  - Method `.test_discover_extract_synthesize_and_subgraph_tools()`
+  - Method `.test_resources_and_prompts_endpoints()`
 
 ---
 

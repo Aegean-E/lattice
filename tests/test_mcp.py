@@ -74,6 +74,45 @@ class McpTests(unittest.TestCase):
         serve(self.repository, stdin=io.StringIO("not json\n"), stdout=sink)
         self.assertEqual(json.loads(sink.getvalue())["error"]["code"], -32700)
 
+    def test_discover_extract_synthesize_and_subgraph_tools(self):
+        q_resp = json.loads(self.tool("add_question", {"text": "Does sleep consolidate memory?"})["result"]["content"][0]["text"])
+        qid = q_resp["question"]["id"]
+
+        disc = json.loads(self.tool("discover_papers", {"query": "sleep memory", "source": "offline", "limit": 2})["result"]["content"][0]["text"])
+        self.assertGreaterEqual(disc["count"], 1)
+
+        ext = json.loads(self.tool("extract_claims", {"question": qid})["result"]["content"][0]["text"])
+        self.assertGreaterEqual(ext["claims_created"], 1)
+
+        syn = json.loads(self.tool("synthesize", {"target": qid, "tokens": 1500})["result"]["content"][0]["text"])
+        self.assertEqual(syn["mode"], "question")
+        self.assertIn("consensus", syn)
+
+        sub = json.loads(self.tool("subgraph", {"ref": qid, "depth": 1})["result"]["content"][0]["text"])
+        self.assertGreaterEqual(len(sub["nodes"]), 2)
+
+        status_res = json.loads(self.tool("set_question_status", {"question": qid, "status": "answered"})["result"]["content"][0]["text"])
+        self.assertEqual(status_res["question"]["status"], "answered")
+
+    def test_resources_and_prompts_endpoints(self):
+        self.tool("add_question", {"text": "Does sleep consolidate memory?"})
+        resources = self.call("resources/list")["result"]["resources"]
+        uris = {item["uri"] for item in resources}
+        self.assertIn("lattice://stats", uris)
+        self.assertIn("lattice://questions", uris)
+
+        read_stats = self.call("resources/read", {"uri": "lattice://stats"})["result"]
+        stats_data = json.loads(read_stats["contents"][0]["text"])
+        self.assertEqual(stats_data["questions"], 1)
+
+        prompts = self.call("prompts/list")["result"]["prompts"]
+        prompt_names = {item["name"] for item in prompts}
+        self.assertIn("literature-synthesis", prompt_names)
+
+        rendered = self.call("prompts/get", {"name": "literature-synthesis", "arguments": {"target": "q_000001"}})["result"]
+        self.assertGreaterEqual(len(rendered["messages"]), 1)
+        self.assertIn("Literature Synthesis", rendered["messages"][0]["content"]["text"])
+
 
 if __name__ == "__main__":
     unittest.main()

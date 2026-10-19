@@ -8,11 +8,15 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from lattice.checks import run_checks
 from lattice.database import SCHEMA_VERSION, open_database
-from lattice.errors import LatticeError
+from lattice.discovery import DiscoveryService
+from lattice.errors import LatticeError, fail
+from lattice.extraction import extract_all, extract_from_paper
 from lattice.ingest import parse_paths
 from lattice.inquiry import ask, brief, review
 from lattice.mcp import serve
 from lattice.repository import Repository
+from lattice.snapshots import export_snapshot, import_snapshot
+from lattice.synthesis import synthesize
 
 DEFAULT_DB = "lattice.db"
 
@@ -34,6 +38,20 @@ def build_parser() -> argparse.ArgumentParser:
     ingest = commands.add_parser("ingest", help="import BibTeX, RIS, CSV, Markdown or text")
     ingest.add_argument("paths", nargs="+", help="one or more files to ingest")
     ingest.set_defaults(handler=_run_ingest)
+
+    fetch = commands.add_parser("fetch", help="discover papers from offline, arXiv or Crossref")
+    fetch.add_argument("query", help="scientific search query")
+    fetch.add_argument("--source", default="offline", help="offline, arxiv or crossref")
+    fetch.add_argument("--limit", type=int, default=10, help="maximum candidate papers")
+    fetch.add_argument("--no-ingest", action="store_true", help="preview without storing")
+    fetch.set_defaults(handler=_run_fetch)
+
+    extract = commands.add_parser("extract", help="extract quote-backed claims from papers")
+    extract.add_argument("paper", nargs="?", default=None, help="paper reference or bare p_ id")
+    extract.add_argument("--all", action="store_true", dest="extract_all",
+                         help="extract across every ingested paper")
+    extract.add_argument("--question", default=None, help="question reference to link claims to")
+    extract.set_defaults(handler=_run_extract)
 
     claim = commands.add_parser("claim", help="record a claim with its source quote")
     claim.add_argument("--paper", required=True, help="paper reference or bare p_ id")
@@ -58,11 +76,19 @@ def build_parser() -> argparse.ArgumentParser:
     search = commands.add_parser("search", help="search papers, claims and questions")
     search.add_argument("query", help="word or phrase")
     search.add_argument("--limit", type=int, default=20, help="maximum rows per section")
+    search.add_argument("--stance", default=None, help="filter claims by stance")
+    search.add_argument("--min-confidence", type=float, default=None, help="minimum claim confidence")
+    search.add_argument("--year", default=None, help="filter papers and claims by publication year")
     search.set_defaults(handler=_run_search)
 
     show = commands.add_parser("show", help="show one entity and its edges")
     show.add_argument("ref", help="paper, claim or question reference")
     show.set_defaults(handler=_run_show)
+
+    subgraph = commands.add_parser("subgraph", help="traverse multi-hop neighborhood around an entity")
+    subgraph.add_argument("ref", help="paper, claim or question reference")
+    subgraph.add_argument("--depth", type=int, default=1, help="traversal depth (1 to 3)")
+    subgraph.set_defaults(handler=_run_subgraph)
 
     ask_parser = commands.add_parser("ask", help="assemble evidence for a question")
     ask_parser.add_argument("target", help="question reference, question text or phrase")
@@ -78,6 +104,20 @@ def build_parser() -> argparse.ArgumentParser:
     review_parser.add_argument("target", help="question reference, question text or phrase")
     review_parser.add_argument("--out", default=None, help="write the outline to this file")
     review_parser.set_defaults(handler=_run_review)
+
+    synth_parser = commands.add_parser("synthesize", help="consensus-scored scientific synthesis")
+    synth_parser.add_argument("target", help="question reference, question text or phrase")
+    synth_parser.add_argument("--tokens", type=int, default=2500, help="approximate token budget")
+    synth_parser.add_argument("--out", default=None, help="write the synthesis Markdown to this file")
+    synth_parser.set_defaults(handler=_run_synthesize)
+
+    export_cmd = commands.add_parser("export", help="export portable JSONL graph snapshot")
+    export_cmd.add_argument("path", help="output JSONL file path")
+    export_cmd.set_defaults(handler=_run_export)
+
+    import_cmd = commands.add_parser("import", help="import portable JSONL graph snapshot")
+    import_cmd.add_argument("path", help="input JSONL file path")
+    import_cmd.set_defaults(handler=_run_import)
 
     stats = commands.add_parser("stats", help="entity and edge counts")
     stats.set_defaults(handler=_run_stats)
@@ -140,6 +180,51 @@ def _run_ingest(args: argparse.Namespace, repository: Repository) -> int:
     return 0
 
 
+def _run_fetch(args: argparse.Namespace, repository: Repository) -> int:
+    """Discover candidate papers and optionally ingest them."""
+    service = DiscoveryService(repository)
+    result = service.discover(
+        args.query,
+        source=args.source,
+        limit=args.limit,
+        ingest=not args.no_ingest,
+    )
+    lines = [
+        f"[OK] discovered {result['count']} paper(s) from {result['source']}; "
+        f"{result['created']} new, {result['count'] - result['created']} existing/preview"
+    ]
+    for item in result["records"]:
+        pid = item.get("id", "preview")
+        status = "new    " if item.get("created") else "merged "
+        lines.append(f"     {pid}  {status}  {item['title']}")
+    _emit(result, lines, args.json)
+    return 0
+
+
+def _run_extract(args: argparse.Namespace, repository: Repository) -> int:
+    """Extract quote-backed claims and question links from one or all papers."""
+    if args.extract_all:
+        summary = extract_all(repository, question_ref=args.question)
+        lines = [
+            f"[OK] extracted {summary['claims_created']} claim(s) and "
+            f"{summary['edges_created']} edge(s) across {summary['papers_processed']} paper(s)"
+        ]
+        _emit(summary, lines, args.json)
+        return 0
+    if not args.paper:
+        fail("extract requires a paper reference or --all",
+             "claim extraction must know which paper(s) to process",
+             "pass a p_xxx reference or --all")
+    outcome = extract_from_paper(repository, args.paper, question_ref=args.question)
+    payload = outcome.to_dict()
+    lines = [
+        f"[OK] extracted {len(outcome.claims)} claim(s) and "
+        f"{len(outcome.edges)} edge(s) from {outcome.paper_id}"
+    ]
+    _emit(payload, lines, args.json)
+    return 0
+
+
 def _run_claim(args: argparse.Namespace, repository: Repository) -> int:
     """Record one claim."""
     claim = repository.add_claim(args.paper, args.text, args.quote, args.locator,
@@ -168,7 +253,13 @@ def _run_link(args: argparse.Namespace, repository: Repository) -> int:
 
 def _run_search(args: argparse.Namespace, repository: Repository) -> int:
     """Search and print the three result sections."""
-    result = repository.search(args.query, args.limit)
+    result = repository.search(
+        args.query,
+        args.limit,
+        stance=args.stance,
+        min_confidence=args.min_confidence,
+        year=args.year,
+    )
     lines = [f"Papers ({len(result['papers'])}):"]
     lines += [f"  [{paper['id']}] {paper['title']} ({paper.get('year') or 'n.d.'})"
               for paper in result["papers"]] or ["  none"]
@@ -190,6 +281,23 @@ def _run_show(args: argparse.Namespace, repository: Repository) -> int:
         other = edge["details"].get("other", {})
         lines.append(f"  {edge['src']} -{edge['kind']}-> {edge['dst']}  "
                      f"({other.get('type', 'missing')})")
+    _emit(result, lines, args.json)
+    return 0
+
+
+def _run_subgraph(args: argparse.Namespace, repository: Repository) -> int:
+    """Traverse and print the multi-hop neighborhood around an entity."""
+    result = repository.subgraph(args.ref, depth=args.depth)
+    lines = [
+        f"Subgraph around {result['root']} (depth {result['depth']}):",
+        f"Nodes ({len(result['nodes'])}):",
+    ]
+    for node in result["nodes"]:
+        label = node.get("title") or node.get("text") or node.get("ref")
+        lines.append(f"  [{node['ref']}] {label}")
+    lines.append(f"Edges ({len(result['edges'])}):")
+    for edge in result["edges"]:
+        lines.append(f"  {edge['src']} -{edge['kind']}-> {edge['dst']}")
     _emit(result, lines, args.json)
     return 0
 
@@ -240,6 +348,45 @@ def _run_review(args: argparse.Namespace, repository: Repository) -> int:
         print(f"[OK] wrote {len(result['markdown'])} characters to {args.out}")
     else:
         print(result["markdown"])
+    return 0
+
+
+def _run_synthesize(args: argparse.Namespace, repository: Repository) -> int:
+    """Generate a consensus-scored scientific synthesis report."""
+    report = synthesize(repository, args.target, tokens=args.tokens)
+    payload = report.to_dict()
+    if args.out:
+        target = Path(args.out)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(report.markdown, encoding="utf-8")
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    elif args.out:
+        print(f"[OK] wrote {len(report.markdown)} characters to {args.out}")
+    else:
+        print(report.markdown)
+    return 0
+
+
+def _run_export(args: argparse.Namespace, repository: Repository) -> int:
+    """Export the graph to an atomic JSONL snapshot."""
+    result = export_snapshot(repository, Path(args.path))
+    lines = [
+        f"[OK] exported {result['papers']} paper(s), {result['claims']} claim(s), "
+        f"{result['questions']} question(s), {result['edges']} edge(s) to {result['path']}"
+    ]
+    _emit(result, lines, args.json)
+    return 0
+
+
+def _run_import(args: argparse.Namespace, repository: Repository) -> int:
+    """Import a JSONL snapshot idempotently."""
+    result = import_snapshot(repository, Path(args.path))
+    lines = [
+        f"[OK] imported {result['papers']} paper(s), {result['claims']} claim(s), "
+        f"{result['questions']} question(s), {result['edges']} edge(s) from {result['path']}"
+    ]
+    _emit(result, lines, args.json)
     return 0
 
 

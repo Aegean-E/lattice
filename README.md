@@ -16,8 +16,10 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
 - **Try it now** (under 10 seconds, from this folder):
   ```bash
   python -m lattice init
-  python -m lattice question "Does sleep consolidate memory?"
-  python -m lattice stats
+  python -m lattice question "Does slow-wave sleep consolidate memory?"
+  python -m lattice fetch "slow-wave sleep memory" --source offline
+  python -m lattice extract --all --question q_000001
+  python -m lattice synthesize q_000001
   ```
 
 ### AIKit Commands (run from the AIKit folder)
@@ -31,6 +33,11 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
 
 ## How It Works
 
+- **Discovery (`fetch`)** queries offline corpora, arXiv or Crossref through a 4-layer pluggable
+  provider boundary and deduplicates discovered papers automatically.
+- **Knowledge Creation (`extract`)** segments abstracts into empirical sentences, infers stance
+  (`supports`, `contradicts`, `mentions`) and confidence, records quote-backed claims with
+  locators, and links matching research questions.
 - **Papers** carry bibliographic metadata. DOIs, arXiv IDs and normalized title/year pairs are
   deduplicated; a later record fills fields the first one lacked.
 - **Claims** are the unit of knowledge. Every claim needs assertion text, an exact source quote
@@ -38,11 +45,11 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
 - **Questions** collect evidence. Links such as `supports`, `contradicts` and `answers` connect
   claims to questions; `cites`, `replicates`, `extends`, `uses_method`, `measures`, `mentions`
   and `related` cover the rest of the graph.
-- **Edges** are directed, typed and stored once. Both endpoints must exist.
-- **Brief** packs the highest-signal evidence under a deterministic token budget; **review**
-  emits a Markdown outline with a resolved citation for every claim.
-- **Events** are append-only audit records for every write.
-- **The gate** (`check`) reports broken endpoints, missing quotes, duplicate identifiers,
+- **Synthesis (`synthesize`)** computes a confidence-weighted consensus score in `[-1.0, 1.0]`,
+  groups claims into thematic clusters with verbatim quotes, identifies research gaps and
+  follow-up queries, and formats resolved Markdown and BibTeX references.
+- **Snapshots (`export` / `import`)** write and merge portable JSONL graph bundles atomically.
+- **The gate (`check`)** reports broken endpoints, missing quotes, duplicate identifiers,
   support cycles and unlinked evidence.
 
 ### Commands
@@ -50,22 +57,30 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
 ```text
 python -m lattice [--db PATH] [--json] init
 python -m lattice [--db PATH] [--json] ingest PATH [PATH ...]
+python -m lattice [--db PATH] [--json] fetch QUERY [--source offline|arxiv|crossref] [--limit N]
+python -m lattice [--db PATH] [--json] extract [PAPER_REF] [--all] [--question Q_REF]
 python -m lattice [--db PATH] [--json] claim --paper REF --text TEXT --quote QUOTE
 python -m lattice [--db PATH] [--json] question TEXT
 python -m lattice [--db PATH] [--json] link SRC DST --type KIND
-python -m lattice [--db PATH] [--json] search QUERY
+python -m lattice [--db PATH] [--json] search QUERY [--stance S] [--min-confidence C] [--year Y]
 python -m lattice [--db PATH] [--json] show REF
+python -m lattice [--db PATH] [--json] subgraph REF [--depth 1..3]
 python -m lattice [--db PATH] [--json] ask TARGET
 python -m lattice [--db PATH] [--json] brief TARGET --tokens N
 python -m lattice [--db PATH] [--json] review TARGET [--out PATH]
+python -m lattice [--db PATH] [--json] synthesize TARGET [--tokens N] [--out PATH]
+python -m lattice [--db PATH] [--json] export PATH
+python -m lattice [--db PATH] [--json] import PATH
 python -m lattice [--db PATH] [--json] stats
 python -m lattice [--db PATH] check
 python -m lattice [--db PATH] mcp
 ```
 
 `--json` prints stable machine-readable payloads. `mcp` serves newline-delimited JSON-RPC on
-stdio with tools for `search`, `get_entity`, `neighbors`, `add_paper`, `add_claim`,
-`add_question`, `add_edge`, `brief`, `review` and `stats`.
+stdio with tools (`search`, `discover_papers`, `extract_claims`, `get_entity`, `neighbors`,
+`subgraph`, `add_paper`, `add_claim`, `add_question`, `set_question_status`, `add_edge`,
+`brief`, `review`, `synthesize`, `export_snapshot`, `import_snapshot`, `stats`), resources
+(`lattice://stats`, `lattice://questions`), and prompts (`literature-synthesis`).
 
 ### Supported Inputs
 

@@ -59,3 +59,20 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Consequences**: Agents can discover and deduplicate papers from live catalogs or offline
   corpora through a single contract while unit tests remain sub-millisecond and network-free.
 
+### ADR-005: Automated claim extraction, consensus synthesis, and MCP resources/prompts
+- **Date**: 2026-10-19
+- **Status**: Accepted
+- **Context**: Researchers and AI agents need end-to-end automated knowledge creation (turning
+  abstracts into quote-backed claims and edges), multi-hop graph interaction, portable snapshots,
+  and quantitative literature synthesis for scientific queries.
+- **Decision**: Add `lattice.extraction` for deterministic empirical sentence segmentation,
+  stance/confidence inference, and question auto-linking; `lattice.snapshots` for atomic JSONL
+  export (`temp` + `fsync` + `os.replace`) and idempotent merge import; `lattice.synthesis` for
+  confidence-weighted consensus scoring in `[-1.0, 1.0]`, thematic claim clustering, follow-up
+  query generation, and BibTeX output; and expand `lattice.mcp` with `resources/list`,
+  `resources/read`, `prompts/list`, and `prompts/get`.
+- **Consequences**: AI agents can discover literature, extract grounded claims, traverse
+  subgraphs, and retrieve consensus-scored scientific syntheses via CLI or MCP without losing
+  verbatim quote provenance.
+
+

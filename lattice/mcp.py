@@ -2,12 +2,17 @@
 
 import json
 import sys
+from pathlib import Path
 from typing import Any, Dict, List, Optional, TextIO
 
 from lattice import __version__
+from lattice.discovery import DiscoveryService
 from lattice.errors import LatticeError
+from lattice.extraction import extract_all, extract_from_paper
 from lattice.inquiry import brief, review
 from lattice.repository import Repository
+from lattice.snapshots import export_snapshot, import_snapshot
+from lattice.synthesis import synthesize
 
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "lattice"
@@ -21,12 +26,22 @@ def _tool(name: str, description: str, properties: Dict[str, Any],
 
 
 TOOLS: List[Dict[str, Any]] = [
-    _tool("search", "Search papers, claims and questions by substring.",
-          {"query": {"type": "string"}, "limit": {"type": "integer", "default": 20}}, ["query"]),
+    _tool("search", "Search papers, claims and questions by phrase or multi-term overlap.",
+          {"query": {"type": "string"}, "limit": {"type": "integer", "default": 20},
+           "stance": {"type": "string"}, "min_confidence": {"type": "number"},
+           "year": {"type": "string"}}, ["query"]),
+    _tool("discover_papers", "Search offline, arXiv or Crossref catalogs and ingest papers.",
+          {"query": {"type": "string"}, "source": {"type": "string", "default": "offline"},
+           "limit": {"type": "integer", "default": 10},
+           "ingest": {"type": "boolean", "default": True}}, ["query"]),
+    _tool("extract_claims", "Extract quote-backed claims and edges from one or all papers.",
+          {"paper": {"type": "string"}, "question": {"type": "string"}}, []),
     _tool("get_entity", "Fetch one paper, claim or question with all attached edges.",
           {"ref": {"type": "string"}}, ["ref"]),
     _tool("neighbors", "List edges touching an entity, optionally filtered by kind.",
           {"ref": {"type": "string"}, "kind": {"type": "string"}}, ["ref"]),
+    _tool("subgraph", "Traverse the multi-hop neighborhood (depth 1-3) around an entity.",
+          {"ref": {"type": "string"}, "depth": {"type": "integer", "default": 1}}, ["ref"]),
     _tool("add_paper", "Ingest one paper; duplicate DOIs, arXiv IDs and titles are merged.",
           {"title": {"type": "string"}, "authors": {"type": "string"},
            "year": {"type": "string"}, "venue": {"type": "string"}, "doi": {"type": "string"},
@@ -39,6 +54,8 @@ TOOLS: List[Dict[str, Any]] = [
           ["paper", "text", "quote"]),
     _tool("add_question", "Record a research question.",
           {"text": {"type": "string"}}, ["text"]),
+    _tool("set_question_status", "Update a question status to open, answered or abandoned.",
+          {"question": {"type": "string"}, "status": {"type": "string"}}, ["question", "status"]),
     _tool("add_edge", "Add a typed relation between two entities.",
           {"src": {"type": "string"}, "dst": {"type": "string"},
            "kind": {"type": "string"}, "note": {"type": "string"}}, ["src", "dst", "kind"]),
@@ -47,7 +64,29 @@ TOOLS: List[Dict[str, Any]] = [
           ["target"]),
     _tool("review", "Markdown literature-review outline for a question or phrase.",
           {"target": {"type": "string"}}, ["target"]),
+    _tool("synthesize", "Consensus-scored scientific literature synthesis with clusters and BibTeX.",
+          {"target": {"type": "string"}, "tokens": {"type": "integer", "default": 2500}},
+          ["target"]),
+    _tool("export_snapshot", "Export the graph to an atomic JSONL snapshot file.",
+          {"path": {"type": "string"}}, ["path"]),
+    _tool("import_snapshot", "Import a JSONL snapshot file idempotently.",
+          {"path": {"type": "string"}}, ["path"]),
     _tool("stats", "Entity and edge counts.", {}, []),
+]
+
+RESOURCES: List[Dict[str, Any]] = [
+    {"uri": "lattice://stats", "name": "Graph Statistics",
+     "description": "Counts of papers, claims, questions and typed edges.",
+     "mimeType": "application/json"},
+    {"uri": "lattice://questions", "name": "Research Questions",
+     "description": "All tracked research questions and their status.",
+     "mimeType": "application/json"},
+]
+
+PROMPTS: List[Dict[str, Any]] = [
+    {"name": "literature-synthesis",
+     "description": "Assemble a citation-checked scientific synthesis for a research question or query.",
+     "arguments": [{"name": "target", "description": "Question ID or scientific query", "required": True}]},
 ]
 
 
@@ -62,7 +101,7 @@ def handle_message(repository: Repository, message: Any) -> Optional[Dict[str, A
         return _result(request_id, {
             "protocolVersion": PROTOCOL_VERSION,
             "serverInfo": {"name": SERVER_NAME, "version": __version__},
-            "capabilities": {"tools": {}},
+            "capabilities": {"tools": {}, "resources": {}, "prompts": {}},
         })
     if method in ("notifications/initialized", "initialized", "shutdown"):
         return None
@@ -72,6 +111,14 @@ def handle_message(repository: Repository, message: Any) -> Optional[Dict[str, A
         return _result(request_id, {"tools": TOOLS})
     if method == "tools/call":
         return _call_tool(repository, request_id, params)
+    if method == "resources/list":
+        return _result(request_id, {"resources": RESOURCES})
+    if method == "resources/read":
+        return _read_resource(repository, request_id, params)
+    if method == "prompts/list":
+        return _result(request_id, {"prompts": PROMPTS})
+    if method == "prompts/get":
+        return _get_prompt(repository, request_id, params)
     return _error(request_id, -32601, f"method not found: {method}")
 
 
@@ -95,15 +142,75 @@ def _call_tool(repository: Repository, request_id: Any, params: Any) -> Dict[str
                                 "isError": False})
 
 
+def _read_resource(repository: Repository, request_id: Any, params: Any) -> Dict[str, Any]:
+    """Return an MCP resource payload by URI."""
+    uri = str((params or {}).get("uri") or "")
+    if uri == "lattice://stats":
+        payload = repository.stats()
+    elif uri == "lattice://questions":
+        rows = repository.connection.execute("SELECT * FROM questions ORDER BY id").fetchall()
+        payload = {"questions": [dict(row) for row in rows]}
+    else:
+        return _error(request_id, -32602, f"unknown resource uri: {uri}")
+    return _result(request_id, {
+        "contents": [{
+            "uri": uri,
+            "mimeType": "application/json",
+            "text": json.dumps(payload, indent=2, sort_keys=True),
+        }]
+    })
+
+
+def _get_prompt(repository: Repository, request_id: Any, params: Any) -> Dict[str, Any]:
+    """Render a structured scientific synthesis prompt for an AI agent."""
+    name = str((params or {}).get("name") or "")
+    arguments = (params or {}).get("arguments") or {}
+    if name != "literature-synthesis":
+        return _error(request_id, -32602, f"unknown prompt: {name}")
+    target = str(arguments.get("target") or "").strip()
+    if not target:
+        return _error(request_id, -32602, "prompt 'literature-synthesis' requires 'target'")
+    report = synthesize(repository, target, tokens=int(arguments.get("tokens", 2500)))
+    return _result(request_id, {
+        "description": f"Scientific literature synthesis for {target}",
+        "messages": [{
+            "role": "user",
+            "content": {"type": "text", "text": report.markdown},
+        }],
+    })
+
+
 def _dispatch(repository: Repository, name: str, arguments: Dict[str, Any]) -> Any:
-    """Map a tool name to its repository or inquiry operation."""
+    """Map a tool name to its repository, discovery, extraction or synthesis operation."""
     if name == "search":
-        return repository.search(_text(arguments, "query"), int(arguments.get("limit", 20)))
+        return repository.search(
+            _text(arguments, "query"),
+            int(arguments.get("limit", 20)),
+            stance=arguments.get("stance"),
+            min_confidence=arguments.get("min_confidence"),
+            year=arguments.get("year"),
+        )
+    if name == "discover_papers":
+        service = DiscoveryService(repository)
+        return service.discover(
+            _text(arguments, "query"),
+            source=str(arguments.get("source") or "offline"),
+            limit=int(arguments.get("limit", 10)),
+            ingest=bool(arguments.get("ingest", True)),
+        )
+    if name == "extract_claims":
+        paper = arguments.get("paper")
+        question = arguments.get("question")
+        if paper:
+            return extract_from_paper(repository, str(paper), question_ref=question).to_dict()
+        return extract_all(repository, question_ref=question)
     if name == "get_entity":
         return repository.get(_text(arguments, "ref"))
     if name == "neighbors":
         return [edge.to_dict() for edge in repository.neighbors(
             _text(arguments, "ref"), arguments.get("kind"))]
+    if name == "subgraph":
+        return repository.subgraph(_text(arguments, "ref"), int(arguments.get("depth", 1)))
     if name == "add_paper":
         paper, created = repository.add_paper(arguments)
         return {"paper": paper.to_dict(), "created": created}
@@ -115,6 +222,9 @@ def _dispatch(repository: Repository, name: str, arguments: Dict[str, Any]) -> A
         return {"claim": claim.to_dict()}
     if name == "add_question":
         return {"question": repository.add_question(_text(arguments, "text")).to_dict()}
+    if name == "set_question_status":
+        q = repository.set_question_status(_text(arguments, "question"), _text(arguments, "status"))
+        return {"question": q.to_dict()}
     if name == "add_edge":
         edge = repository.add_edge(_text(arguments, "src"), _text(arguments, "dst"),
                                    _text(arguments, "kind"), str(arguments.get("note", "")))
@@ -123,6 +233,14 @@ def _dispatch(repository: Repository, name: str, arguments: Dict[str, Any]) -> A
         return brief(repository, _text(arguments, "target"), int(arguments.get("tokens", 2000)))
     if name == "review":
         return review(repository, _text(arguments, "target"))
+    if name == "synthesize":
+        return synthesize(
+            repository, _text(arguments, "target"), int(arguments.get("tokens", 2500))
+        ).to_dict()
+    if name == "export_snapshot":
+        return export_snapshot(repository, Path(_text(arguments, "path")))
+    if name == "import_snapshot":
+        return import_snapshot(repository, Path(_text(arguments, "path")))
     if name == "stats":
         return repository.stats()
     raise LatticeError(f"unknown tool '{name}'", "the server advertises its tools in tools/list",

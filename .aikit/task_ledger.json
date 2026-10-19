@@ -3,9 +3,10 @@
   "active_task": {
     "task_id": "lattice-v0.2.0",
     "last_phase": "phase 4",
-    "active_phase": 4,
-    "status": "in_progress",
-    "updated_at": 1792424890.2450883
+    "active_phase": 5,
+    "status": "completed",
+    "updated_at": 1792425186.438603,
+    "completed_at": 1792425186.6314454
   },
   "checkpoints": [
     {
@@ -114,6 +115,25 @@
       "status": "in_progress",
       "timestamp": 1792424890.2450883,
       "timestamp_str": "2026-10-19 18:48:10"
+    },
+    {
+      "task_id": "lattice-v0.2.0",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[milestone 5/5] Wire fetch, extract, subgraph, synthesize, export and import into CLI and MCP (with resources and prompts), update README and ADR-005; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792425186.438603,
+      "timestamp_str": "2026-10-19 18:53:06"
+    },
+    {
+      "task_id": "lattice-v0.2.0",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-v0.2.0' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792425186.6314473,
+      "timestamp_str": "2026-10-19 18:53:06"
     }
   ]
 }

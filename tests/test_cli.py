@@ -100,6 +100,37 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("papers: 1", out)
 
+    def test_fetch_extract_synthesize_subgraph_and_snapshots(self):
+        code, out, _ = self.run_cli("question", "Does slow-wave sleep consolidate memory?")
+        self.assertEqual(code, 0)
+
+        code, out, _ = self.run_cli("fetch", "slow-wave sleep memory", "--source", "offline", "--limit", "2")
+        self.assertEqual(code, 0)
+        self.assertIn("new", out)
+
+        code, out, _ = self.run_cli("extract", "--all", "--question", "q_000001")
+        self.assertEqual(code, 0)
+        self.assertIn("extracted", out)
+
+        synth_path = Path(self.directory.name) / "synthesis.md"
+        code, out, _ = self.run_cli("synthesize", "q_000001", "--tokens", "2000", "--out", str(synth_path))
+        self.assertEqual(code, 0)
+        self.assertTrue(synth_path.is_file())
+        self.assertIn("Literature Synthesis:", synth_path.read_text(encoding="utf-8"))
+
+        code, out, _ = self.run_cli("subgraph", "q_000001", "--depth", "2")
+        self.assertEqual(code, 0)
+        self.assertIn("Nodes", out)
+
+        snap_path = Path(self.directory.name) / "bundle.jsonl"
+        code, out, _ = self.run_cli("export", str(snap_path))
+        self.assertEqual(code, 0)
+        self.assertTrue(snap_path.is_file())
+
+        code, out, _ = self.run_cli("import", str(snap_path))
+        self.assertEqual(code, 0)
+        self.assertIn("imported", out)
+
 
 if __name__ == "__main__":
     unittest.main()
