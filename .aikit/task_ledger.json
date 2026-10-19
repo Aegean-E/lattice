@@ -3,43 +3,12 @@
   "active_task": {
     "task_id": "lattice-v0.4.0",
     "last_phase": "phase 4",
-    "active_phase": 4,
-    "status": "in_progress",
-    "updated_at": 1792433788.9295337
+    "active_phase": 5,
+    "status": "completed",
+    "updated_at": 1792433918.116369,
+    "completed_at": 1792433918.2647455
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-v0.1.0",
-      "phase": "phase 1",
-      "phase_num": 1,
-      "description": "[1/6] Build lattice v0.1.0: SQLite knowledge graph (papers, claims, questions, typed edges, provenance), BibTeX/RIS/CSV/Markdown ingest with dedupe, ask/brief/review, check gate and MCP stdio server. Milestones: core store+CLI; ingest; claims/edges; ask/brief; review; MCP+gate+docs.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792391642.2372816,
-      "timestamp_str": "2026-10-19 09:34:02",
-      "impact_assessment": {
-        "why": "User approved a provenance-first research knowledge base for agents; the workspace has no such project.",
-        "benefits": "Agents get a deterministic, citation-checked evidence graph with a stable JSON/MCP API; humans get literature-review tooling.",
-        "risks": "Scope creep in parsing and entity resolution; schema churn; LLM coupling; PDF extraction.",
-        "mitigation": "Text formats and explicit dedupe first, SQLite schema versioned with migrations, deterministic core with agents as clients, PDFs out of scope; tests per milestone."
-      }
-    },
-    {
-      "task_id": "lattice-v0.1.0",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/6] Build lattice v0.1.0: SQLite knowledge graph (papers, claims, questions, typed edges, provenance), BibTeX/RIS/CSV/Markdown ingest with dedupe, ask/brief/review, check gate and MCP stdio server. Milestones: core store+CLI; ingest; claims/edges; ask/brief; review; MCP+gate+docs.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792423937.998556,
-      "timestamp_str": "2026-10-19 18:32:17",
-      "impact_assessment": {
-        "why": "User approved a provenance-first research knowledge base for agents; the workspace has no such project.",
-        "benefits": "Agents get a deterministic, citation-checked evidence graph with a stable JSON/MCP API; humans get literature-review tooling.",
-        "risks": "contract: CLI/JSON/MCP schemas must stay stable; dependency: stdlib-only constraint; concurrency: SQLite single-writer contention; state: partial writes or schema drift.",
-        "mitigation": "Text formats and explicit dedupe first, SQLite schema versioned with migrations, deterministic core with agents as clients, PDFs out of scope; tests per milestone."
-      }
-    },
     {
       "task_id": "lattice-v0.1.0",
       "phase": "phase 4",
@@ -234,6 +203,25 @@
       "status": "in_progress",
       "timestamp": 1792433788.9295337,
       "timestamp_str": "2026-10-19 21:16:28"
+    },
+    {
+      "task_id": "lattice-v0.4.0",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[milestone 4/4] ADR-007, README and v0.4.0 release verified (checklists: passed)",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792433918.116369,
+      "timestamp_str": "2026-10-19 21:18:38"
+    },
+    {
+      "task_id": "lattice-v0.4.0",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-v0.4.0' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792433918.264747,
+      "timestamp_str": "2026-10-19 21:18:38"
     }
   ]
 }

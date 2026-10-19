@@ -33,8 +33,9 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
 
 ## How It Works
 
-- **Discovery (`fetch`)** queries offline corpora, arXiv or Crossref through a 4-layer pluggable
-  provider boundary and deduplicates discovered papers automatically.
+- **Discovery (`fetch`)** queries offline corpora, arXiv, Crossref, OpenAlex, or EuropePMC (or a
+  comma-separated federated list such as `--source offline,openalex,europepmc`) through a 4-layer
+  pluggable provider boundary and deduplicates discovered papers automatically.
 - **Knowledge Creation (`extract`)** segments abstracts into empirical sentences, infers stance
   (`supports`, `contradicts`, `mentions`) and confidence, records quote-backed claims with
   locators, and links matching research questions.
@@ -45,13 +46,17 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
 - **Questions** collect evidence. Links such as `supports`, `contradicts` and `answers` connect
   claims to questions; `cites`, `replicates`, `extends`, `uses_method`, `measures`, `mentions`
   and `related` cover the rest of the graph.
+- **Analysis (`analyze`)** detects opposing claim pairs (`supports` vs `contradicts`) on shared
+  questions or domain keywords (with optional `--auto-link`), ranks keystone papers and claims by
+  evidence centrality, and builds a `Paper x Question` evidence matrix with coverage gaps.
 - **Synthesis (`synthesize`)** computes a confidence-weighted consensus score in `[-1.0, 1.0]`,
   groups claims into thematic clusters with verbatim quotes, identifies research gaps and
   follow-up queries, and formats resolved Markdown and BibTeX references.
 - **Snapshots (`export` / `import`)** write and merge portable JSONL graph bundles atomically.
 - **Web Research Studio (`web`)** serves a local, zero-dependency human UI with one-click demo
-  seeding, literature discovery, claim extraction, consensus synthesis, and interactive SVG
-  subgraph exploration.
+  seeding, multi-source literature discovery, browser paste-ingestion (BibTeX/RIS/CSV/Markdown),
+  JSONL snapshot download, consensus synthesis, interactive SVG subgraph exploration, and a
+  `Paper x Question` Evidence Matrix & Contradictions tab.
 - **The gate (`check`)** reports broken endpoints, missing quotes, duplicate identifiers,
   support cycles and unlinked evidence.
 
@@ -60,7 +65,7 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
 ```text
 python -m lattice [--db PATH] [--json] init
 python -m lattice [--db PATH] [--json] ingest PATH [PATH ...]
-python -m lattice [--db PATH] [--json] fetch QUERY [--source offline|arxiv|crossref] [--limit N]
+python -m lattice [--db PATH] [--json] fetch QUERY [--source offline|arxiv|crossref|openalex|europepmc] [--limit N]
 python -m lattice [--db PATH] [--json] extract [PAPER_REF] [--all] [--question Q_REF]
 python -m lattice [--db PATH] [--json] claim --paper REF --text TEXT --quote QUOTE
 python -m lattice [--db PATH] [--json] question TEXT
@@ -72,6 +77,7 @@ python -m lattice [--db PATH] [--json] ask TARGET
 python -m lattice [--db PATH] [--json] brief TARGET --tokens N
 python -m lattice [--db PATH] [--json] review TARGET [--out PATH]
 python -m lattice [--db PATH] [--json] synthesize TARGET [--tokens N] [--out PATH]
+python -m lattice [--db PATH] [--json] analyze [--auto-link] [--limit N]
 python -m lattice [--db PATH] [--json] export PATH
 python -m lattice [--db PATH] [--json] import PATH
 python -m lattice [--db PATH] [--json] stats
@@ -83,8 +89,9 @@ python -m lattice [--db PATH] web [--host 127.0.0.1] [--port 8765] [--demo] [--o
 `--json` prints stable machine-readable payloads. `mcp` serves newline-delimited JSON-RPC on
 stdio with tools (`search`, `discover_papers`, `extract_claims`, `get_entity`, `neighbors`,
 `subgraph`, `add_paper`, `add_claim`, `add_question`, `set_question_status`, `add_edge`,
-`brief`, `review`, `synthesize`, `export_snapshot`, `import_snapshot`, `stats`), resources
-(`lattice://stats`, `lattice://questions`), and prompts (`literature-synthesis`).
+`brief`, `review`, `synthesize`, `analyze_graph`, `detect_contradictions`, `export_snapshot`,
+`import_snapshot`, `stats`), resources (`lattice://stats`, `lattice://questions`,
+`lattice://matrix`), and prompts (`literature-synthesis`).
 
 ### Supported Inputs
 

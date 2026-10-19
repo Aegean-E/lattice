@@ -10,7 +10,7 @@
 - **Total Classes**: `39`
 - **Total Top-Level Functions**: `147`
 - **Total Class Methods**: `181`
-- **Total Source Lines**: `7108`
+- **Total Source Lines**: `7109`
 
 ---
 
@@ -19,7 +19,7 @@
 ### [`lattice/__init__.py`](lattice/__init__.py)
 > *Lattice: a provenance-first research knowledge graph for humans and AI agents.*
 
-**Size**: `5` lines (`110` bytes)
+**Size**: `6` lines (`111` bytes)
 
 ---
 

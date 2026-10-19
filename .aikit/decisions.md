@@ -90,5 +90,28 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   --open` offline or online, while unit tests verify all HTML and JSON API routes in under a
   millisecond without sockets.
 
+## ADR-007: Federated Discovery, Contradiction Detection, and Evidence Matrices (2026-10-19)
+
+- **Status**: Accepted
+- **Context**: Researchers and AI agents need broader biomedical and open-access catalog coverage
+  beyond arXiv and Crossref, plus automated ways to surface conflicting empirical claims, identify
+  keystone papers/claims by graph centrality, and inspect Paper x Question coverage matrices.
+- **Decision**:
+  1. Add `OpenAlexProvider` (reconstructing `abstract_inverted_index` into plaintext abstracts) and
+     `EuropePmcProvider` to `lattice.discovery`, and upgrade `DiscoveryService.discover` to accept
+     comma-separated provider lists (e.g. `--source offline,openalex,europepmc`) with cross-catalog
+     deduplication by DOI, arXiv ID, and normalized title+year.
+  2. Implement `lattice.analysis` with `ContradictionPair` frozen DTOs, `detect_contradictions`
+     (with idempotent `auto_link=True` edge creation), `rank_influential_entities`, and
+     `build_evidence_matrix`.
+  3. Expose these capabilities across the CLI (`lattice analyze`), MCP server (`analyze_graph`,
+     `detect_contradictions`, and `lattice://matrix`), and Web Research Studio (Tab 5 Evidence
+     Matrix & Contradictions, browser paste-ingestion via `/api/ingest-text`, and JSONL snapshot
+     export via `/api/export`).
+- **Consequences**: Both AI agents and human users can query multiple scientific catalogs at once,
+  automatically detect and link conflicting claims, and audit Paper x Question evidence matrices
+  with zero third-party dependencies.
+
+
 
 
