@@ -101,7 +101,8 @@ lattice/
 │   ├── mcp.py                <- MCP stdio server and tool dispatch
 │   ├── models.py             <- value objects, identifiers and validators
 │   ├── repository.py         <- graph writes, dedupe, search and evidence queries
-│   └── snapshots.py          <- atomic JSONL graph snapshot export and merge import
+│   ├── snapshots.py          <- atomic JSONL graph snapshot export and merge import
+│   └── synthesis.py          <- consensus scoring, thematic clusters and BibTeX synthesis
 └── tests/
     ├── __init__.py
     ├── test_checks.py
@@ -113,7 +114,8 @@ lattice/
     ├── test_mcp.py
     ├── test_models.py
     ├── test_repository.py
-    └── test_snapshots.py
+    ├── test_snapshots.py
+    └── test_synthesis.py
 ```
 
 ## Design Notes

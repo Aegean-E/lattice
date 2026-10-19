@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `25`
-- **Total Classes**: `31`
-- **Total Top-Level Functions**: `106`
-- **Total Class Methods**: `149`
-- **Total Source Lines**: `3862`
+- **Total Python Modules**: `27`
+- **Total Classes**: `33`
+- **Total Top-Level Functions**: `115`
+- **Total Class Methods**: `155`
+- **Total Source Lines**: `4300`
 
 ---
 
@@ -326,6 +326,28 @@
 
 ---
 
+### [`lattice/synthesis.py`](lattice/synthesis.py)
+> *Scientific literature synthesis engine: consensus scoring, thematic clustering, and BibTeX.*
+
+**Size**: `318` lines (`13219` bytes)
+
+**Classes:**
+- `class SynthesisReport` - *Immutable structured synthesis for AI agents and human literature reviews.*
+  - Method `.to_dict()` - *JSON-serializable representation.*
+
+**Functions:**
+- `def compute_consensus(supporting, contradicting, neutral)` - *Compute a confidence-weighted consensus score in [-1.0, 1.0] and classification label.*
+- `def cluster_claims(claims)` - *Group claims into thematic clusters by dominant domain keyword.*
+- `def format_bibtex(papers)` - *Format paper dictionaries as deterministic BibTeX entries.*
+- `def synthesize(repository, target, tokens)` - *Produce a token-bounded, citation-checked scientific synthesis for a question or query.*
+- `def _dominant_theme(text)` - *Select the most informative domain keyword from a claim sentence.*
+- `def _inline_citation(paper)` - *Format `Author (Year) [p_xxx]` for inline evidence attribution.*
+- `def _collect_bibliography(repository, claims, extra_papers)` - *Collect unique resolved paper records referenced by claims or search results.*
+- `def _build_follow_up_queries(query_text, consensus, suggestions, bibliography)` - *Generate actionable follow-up scientific queries for AI agents.*
+- `def _render_markdown(query_text, mode, consensus, clusters, gaps, follow_ups, bibliography, tokens)` - *Render a deterministic, token-bounded Markdown literature synthesis report.*
+
+---
+
 ### [`tests/__init__.py`](tests/__init__.py)
 > *Regression suite for lattice.*
 
@@ -530,5 +552,20 @@
   - Method `.test_subgraph_traverses_multi_hop_neighborhood()`
   - Method `.test_set_question_status_updates_and_validates()`
   - Method `.test_export_and_import_snapshot_roundtrip_is_idempotent()`
+
+---
+
+### [`tests/test_synthesis.py`](tests/test_synthesis.py)
+> *Tests for scientific literature synthesis: consensus scoring, thematic clusters, and BibTeX.*
+
+**Size**: `120` lines (`5110` bytes)
+
+**Classes:**
+- `class SynthesisTests` - *Verify consensus scoring, thematic clustering, follow-up queries, and BibTeX generation.*
+  - Method `.setUp()`
+  - Method `.test_compute_consensus_handles_support_contradiction_and_empty()`
+  - Method `.test_synthesize_question_produces_structured_ai_pack_and_markdown()`
+  - Method `.test_synthesize_search_phrase_and_bibtex_formatting()`
+  - Method `.test_synthesize_rejects_tiny_token_budget()`
 
 ---
