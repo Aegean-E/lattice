@@ -134,6 +134,7 @@ PDF extraction is intentionally out of scope; convert a PDF to text first.
 lattice/
 ├── .aikit/                   <- project memory: guidelines, decisions, ledger, codebase map
 ├── .gitignore                <- local databases and transient AIKit state
+├── LICENSE
 ├── README.md
 ├── pyproject.toml            <- package metadata and the `lattice` console script
 ├── start.py                  <- 1-click launcher for Web Research Studio and CLI
