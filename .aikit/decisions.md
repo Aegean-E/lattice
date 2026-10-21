@@ -218,6 +218,21 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   format, AI agents and humans can access orientation stats in the browser via a lightweight drawer, and
   synthesis reports can be copied to the clipboard in one click without altering database schemas.
 
+## ADR-012: NeuroCore Integration as Research Evidence Backend (2026-10-20)
+
+- **Status**: Proposed
+- **Context**: NeuroCore (`projects/neurocore/`) is a self-hosted AI agent framework with a research module (`core/research_manager.py`) managing hypotheses, articles, study designs, and findings. Lattice provides a more sophisticated evidence graph with quote-backed claims, deterministic contradiction detection, consensus synthesis, MCP server for AI agents, and a Web Research Studio. Integrating lattice as neurocore's research backend eliminates duplicate data stores and gives neurocore agents provenance-rich evidence access.
+- **Decision**:
+  1. Expose lattice's repository and inquiry functions via a clean Python API (`lattice.api` module) for neurocore's `LatticeAdapter` to consume. **This module must expose EVERY internal function, class, and constant** - zero detail loss.
+  2. Ensure MCP server stability for neurocore agent integration (stdio JSON-RPC with all 21 tools: `search`, `discover_papers`, `extract_claims`, `get_entity`, `neighbors`, `subgraph`, `related_findings`, `outline`, `add_paper`, `add_claim`, `add_question`, `set_question_status`, `add_edge`, `brief`, `review`, `synthesize`, `analyze_graph`, `detect_contradictions`, `export_snapshot`, `import_snapshot`, `stats`).
+  3. Add neurocore-specific query helpers: `get_evidence_matrix(hypothesis_ids)`, `get_hypothesis_evidence(question_id)`, `sync_article_from_neurocore(article_data)`.
+  4. Maintain lattice's stdlib-only, zero-dependency constraint; neurocore handles FAISS/vector search separately.
+  5. Document integration contract in `docs/lattice_integration_design.md` (in neurocore project).
+  6. **All lattice CLI commands, web API endpoints, analytical functions, token budgets, validation rules, and data model constraints must remain fully functional and testable independently of neurocore.**
+- **Consequences**:
+  - *Positive*: Lattice becomes a reusable evidence engine; neurocore gains provenance, contradiction detection, synthesis without reimplementation; shared MCP tools enable consistent agent behavior across both systems.
+  - *Trade-offs*: Lattice must maintain backward compatibility for neurocore adapter; schema changes require coordinated migration; neurocore's ResearchManager migration is a separate effort tracked in neurocore's ADR-007. **Lattice's own test suite and CLI must remain the primary verification surface.**
+
 
 
 
