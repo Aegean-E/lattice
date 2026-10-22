@@ -25,6 +25,7 @@ from lattice.analysis import (
     related_findings,
 )
 from lattice.checks import CheckIssue, CheckReport, run_checks, summarize
+from lattice.client import AsyncLatticeClient, DEFAULT_DB, LatticeClient
 from lattice.context import (
     MIN_TOKENS,
     compact_related,
@@ -74,7 +75,10 @@ from lattice.mcp import (
     RESOURCES,
     SERVER_NAME,
     TOOLS,
+    dispatch_tool,
+    get_prompt,
     handle_message,
+    read_resource,
     serve,
 )
 from lattice.models import (
@@ -168,11 +172,13 @@ def get_hypothesis_evidence(repository: Repository, question_id: str) -> Dict[st
 
 __all__ = sorted([
     "ArxivProvider",
+    "AsyncLatticeClient",
     "CheckIssue",
     "CheckReport",
     "Claim",
     "ContradictionPair",
     "CrossrefProvider",
+    "DEFAULT_DB",
     "DiscoveryService",
     "EDGE_KINDS",
     "ENTITY_PREFIXES",
@@ -181,6 +187,7 @@ __all__ = sorted([
     "ExtractionResult",
     "Fetcher",
     "GROUPS",
+    "LatticeClient",
     "LatticeError",
     "LiteratureProvider",
     "MIN_TOKENS",
@@ -222,6 +229,7 @@ __all__ = sorted([
     "default_registry",
     "derive_tags",
     "detect_contradictions",
+    "dispatch_tool",
     "dispatch_web_request",
     "empty_record",
     "entity_type",
@@ -236,6 +244,7 @@ __all__ = sorted([
     "format_bibtex",
     "get_evidence_matrix",
     "get_hypothesis_evidence",
+    "get_prompt",
     "handle_message",
     "import_snapshot",
     "infer_confidence",
@@ -258,6 +267,7 @@ __all__ = sorted([
     "parse_ris",
     "parse_text",
     "rank_influential_entities",
+    "read_resource",
     "related_findings",
     "review",
     "run_checks",

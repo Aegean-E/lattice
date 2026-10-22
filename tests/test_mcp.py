@@ -5,7 +5,8 @@ import json
 import unittest
 
 from lattice.database import open_database
-from lattice.mcp import handle_message, serve
+from lattice.errors import LatticeError
+from lattice.mcp import dispatch_tool, handle_message, serve
 from lattice.repository import Repository
 
 
@@ -19,7 +20,8 @@ class McpTests(unittest.TestCase):
 
     def call(self, method, params=None, request_id=1):
         return handle_message(self.repository, {
-            "jsonrpc": "2.0", "id": request_id, "method": method, "params": params or {}})
+            "jsonrpc": "2.0", "id": request_id, "method": method,
+            "params": params if params is not None else {}})
 
     def tool(self, name, arguments):
         return self.call("tools/call", {"name": name, "arguments": arguments})
@@ -189,6 +191,42 @@ class McpTests(unittest.TestCase):
         rendered = self.call("prompts/get", {"name": "literature-synthesis", "arguments": {"target": "q_000001"}})["result"]
         self.assertGreaterEqual(len(rendered["messages"]), 1)
         self.assertIn("Literature Synthesis", rendered["messages"][0]["content"]["text"])
+
+        malformed = self.call("prompts/get", {
+            "name": "literature-synthesis",
+            "arguments": {"target": "q_000001", "tokens": "not-a-number"},
+        })
+        self.assertEqual(malformed["error"]["code"], -32602)
+        non_object = self.call("prompts/get", {
+            "name": "literature-synthesis", "arguments": ["not", "an", "object"],
+        })
+        self.assertEqual(non_object["error"]["code"], -32602)
+
+    def test_dispatch_tool_rejects_non_object_arguments(self):
+        with self.assertRaises(LatticeError):
+            dispatch_tool(self.repository, "stats", [])
+
+    def test_dispatch_tool_rejects_non_string_names(self):
+        for name in (None, [], {}, ""):
+            with self.subTest(name=name), self.assertRaises(LatticeError):
+                dispatch_tool(self.repository, name, {})
+
+    def test_non_object_params_are_rejected(self):
+        cases = (
+            ("resources/read", []),
+            ("resources/read", [1]),
+            ("prompts/get", []),
+            ("prompts/get", [1]),
+            ("prompts/get", {"name": "literature-synthesis", "arguments": []}),
+            ("tools/call", [1]),
+            ("tools/call", {"name": "stats", "arguments": []}),
+            ("tools/call", {"name": "   ", "arguments": {}}),
+            ("tools/call", {"arguments": {}}),
+        )
+        for method, params in cases:
+            with self.subTest(method=method, params=params):
+                response = self.call(method, params)
+                self.assertEqual(response["error"]["code"], -32602)
 
     def test_analyze_and_contradictions_tools_and_matrix_resource(self):
         q_resp = json.loads(

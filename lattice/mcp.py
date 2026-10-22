@@ -16,7 +16,7 @@ from lattice.analysis import (
 )
 from lattice.context import compact_related, compact_search, compact_subgraph, outline
 from lattice.discovery import DiscoveryService
-from lattice.errors import LatticeError
+from lattice.errors import LatticeError, fail
 from lattice.extraction import extract_all, extract_from_paper
 from lattice.inquiry import brief, review
 from lattice.repository import Repository
@@ -125,7 +125,9 @@ def handle_message(repository: Repository, message: Any) -> Optional[Dict[str, A
         return _error(None, -32600, "invalid request")
     request_id = message.get("id")
     method = message["method"]
-    params = message.get("params") or {}
+    params = message.get("params")
+    if params is None:
+        params = {}
     if method == "initialize":
         return _result(request_id, {
             "protocolVersion": PROTOCOL_VERSION,
@@ -153,14 +155,17 @@ def handle_message(repository: Repository, message: Any) -> Optional[Dict[str, A
 
 def _call_tool(repository: Repository, request_id: Any, params: Any) -> Dict[str, Any]:
     """Run one MCP tool call and wrap the result as text content."""
-    if not isinstance(params, dict) or not isinstance(params.get("name"), str):
+    if not isinstance(params, dict) or not isinstance(params.get("name"), str) \
+            or not params["name"].strip():
         return _error(request_id, -32602, "tools/call needs a tool name")
     name = params["name"]
-    arguments = params.get("arguments") or {}
+    arguments = params.get("arguments")
+    if arguments is None:
+        arguments = {}
     if not isinstance(arguments, dict):
         return _error(request_id, -32602, "arguments must be an object")
     try:
-        payload = _dispatch(repository, name, arguments)
+        payload = dispatch_tool(repository, name, arguments)
     except LatticeError as exc:
         return _result(request_id, {"content": [{"type": "text", "text": exc.render()}],
                                     "isError": True})
@@ -171,18 +176,61 @@ def _call_tool(repository: Repository, request_id: Any, params: Any) -> Dict[str
                                 "isError": False})
 
 
+def read_resource(repository: Repository, uri: str) -> Any:
+    """Return the payload for one advertised resource URI."""
+    text = str(uri or "").strip()
+    if text == "lattice://stats":
+        return repository.stats()
+    if text == "lattice://questions":
+        rows = repository.connection.execute("SELECT * FROM questions ORDER BY id").fetchall()
+        return {"questions": [dict(row) for row in rows]}
+    if text == "lattice://matrix":
+        return build_evidence_matrix(repository)
+    fail(f"unknown resource uri: {text}", "the server advertises its resources",
+         "use lattice://stats, lattice://questions or lattice://matrix")
+
+
+def get_prompt(repository: Repository, name: str,
+               arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Render one advertised prompt into MCP message content."""
+    prompt_name = str(name or "").strip()
+    if arguments is not None and not isinstance(arguments, dict):
+        fail("prompt arguments must be an object", "prompt schemas declare named fields",
+             "pass a dict such as {'target': 'q_000001'}")
+    values = arguments or {}
+    if prompt_name != "literature-synthesis":
+        fail(f"unknown prompt: {prompt_name}", "the server advertises its prompts",
+             "use literature-synthesis")
+    target = str(values.get("target") or "").strip()
+    if not target:
+        fail("prompt 'literature-synthesis' requires 'target'",
+             "a synthesis prompt needs a question or search phrase",
+             "pass the target argument")
+    try:
+        tokens = int(values.get("tokens", 2500))
+    except (TypeError, ValueError):
+        fail(f"token budget {values.get('tokens')!r} is not an integer",
+             "synthesis needs a numeric token budget",
+             "pass an integer tokens value such as 2500")
+    report = synthesize(repository, target, tokens=tokens)
+    return {
+        "description": f"Scientific literature synthesis for {target}",
+        "messages": [{
+            "role": "user",
+            "content": {"type": "text", "text": report.markdown},
+        }],
+    }
+
+
 def _read_resource(repository: Repository, request_id: Any, params: Any) -> Dict[str, Any]:
     """Return an MCP resource payload by URI."""
-    uri = str((params or {}).get("uri") or "")
-    if uri == "lattice://stats":
-        payload = repository.stats()
-    elif uri == "lattice://questions":
-        rows = repository.connection.execute("SELECT * FROM questions ORDER BY id").fetchall()
-        payload = {"questions": [dict(row) for row in rows]}
-    elif uri == "lattice://matrix":
-        payload = build_evidence_matrix(repository)
-    else:
-        return _error(request_id, -32602, f"unknown resource uri: {uri}")
+    if not isinstance(params, dict):
+        return _error(request_id, -32602, "params must be an object")
+    uri = str(params.get("uri") or "")
+    try:
+        payload = read_resource(repository, uri)
+    except LatticeError as exc:
+        return _error(request_id, -32602, exc.message)
     return _result(request_id, {
         "contents": [{
             "uri": uri,
@@ -194,25 +242,31 @@ def _read_resource(repository: Repository, request_id: Any, params: Any) -> Dict
 
 def _get_prompt(repository: Repository, request_id: Any, params: Any) -> Dict[str, Any]:
     """Render a structured scientific synthesis prompt for an AI agent."""
-    name = str((params or {}).get("name") or "")
-    arguments = (params or {}).get("arguments") or {}
-    if name != "literature-synthesis":
-        return _error(request_id, -32602, f"unknown prompt: {name}")
-    target = str(arguments.get("target") or "").strip()
-    if not target:
-        return _error(request_id, -32602, "prompt 'literature-synthesis' requires 'target'")
-    report = synthesize(repository, target, tokens=int(arguments.get("tokens", 2500)))
-    return _result(request_id, {
-        "description": f"Scientific literature synthesis for {target}",
-        "messages": [{
-            "role": "user",
-            "content": {"type": "text", "text": report.markdown},
-        }],
-    })
+    if not isinstance(params, dict):
+        return _error(request_id, -32602, "params must be an object")
+    name = str(params.get("name") or "")
+    arguments = params.get("arguments")
+    if arguments is None:
+        arguments = {}
+    try:
+        payload = get_prompt(repository, name, arguments)
+    except (LatticeError, TypeError, ValueError) as exc:
+        message = exc.message if isinstance(exc, LatticeError) else str(exc)
+        return _error(request_id, -32602, message)
+    return _result(request_id, payload)
 
 
-def _dispatch(repository: Repository, name: str, arguments: Dict[str, Any]) -> Any:
-    """Map a tool name to its repository, discovery, extraction or synthesis operation."""
+def dispatch_tool(repository: Repository, name: str, arguments: Dict[str, Any]) -> Any:
+    """Map a tool name to its repository, discovery, extraction or synthesis operation.
+
+    Public so a Python host can reuse the exact MCP semantics without a JSON-RPC hop.
+    """
+    if not isinstance(name, str) or not name.strip():
+        fail("a tool name is required", "tool names are strings advertised by tools/list",
+             "call one of the names returned by tools/list")
+    if not isinstance(arguments, dict):
+        fail("tool arguments must be an object", "tool schemas declare named fields",
+             "pass a dict such as {'query': 'sleep'}")
     if name == "search":
         return compact_search(repository.search(
             _text(arguments, "query"),

@@ -1,5 +1,6 @@
 """SQLite connection, versioned schema and migration veil for the knowledge graph."""
 
+import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -78,24 +79,79 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
-def open_database(path: str) -> sqlite3.Connection:
-    """Open or create the database, verify its schema version and return it."""
-    if path != ":memory:":
+def open_database(path: str, read_only: bool = False) -> sqlite3.Connection:
+    """Open or create the database, verify its schema version and return it.
+
+    A read-only open never creates a file, never migrates a schema and sets SQLite's
+    `query_only` guard. An in-memory read-only database still creates its schema in memory.
+    """
+    if not isinstance(path, (str, os.PathLike)):
+        fail("a database path must be a string or path", "a connection needs a file or :memory:",
+             "pass a path string or pathlib.Path")
+    text = str(path)
+    if not text.strip():
+        fail("a database path is required", "an empty path cannot identify a knowledge base",
+             "pass a file path or :memory:")
+    path = ":memory:" if text.strip() == ":memory:" else text
+    if path != ":memory:" and not read_only:
         parent = Path(path).resolve().parent
         parent.mkdir(parents=True, exist_ok=True)
     try:
-        connection = sqlite3.connect(path, timeout=3.0)
+        if read_only and path != ":memory:":
+            candidate = Path(path).resolve()
+            if not candidate.is_file():
+                fail(f"database {path} does not exist",
+                     "a read-only client cannot create a knowledge base",
+                     "create it with a writable client, or pass a writable client")
+            connection = sqlite3.connect(candidate.as_uri() + "?mode=ro", uri=True, timeout=3.0)
+        else:
+            connection = sqlite3.connect(path, timeout=3.0)
     except sqlite3.Error as exc:
         fail(f"could not open {path}: {exc}", "the knowledge base path is not usable",
              "choose a writable file path with --db")
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    connection.execute("PRAGMA busy_timeout = 3000")
-    connection.execute("PRAGMA synchronous = FULL")
-    if path != ":memory:":
-        connection.execute("PRAGMA journal_mode = WAL")
-    _ensure_schema(connection)
-    return connection
+    try:
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute("PRAGMA busy_timeout = 3000")
+        if read_only and path != ":memory:":
+            _verify_schema_read_only(connection)
+            connection.execute("PRAGMA query_only = ON")
+        else:
+            connection.execute("PRAGMA synchronous = FULL")
+            if path != ":memory:":
+                connection.execute("PRAGMA journal_mode = WAL")
+            _ensure_schema(connection)
+            if read_only:
+                connection.execute("PRAGMA query_only = ON")
+        return connection
+    except BaseException:
+        connection.close()
+        raise
+
+
+def _verify_schema_read_only(connection: sqlite3.Connection) -> None:
+    """Verify a read-only database is current without creating or migrating anything."""
+    try:
+        row = connection.execute(
+            "SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
+    except sqlite3.Error as exc:
+        fail(f"not a lattice knowledge base: {exc}",
+             "a read-only open cannot create the metadata table",
+             "open a database written by lattice, or create one with a writable client")
+    if row is None:
+        fail("the database has no lattice schema version",
+             "a read-only open cannot initialize or migrate it",
+             "create it with a writable client first")
+    try:
+        version = int(row["value"])
+    except (TypeError, ValueError):
+        fail(f"database schema version {row['value']} is not supported",
+             "the metadata row is not a schema version this build understands",
+             "restore a backup written by lattice, or export and re-ingest the graph")
+    if version != SCHEMA_VERSION:
+        fail(f"database schema version {version} cannot be opened read-only",
+             f"this build reads schema version {SCHEMA_VERSION} and migrating it would write",
+             "open it once with a writable client to migrate it, or use a migrated copy")
 
 
 def _ensure_schema(connection: sqlite3.Connection) -> None:
