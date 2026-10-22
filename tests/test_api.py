@@ -1,18 +1,25 @@
 """Unit tests for the public `lattice.api` integration surface."""
 
 import ast
+import pkgutil
 import sqlite3
 import unittest
 from pathlib import Path
+from unittest import mock
 
+import lattice as lattice_package
 from lattice import api
 from lattice.database import open_database
 from lattice.repository import Repository
 
-SURFACED_MODULES = frozenset({
-    "analysis", "checks", "context", "database", "discovery", "errors", "extraction",
-    "ingest", "inquiry", "mcp", "models", "repository", "snapshots", "synthesis", "web",
-})
+NON_SURFACE_MODULES = frozenset({"api", "cli", "__main__"})
+CONDITIONAL_BLOCKS = tuple(
+    block for block in (ast.If, ast.Try, getattr(ast, "TryStar", None)) if block is not None
+)
+SURFACED_MODULES = frozenset(
+    info.name for info in pkgutil.iter_modules(lattice_package.__path__)
+    if info.name not in NON_SURFACE_MODULES
+)
 
 EXPECTED_EXPORTS = {
     "Repository",
@@ -123,22 +130,29 @@ EXPECTED_EXPORTS = {
 }
 
 
+def _definition_names(nodes: list[ast.stmt]) -> list[str]:
+    """Public names bound by top-level statements, including conditional blocks."""
+    names: list[str] = []
+    for node in nodes:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.append(node.name)
+        elif isinstance(node, ast.Assign):
+            names.extend(target.id for target in node.targets if isinstance(target, ast.Name))
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+            if isinstance(node.target, ast.Name):
+                names.append(node.target.id)
+        elif isinstance(node, CONDITIONAL_BLOCKS):
+            names.extend(_definition_names(node.body))
+            names.extend(_definition_names(node.orelse))
+            names.extend(_definition_names(getattr(node, "finalbody", [])))
+    return names
+
+
 def public_definitions(module_name: str) -> list[str]:
     """Every public top-level name a surfaced module defines, from its AST."""
     source = (Path(api.__file__).parent / f"{module_name}.py").read_text(encoding="utf-8")
-    names: list[str] = []
-    for node in ast.parse(source).body:
-        name = None
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            name = node.name
-        elif isinstance(node, ast.Assign) and len(node.targets) == 1:
-            target = node.targets[0]
-            name = target.id if isinstance(target, ast.Name) else None
-        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            name = node.target.id
-        if name and not name.startswith("_"):
-            names.append(name)
-    return names
+    return [name for name in _definition_names(ast.parse(source).body)
+            if not name.startswith("_")]
 
 
 class PublicApiTests(unittest.TestCase):
@@ -225,9 +239,18 @@ class PublicApiTests(unittest.TestCase):
         self.assertNotIn(q2.id, {item["id"] for item in as_string["questions"]})
 
     def test_invalid_question_identifiers_raise(self) -> None:
-        for selection in ("", "   ", "paper:p_000001", "not-an-id", ["p_000001"], [""]):
+        for selection in (
+            "", "   ", "paper:p_000001", "not-an-id", "q_", "question:q_",
+            "question:q_1:extra", "question:q 1", ["p_000001"], [""],
+        ):
             with self.subTest(selection=selection), self.assertRaises(api.LatticeError):
                 api.get_evidence_matrix(self.repo, selection)
+
+    def test_invalid_selection_never_builds_the_matrix(self) -> None:
+        with mock.patch.object(api, "build_evidence_matrix") as build:
+            with self.assertRaises(api.LatticeError):
+                api.get_evidence_matrix(self.repo, "not-an-id")
+        build.assert_not_called()
 
     def test_get_evidence_matrix_filters_out_unlinked_questions(self) -> None:
         q1 = self.repo.add_question("Does sleep consolidate memory?")

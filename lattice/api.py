@@ -10,6 +10,7 @@ Names in the draft neurocore integration design are preserved as aliases:
 no separate service class.
 """
 
+import re
 from typing import Any, Dict, Iterable, Optional
 
 from lattice import __version__
@@ -116,13 +117,12 @@ synthesize_question = synthesize
 extract_claims_for_paper = extract_from_paper
 
 
+_QUESTION_ID = re.compile(r"q_[A-Za-z0-9][A-Za-z0-9_-]*")
+
+
 def _question_key(value: str) -> str:
     """Normalize `question:q_000001` or `q_000001` to the bare identifier."""
     text = str(value).strip()
-    if not text:
-        fail("an empty value is not a question reference",
-             "the evidence matrix is filtered by research question ids",
-             "pass question:q_xxx references or bare q_xxx ids")
     if ":" in text:
         kind, identifier = text.split(":", 1)
         if kind.strip().lower() != "question":
@@ -130,14 +130,9 @@ def _question_key(value: str) -> str:
                  "the evidence matrix is filtered by research question ids",
                  "pass question:q_xxx references or bare q_xxx ids")
         text = identifier.strip()
-        if not text.startswith("q_"):
-            fail(f"'{value}' is not a question reference",
-                 "question identifiers start with q_",
-                 "pass question:q_xxx references or bare q_xxx ids")
-        return text
-    if not text.startswith("q_"):
+    if not _QUESTION_ID.fullmatch(text):
         fail(f"'{value}' is not a question reference",
-             "question identifiers start with q_",
+             "question identifiers look like q_000001",
              "pass question:q_xxx references or bare q_xxx ids")
     return text
 
@@ -150,14 +145,14 @@ def get_evidence_matrix(repository: Repository,
     iterable of references and bare ids keeps only those questions, their cells and gaps, and
     the papers that carry a cell for them.
     """
-    matrix = build_evidence_matrix(repository)
     if question_ids is None:
-        return matrix
+        return build_evidence_matrix(repository)
     if isinstance(question_ids, str):
         question_ids = [question_ids]
     wanted = {_question_key(item) for item in question_ids}
     if not wanted:
         return {"papers": [], "questions": [], "cells": [], "gaps": []}
+    matrix = build_evidence_matrix(repository)
     questions = [item for item in matrix["questions"] if item["id"] in wanted]
     cells = [item for item in matrix["cells"] if item["question_id"] in wanted]
     gaps = [item for item in matrix["gaps"] if item["question_id"] in wanted]
@@ -167,7 +162,7 @@ def get_evidence_matrix(repository: Repository,
 
 
 def get_hypothesis_evidence(repository: Repository, question_id: str) -> Dict[str, Any]:
-    """Evidence grouped by link kind for one research question (hypothesis)."""
+    """Evidence grouped by role (supports, contradicts, answers, other) for one question."""
     return repository.evidence(question_id)
 
 

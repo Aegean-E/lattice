@@ -288,6 +288,28 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   selections fail loudly, and adding a public symbol to a surfaced module now requires exporting
   it. No runtime, dependency, schema or persistence change.
 
+## ADR-015: Strict Question References and a Self-Discovering Surface Inventory (2026-10-22)
+
+- **Status**: Accepted
+- **Context**: ADR-014's prefix check still accepted malformed references (`q_`,
+  `question:q_`, `question:q_1:extra`) and filtered to empty. It also built the entire Paper x
+  Question matrix before validating the selection, and its export inventory relied on a hardcoded
+  module set plus an AST walk that ignored multi-target and conditional definitions.
+- **Decision**:
+  1. `_question_key` accepts exactly `q_<id>` or `question:q_<id>`, where `<id>` starts with an
+     alphanumeric and continues with alphanumerics, underscores or hyphens. Everything else fails
+     with the Error/Why/Fix triad before any graph work.
+  2. `get_evidence_matrix` normalizes and validates the selection first, returns the empty matrix
+     for an empty selection, and only then builds the full matrix.
+  3. `tests/test_api.py` discovers surfaced modules with `pkgutil` (excluding `api`, `cli` and
+     `__main__`) and collects functions, classes and assignments, including multi-target,
+     augmented and conditional definitions, so new public symbols fail the test until exported.
+  4. The evidence helper is documented as grouping by role (`supports`, `contradicts`, `answers`,
+     `other`); each item still carries its exact `link` kind.
+- **Consequences**: Malformed selections cost nothing and cannot silently produce an empty result,
+  and the inventory test keeps pace with new modules and assignment forms without manual lists. No
+  dependency, schema or persistence change.
+
 
 
 

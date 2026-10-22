@@ -131,7 +131,8 @@ report = synthesize_question(repository, "q_000001", tokens=1200)
 
 `get_evidence_matrix` accepts one question reference or an iterable of references/bare ids;
 empty or non-question selections raise `LatticeError` instead of returning a silent empty result.
-`get_hypothesis_evidence(repository, question_id)` returns the evidence grouped by link kind.
+`get_hypothesis_evidence(repository, question_id)` returns the evidence grouped by role
+(`supports`, `contradicts`, `answers`, `other`); each item keeps its exact `link` kind.
 The surface re-exports the repository, analysis, synthesis, snapshots, discovery, extraction,
 ingestion, checks, models, context, database, MCP metadata and dispatch, web assets and dispatch,
 and error contracts.

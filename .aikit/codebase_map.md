@@ -8,9 +8,9 @@
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `37`
 - **Total Classes**: `44`
-- **Total Top-Level Functions**: `177`
-- **Total Class Methods**: `232`
-- **Total Source Lines**: `9844`
+- **Total Top-Level Functions**: `178`
+- **Total Class Methods**: `233`
+- **Total Source Lines**: `9862`
 
 ---
 
@@ -59,12 +59,12 @@
 ### [`lattice/api.py`](lattice/api.py)
 > *Stable public Python surface for host integrations such as neurocore.*
 
-**Size**: `280` lines (`7781` bytes)
+**Size**: `275` lines (`7448` bytes)
 
 **Functions:**
 - `def _question_key(value)` - *Normalize `question:q_000001` or `q_000001` to the bare identifier.*
 - `def get_evidence_matrix(repository, question_ids)` - *The Paper x Question matrix, optionally narrowed to selected research questions.*
-- `def get_hypothesis_evidence(repository, question_id)` - *Evidence grouped by link kind for one research question (hypothesis).*
+- `def get_hypothesis_evidence(repository, question_id)` - *Evidence grouped by role (supports, contradicts, answers, other) for one question.*
 
 ---
 
@@ -503,7 +503,7 @@
 ### [`tests/test_api.py`](tests/test_api.py)
 > *Unit tests for the public `lattice.api` integration surface.*
 
-**Size**: `247` lines (`8954` bytes)
+**Size**: `270` lines (`9929` bytes)
 
 **Classes:**
 - `class PublicApiTests` - *Verify the facade stays complete, inert at import time and faithful.*
@@ -517,9 +517,11 @@
   - Method `.test_get_evidence_matrix_filters_by_hypothesis_ids()`
   - Method `.test_single_string_question_id_filters_like_a_list()`
   - Method `.test_invalid_question_identifiers_raise()`
+  - Method `.test_invalid_selection_never_builds_the_matrix()`
   - Method `.test_get_evidence_matrix_filters_out_unlinked_questions()`
 
 **Functions:**
+- `def _definition_names(nodes)` - *Public names bound by top-level statements, including conditional blocks.*
 - `def public_definitions(module_name)` - *Every public top-level name a surfaced module defines, from its AST.*
 
 ---
