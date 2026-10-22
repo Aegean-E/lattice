@@ -528,23 +528,48 @@ WEB_HTML = """<!DOCTYPE html>
   }
   .btn.secondary:hover { background: #334155; }
   .btn.sm { padding: 4px 10px; font-size: 0.78rem; }
+  [hidden] { display: none !important; }
+  .more-actions { position: relative; }
+  .more-actions summary { list-style: none; cursor: pointer; }
+  .more-actions summary::-webkit-details-marker { display: none; }
+  .more-actions[open] summary { background: #334155; }
+  .menu-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 190px;
+    padding: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 14px 30px rgba(0,0,0,0.45);
+    z-index: 50;
+  }
+  .menu-panel .btn { text-align: left; }
   nav.tabs {
     display: flex;
     gap: 6px;
-    padding: 12px 24px 0;
+    padding: 10px 20px 0;
     border-bottom: 1px solid var(--border);
     background: #131d33;
+    overflow-x: auto;
+    scrollbar-width: thin;
   }
   .tab-btn {
+    flex: 0 0 auto;
     background: transparent;
     color: var(--muted);
     border: 1px solid transparent;
     border-bottom: none;
-    padding: 9px 16px;
+    padding: 9px 14px;
     border-radius: 8px 8px 0 0;
     font-weight: 600;
     font-size: 0.9rem;
     cursor: pointer;
+    white-space: nowrap;
   }
   .tab-btn.active {
     background: var(--bg);
@@ -580,6 +605,57 @@ WEB_HTML = """<!DOCTYPE html>
     align-items: center;
     justify-content: space-between;
   }
+  .pane-intro {
+    margin: 0 0 14px;
+    color: var(--muted);
+    font-size: 0.86rem;
+  }
+  .onboarding {
+    border-color: rgba(56,189,248,0.4);
+    background: linear-gradient(135deg, rgba(56,189,248,0.12), var(--panel) 58%);
+  }
+  .eyebrow {
+    display: inline-block;
+    margin-bottom: 6px;
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .onboarding h2 {
+    display: block;
+    margin: 0 0 6px;
+    font-size: 1.35rem;
+  }
+  .onboarding p {
+    margin: 0 0 12px;
+    max-width: 820px;
+    color: var(--muted);
+  }
+  .steps {
+    margin: 0 0 16px;
+    padding-left: 20px;
+    color: #cbd5e1;
+    font-size: 0.9rem;
+  }
+  .steps li { margin-bottom: 4px; }
+  .onboarding-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .disclosure { padding: 0; }
+  .disclosure > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 18px;
+    font-weight: 600;
+    font-size: 1rem;
+    list-style: none;
+    cursor: pointer;
+  }
+  .disclosure > summary::-webkit-details-marker { display: none; }
+  .disclosure > summary::after { content: "+"; color: var(--accent); font-size: 1.15rem; }
+  .disclosure[open] > summary::after { content: "\\2212"; }
+  .disclosure-body { padding: 0 18px 18px; }
   .form-row {
     display: flex;
     gap: 10px;
@@ -747,24 +823,45 @@ WEB_HTML = """<!DOCTYPE html>
     <div class="pill">Edges <strong id="st-edges">0</strong></div>
     <div class="pill ok" id="st-gate">Gate: PASS</div>
     <button class="btn sm" onclick="loadDemo()">Load Demo Corpus</button>
-    <button class="btn secondary sm" onclick="openOutlineDrawer()">Corpus Outline</button>
-    <button class="btn secondary sm" onclick="extractAllClaims()">Extract All Claims</button>
-    <button class="btn secondary sm" onclick="downloadSnapshot()">Download Snapshot</button>
-    <button class="btn secondary sm" onclick="downloadBibtex()">Export BibTeX</button>
+    <details class="more-actions">
+      <summary class="btn secondary sm">More Actions &#9662;</summary>
+      <div class="menu-panel">
+        <button class="btn secondary sm" onclick="openOutlineDrawer()">Corpus Outline</button>
+        <button class="btn secondary sm" onclick="extractAllClaims()">Extract All Claims</button>
+        <button class="btn secondary sm" onclick="downloadSnapshot()">Download Snapshot</button>
+        <button class="btn secondary sm" onclick="downloadBibtex()">Export BibTeX</button>
+      </div>
+    </details>
   </div>
 </header>
 
-<nav class="tabs">
-  <button class="tab-btn active" onclick="switchTab('synthesize', this)">1. Synthesize &amp; Ask</button>
-  <button class="tab-btn" onclick="switchTab('discover', this)">2. Discover &amp; Ingest</button>
-  <button class="tab-btn" onclick="switchTab('curate', this)">3. Questions &amp; Claims</button>
-  <button class="tab-btn" onclick="switchTab('graph', this)">4. Graph Explorer &amp; Search</button>
-  <button class="tab-btn" onclick="switchTab('matrix', this); loadMatrix();">5. Evidence Matrix &amp; Contradictions</button>
+<nav class="tabs" aria-label="Studio workflow">
+  <button class="tab-btn active" title="Synthesize evidence and ask questions" onclick="switchTab('synthesize', this)">1. Synthesize</button>
+  <button class="tab-btn" title="Discover, paste, or add papers" onclick="switchTab('discover', this)">2. Discover</button>
+  <button class="tab-btn" title="Manage questions and quote-backed claims" onclick="switchTab('curate', this)">3. Curate</button>
+  <button class="tab-btn" title="Explore provenance subgraphs and search" onclick="switchTab('graph', this)">4. Graph</button>
+  <button class="tab-btn" title="Review the evidence matrix and contradictions" onclick="switchTab('matrix', this); loadMatrix();">5. Matrix</button>
 </nav>
 
 <main>
   <!-- TAB 1: SYNTHESIZE & ASK -->
   <section id="tab-synthesize" class="tab-pane active">
+    <div id="onboarding" class="card onboarding">
+      <span class="eyebrow">Start here</span>
+      <h2>Go from papers to a traceable evidence graph</h2>
+      <p>Lattice keeps every claim tied to a verbatim quote and its source. Load the demo for a complete corpus in one click, or bring your own references and ask a question.</p>
+      <ol class="steps">
+        <li><strong>Load a corpus</strong> &mdash; use demo data or ingest your own papers.</li>
+        <li><strong>Ask a question</strong> &mdash; get a citation-checked synthesis with a consensus score.</li>
+        <li><strong>Explore the evidence</strong> &mdash; open provenance graphs, contradictions and coverage gaps.</li>
+      </ol>
+      <div class="onboarding-actions">
+        <button class="btn" onclick="loadDemo()">Load Demo Corpus</button>
+        <button class="btn secondary" onclick="openTab('discover')">Add Your Own Papers</button>
+        <button class="btn secondary" onclick="focusAsk()">Ask a Question</button>
+      </div>
+    </div>
+    <p class="pane-intro">Pick a tracked question or type any topic to produce a quote-backed synthesis.</p>
     <div class="grid-2">
       <div>
         <div class="card">
@@ -814,6 +911,7 @@ WEB_HTML = """<!DOCTYPE html>
 
   <!-- TAB 2: DISCOVER & INGEST -->
   <section id="tab-discover" class="tab-pane">
+    <p class="pane-intro">Discover from a catalog, paste references, or add one paper. Search and export the ingested corpus on the right.</p>
     <div class="grid-2">
       <div>
         <div class="card">
@@ -842,63 +940,67 @@ WEB_HTML = """<!DOCTYPE html>
           <button class="btn" onclick="discoverPapers()">Discover &amp; Ingest Papers</button>
         </div>
 
-        <div class="card">
-          <h2>Paste BibTeX / RIS / CSV / Markdown</h2>
-          <div class="form-row">
-            <select id="paste-format" style="flex:1">
-              <option value="bibtex">BibTeX (.bib)</option>
-              <option value="ris">RIS (.ris)</option>
-              <option value="csv">CSV (.csv)</option>
-              <option value="markdown">Markdown Note (.md)</option>
-              <option value="text">Plain Text (.txt)</option>
-            </select>
-            <button class="btn secondary" onclick="ingestPastedText()">Parse &amp; Ingest</button>
+        <details class="card disclosure">
+          <summary>Paste BibTeX / RIS / CSV / Markdown</summary>
+          <div class="disclosure-body">
+            <div class="form-row">
+              <select id="paste-format" style="flex:1">
+                <option value="bibtex">BibTeX (.bib)</option>
+                <option value="ris">RIS (.ris)</option>
+                <option value="csv">CSV (.csv)</option>
+                <option value="markdown">Markdown Note (.md)</option>
+                <option value="text">Plain Text (.txt)</option>
+              </select>
+              <button class="btn secondary" onclick="ingestPastedText()">Parse &amp; Ingest</button>
+            </div>
+            <div class="form-row">
+              <textarea id="paste-text" placeholder="Paste @article{...} BibTeX entries, RIS records, or Markdown notes here to ingest papers and automatically extract empirical claims..."></textarea>
+            </div>
           </div>
-          <div class="form-row">
-            <textarea id="paste-text" placeholder="Paste @article{...} BibTeX entries, RIS records, or Markdown notes here to ingest papers and automatically extract empirical claims..."></textarea>
-          </div>
-        </div>
+        </details>
 
-        <div class="card">
-          <h2>Add Paper Manually</h2>
-          <div class="form-row">
-            <input id="paper-title" placeholder="Paper Title (required)">
+        <details class="card disclosure">
+          <summary>Add Paper Manually</summary>
+          <div class="disclosure-body">
+            <div class="form-row">
+              <input id="paper-title" placeholder="Paper Title (required)">
+            </div>
+            <div class="form-row">
+              <input id="paper-authors" placeholder="Authors (e.g. Elena Vance; Marcus Chen)" style="flex:2">
+              <input id="paper-year" placeholder="Year (2025)" style="flex:1">
+            </div>
+            <div class="form-row">
+              <input id="paper-venue" placeholder="Journal / Venue" style="flex:1">
+              <input id="paper-doi" placeholder="DOI (optional)" style="flex:1">
+            </div>
+            <div class="form-row">
+              <input id="paper-study-type" list="study-type-choices"
+                     placeholder="Study type (auto-detected when blank)" style="flex:1">
+              <datalist id="study-type-choices">
+                <option value="Meta-Analysis"></option>
+                <option value="Systematic Review"></option>
+                <option value="Literature Review"></option>
+                <option value="Randomized Controlled Trial"></option>
+                <option value="Cohort Study"></option>
+                <option value="Case-Control Study"></option>
+                <option value="Cross-Sectional Study"></option>
+                <option value="Observational Study"></option>
+                <option value="Qualitative Study"></option>
+                <option value="Case Study"></option>
+                <option value="Experimental Study"></option>
+                <option value="In Vitro Study"></option>
+                <option value="Animal Study"></option>
+                <option value="Computational Study"></option>
+                <option value="General Study"></option>
+              </datalist>
+              <input id="paper-tags" placeholder="Tags (comma separated, optional)" style="flex:1">
+            </div>
+            <div class="form-row">
+              <textarea id="paper-abstract" placeholder="Paste abstract so Lattice can automatically extract empirical claims and quotes..."></textarea>
+            </div>
+            <button class="btn secondary" onclick="addPaperManual()">Save Paper</button>
           </div>
-          <div class="form-row">
-            <input id="paper-authors" placeholder="Authors (e.g. Elena Vance; Marcus Chen)" style="flex:2">
-            <input id="paper-year" placeholder="Year (2025)" style="flex:1">
-          </div>
-          <div class="form-row">
-            <input id="paper-venue" placeholder="Journal / Venue" style="flex:1">
-            <input id="paper-doi" placeholder="DOI (optional)" style="flex:1">
-          </div>
-          <div class="form-row">
-            <input id="paper-study-type" list="study-type-choices"
-                   placeholder="Study type (auto-detected when blank)" style="flex:1">
-            <datalist id="study-type-choices">
-              <option value="Meta-Analysis"></option>
-              <option value="Systematic Review"></option>
-              <option value="Literature Review"></option>
-              <option value="Randomized Controlled Trial"></option>
-              <option value="Cohort Study"></option>
-              <option value="Case-Control Study"></option>
-              <option value="Cross-Sectional Study"></option>
-              <option value="Observational Study"></option>
-              <option value="Qualitative Study"></option>
-              <option value="Case Study"></option>
-              <option value="Experimental Study"></option>
-              <option value="In Vitro Study"></option>
-              <option value="Animal Study"></option>
-              <option value="Computational Study"></option>
-              <option value="General Study"></option>
-            </datalist>
-            <input id="paper-tags" placeholder="Tags (comma separated, optional)" style="flex:1">
-          </div>
-          <div class="form-row">
-            <textarea id="paper-abstract" placeholder="Paste abstract so Lattice can automatically extract empirical claims and quotes..."></textarea>
-          </div>
-          <button class="btn secondary" onclick="addPaperManual()">Save Paper</button>
-        </div>
+        </details>
       </div>
 
       <div>
@@ -939,6 +1041,7 @@ WEB_HTML = """<!DOCTYPE html>
 
   <!-- TAB 3: QUESTIONS & CLAIMS -->
   <section id="tab-curate" class="tab-pane">
+    <p class="pane-intro">Questions organize the evidence. Every claim needs a verbatim quote so its source can be audited.</p>
     <div class="grid-2">
       <div>
         <div class="card">
@@ -1002,6 +1105,7 @@ WEB_HTML = """<!DOCTYPE html>
 
   <!-- TAB 4: GRAPH EXPLORER & SEARCH -->
   <section id="tab-graph" class="tab-pane">
+    <p class="pane-intro">Start from any entity to render its provenance neighborhood, or search across papers, claims and questions.</p>
     <div class="grid-2">
       <div>
         <div class="card">
@@ -1063,6 +1167,7 @@ WEB_HTML = """<!DOCTYPE html>
 
   <!-- TAB 5: EVIDENCE MATRIX & CONTRADICTIONS -->
   <section id="tab-matrix" class="tab-pane">
+    <p class="pane-intro">Spot opposing claims and see which questions still have coverage gaps.</p>
     <div class="grid-2">
       <div>
         <div class="card">
@@ -1103,11 +1208,28 @@ function notify(msg, isError) {
   window._toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3500);
 }
 
+const TAB_ORDER = ['synthesize', 'discover', 'curate', 'graph', 'matrix'];
+
 function switchTab(name, btn) {
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
+  const pane = document.getElementById('tab-' + name);
+  if (!pane) return;
+  pane.classList.add('active');
   if (btn) btn.classList.add('active');
+}
+
+function openTab(name) {
+  const index = TAB_ORDER.indexOf(name);
+  switchTab(name, document.querySelectorAll('.tab-btn')[Math.max(index, 0)]);
+  if (name === 'matrix') loadMatrix();
+}
+
+function focusAsk() {
+  openTab('synthesize');
+  const target = document.getElementById('syn-target');
+  target.focus();
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 async function api(method, path, body) {
@@ -1133,6 +1255,8 @@ async function refreshOverview() {
   const gate = document.getElementById('st-gate');
   gate.textContent = data.check.passed ? 'Gate: PASS' : ('Gate: ' + data.check.errors.length + ' ERR');
   gate.className = 'pill ' + (data.check.passed ? 'ok' : 'fail');
+  const onboarding = document.getElementById('onboarding');
+  if (onboarding) onboarding.hidden = data.stats.papers > 0 || data.stats.claims > 0;
 
   renderQuestions(data.questions);
   renderPaperOptions(data.papers);
@@ -1297,7 +1421,7 @@ function pickQuestionForSynthesis() {
 function synthesizeQuestion(qid) {
   document.getElementById('syn-target').value = qid;
   document.getElementById('syn-question-select').value = qid;
-  switchTab('synthesize', document.querySelectorAll('.tab-btn')[0]);
+  openTab('synthesize');
   runSynthesis();
 }
 
@@ -1479,7 +1603,7 @@ async function createClaim() {
 
 function inspectGraph(ref) {
   document.getElementById('graph-ref').value = ref;
-  switchTab('graph', document.querySelectorAll('.tab-btn')[3]);
+  openTab('graph');
   loadSubgraph();
 }
 
@@ -1830,6 +1954,12 @@ function closeOutlineDrawer() {
   document.getElementById('outline-backdrop').style.display = 'none';
   document.getElementById('outline-drawer').style.display = 'none';
 }
+
+document.addEventListener('click', event => {
+  document.querySelectorAll('details.more-actions[open]').forEach(menu => {
+    if (!menu.contains(event.target)) menu.open = false;
+  });
+});
 
 refreshOverview();
 </script>

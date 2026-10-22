@@ -36,6 +36,18 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("copySynthesisBibtex", resp.body)
         self.assertIn("outline-drawer", resp.body)
 
+    def test_index_has_guided_cold_start_and_compact_actions(self) -> None:
+        resp = dispatch_web_request(self.repository, "GET", "/")
+        self.assertIn('id="onboarding"', resp.body)
+        self.assertIn("Start here", resp.body)
+        self.assertIn("Add Your Own Papers", resp.body)
+        self.assertIn("More Actions", resp.body)
+        self.assertIn('class="menu-panel"', resp.body)
+        self.assertIn("onboarding.hidden = data.stats.papers", resp.body)
+        self.assertIn("1. Synthesize", resp.body)
+        self.assertNotIn("1. Synthesize &amp; Ask", resp.body)
+        self.assertIn('class="card disclosure"', resp.body)
+
     def test_link_related_endpoint_and_map_legend(self) -> None:
         resp = dispatch_web_request(self.repository, "GET", "/")
         self.assertIn("Connect Findings", resp.body)

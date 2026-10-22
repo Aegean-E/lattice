@@ -68,8 +68,10 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
   follow-up queries, and formats resolved Markdown and BibTeX references.
 - **Snapshots & BibTeX (`export` / `import`)** write and merge portable JSONL graph bundles atomically,
   or export bibliographies to standard `.bib` files (with auto-detection or `--format bibtex`).
-- **Web Research Studio (`web`)** serves a local, zero-dependency human UI with one-click demo
-  seeding, multi-source literature discovery, browser paste-ingestion (BibTeX/RIS/CSV/Markdown),
+- **Web Research Studio (`web`)** serves a local, zero-dependency human UI with a guided
+  "Start here" onboarding card, compact header actions behind one overflow menu, short workflow
+  tabs, and collapsible import forms so the first screen stays uncluttered. It includes one-click
+  demo seeding, multi-source literature discovery, browser paste-ingestion (BibTeX/RIS/CSV/Markdown),
   literature search by tag, word, full sentence or study type, a Corpus Outline quick drawer with
   study-type and edge-relation breakdowns, one-click clipboard copy for Markdown and BibTeX syntheses,
   JSONL snapshot download, direct BibTeX export, interactive SVG subgraph exploration whose
@@ -129,15 +131,46 @@ matrix = get_evidence_matrix(repository, ["q_000001"])
 report = synthesize_question(repository, "q_000001", tokens=1200)
 ```
 
-`get_evidence_matrix` accepts one question reference or an iterable of references/bare ids;
-empty or non-question selections raise `LatticeError` instead of returning a silent empty result.
-`get_hypothesis_evidence(repository, question_id)` returns the evidence grouped by role
-(`supports`, `contradicts`, `answers`, `other`); each item keeps its exact `link` kind.
+`get_evidence_matrix` accepts one question reference or an iterable of references/bare ids.
+An empty string or a non-question reference raises `LatticeError`; an empty iterable returns the
+empty selection. `get_hypothesis_evidence(repository, question_id)` returns the evidence grouped
+by role (`supports`, `contradicts`, `answers`, `other`); each item keeps its exact `link` kind.
 The surface re-exports the repository, analysis, synthesis, snapshots, discovery, extraction,
 ingestion, checks, models, context, database, MCP metadata and dispatch, web assets and dispatch,
 and error contracts.
 The neurocore design names `synthesize_question` and `extract_claims_for_paper` resolve to
 `synthesize` and `extract_from_paper`; inquiry stays function-based (`ask`, `brief`, `review`).
+
+### AI Client
+
+For an AI host, `LatticeClient` owns the connection and exposes the same 21 tools (12 in
+read-only mode) as the MCP server, so the tool declarations and the dispatch path come from one
+implementation:
+
+```python
+from lattice.api import LatticeClient
+
+with LatticeClient("lattice.db") as client:
+    schemas = client.tool_schemas()          # register these with the model
+    answer = client.brief("q_000001", 800)   # or client.call_tool("brief", {...})
+```
+
+Every tool has a convenience method (`outline`, `search`, `get_entity`, `subgraph`,
+`related_findings`, `add_paper`, `add_claim`, `synthesize`, ...), and `call_tool(name, arguments)`
+accepts the raw schema arguments. `AsyncLatticeClient` provides the same awaitable methods for
+asyncio hosts; it serializes work on one dedicated thread so SQLite's thread affinity is never
+violated. Close the client with the context manager; `close()` is idempotent.
+
+Autonomous agents should start read-only: `LatticeClient("lattice.db", read_only=True)` advertises
+only the non-mutating tools and rejects writes, snapshot paths and network discovery at
+`call_tool`. It requires an existing database, opens it with SQLite `mode=ro` and `query_only`, and
+never creates or migrates the file; the raw repository is unavailable. New tools stay blocked until
+they are reviewed and added to the allowlist. OS-level file permissions remain the right hard
+boundary for other users, and WAL databases may need a readable `-shm` file.
+
+MCP resources and the synthesis prompt are available too: `resource_schemas()`, `prompt_schemas()`,
+`read_resource("lattice://stats")` and
+`get_prompt("literature-synthesis", {"target": "q_000001"})`.
 
 ### Supported Inputs
 
@@ -170,6 +203,7 @@ lattice/
 │   ├── api.py                <- stable public Python surface for host integrations
 │   ├── checks.py             <- integrity gate: endpoints, provenance, duplicates, cycles
 │   ├── cli.py                <- argument grammar, handlers and human/JSON output
+│   ├── client.py             <- turnkey sync/async client with MCP tool parity
 │   ├── context.py            <- token-budgeted AI views: outline, compact search/related/subgraph
 │   ├── database.py           <- SQLite schema, connection and version refusal
 │   ├── discovery.py          <- pluggable literature discovery (arXiv, Crossref, OpenAlex, EuropePMC, offline)
@@ -189,6 +223,7 @@ lattice/
     ├── test_api.py
     ├── test_checks.py
     ├── test_cli.py
+    ├── test_client.py
     ├── test_context.py
     ├── test_database.py
     ├── test_discovery.py
@@ -210,4 +245,6 @@ The schema, identifier policy, dedupe order and evidence direction are recorded 
 free-form notes: an agent may only cite an ingested paper, and only through a claim that carries
 the quote it came from. Token budgets and compact AI views are recorded in ADR-010, the web
 outline drawer and BibTeX export in ADR-011, the public integration surface in ADR-013, and its
-input hardening and export inventory in ADR-014.
+input hardening and export inventory in ADR-014, strict question references and a
+self-discovering inventory in ADR-015, the turnkey AI client in ADR-016, and its read-only
+policy and resource parity in ADR-017.
