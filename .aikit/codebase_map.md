@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `35`
-- **Total Classes**: `43`
-- **Total Top-Level Functions**: `173`
-- **Total Class Methods**: `221`
-- **Total Source Lines**: `9317`
+- **Total Python Modules**: `37`
+- **Total Classes**: `44`
+- **Total Top-Level Functions**: `177`
+- **Total Class Methods**: `232`
+- **Total Source Lines**: `9844`
 
 ---
 
@@ -53,6 +53,18 @@
 - `def related_findings(repo, ref, limit)` - *Findings connected to a claim, paper or question, with reasons and next-hop references.*
 - `def rank_influential_entities(repo, limit)` - *Rank keystone papers and claims by evidence centrality, citation degree, and confidence.*
 - `def build_evidence_matrix(repo)` - *Build a Paper x Question evidence matrix highlighting stance cells and coverage gaps.*
+
+---
+
+### [`lattice/api.py`](lattice/api.py)
+> *Stable public Python surface for host integrations such as neurocore.*
+
+**Size**: `280` lines (`7781` bytes)
+
+**Functions:**
+- `def _question_key(value)` - *Normalize `question:q_000001` or `q_000001` to the bare identifier.*
+- `def get_evidence_matrix(repository, question_ids)` - *The Paper x Question matrix, optionally narrowed to selected research questions.*
+- `def get_hypothesis_evidence(repository, question_id)` - *Evidence grouped by link kind for one research question (hypothesis).*
 
 ---
 
@@ -485,6 +497,30 @@
   - Method `.test_related_findings_navigation_works_before_linking()`
   - Method `.test_rank_influential_entities_returns_keystone_papers_and_claims()`
   - Method `.test_build_evidence_matrix_identifies_cells_and_coverage_gaps()`
+
+---
+
+### [`tests/test_api.py`](tests/test_api.py)
+> *Unit tests for the public `lattice.api` integration surface.*
+
+**Size**: `247` lines (`8954` bytes)
+
+**Classes:**
+- `class PublicApiTests` - *Verify the facade stays complete, inert at import time and faithful.*
+  - Method `.setUp()`
+  - Method `.test_every_expected_symbol_is_exported()`
+  - Method `.test_all_is_sorted_unique_and_resolves()`
+  - Method `.test_every_public_definition_is_exported()`
+  - Method `.test_reexports_are_the_original_objects()`
+  - Method `.test_design_aliases_resolve_to_canonical_functions()`
+  - Method `.test_get_hypothesis_evidence_returns_the_question_bundle()`
+  - Method `.test_get_evidence_matrix_filters_by_hypothesis_ids()`
+  - Method `.test_single_string_question_id_filters_like_a_list()`
+  - Method `.test_invalid_question_identifiers_raise()`
+  - Method `.test_get_evidence_matrix_filters_out_unlinked_questions()`
+
+**Functions:**
+- `def public_definitions(module_name)` - *Every public top-level name a surfaced module defines, from its AST.*
 
 ---
 

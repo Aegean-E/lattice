@@ -1,179 +1,14 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "task-lattice-neurocore-adr",
+    "task_id": "lattice-api-surface-fix-v1",
     "last_phase": "phase 4",
     "active_phase": 5,
     "status": "completed",
-    "updated_at": 1792589025.4516616,
-    "completed_at": 1792589047.0752397
+    "updated_at": 1792648857.7856207,
+    "completed_at": 1792648864.4599874
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-related-findings-navigation",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-related-findings-navigation' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792438124.549886,
-      "timestamp_str": "2026-10-19 22:28:44"
-    },
-    {
-      "task_id": "lattice-token-frugal-navigation",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/5] New lattice.context module: token-budgeted compact views for AI agents (compact_search, compact_related, compact_subgraph, outline) with truncation, omitted counts and a hard budget floor; failing-first tests. [2/5] MCP: read tools search, related_findings and subgraph return compact budgeted payloads with tokens arguments, plus a new outline tool for cheap orientation; get_entity stays the full drill-down; tests. [3/5] CLI: outline command and tokens options on search, related and subgraph, with JSON output using the compact views; tests. [4/5] README, ADR-010 and codebase map. [5/5] Phase 4 gates, checklist record and commit.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792438734.752486,
-      "timestamp_str": "2026-10-19 22:38:54",
-      "impact_assessment": {
-        "why": "AI clients currently receive full abstracts, duplicated edge endpoint details and untruncated claim text, so a handful of read calls can consume thousands of tokens; the user wants RLM-style navigation where an agent peeks at a cheap index and expands only the handles it needs.",
-        "benefits": "An agent can orient with a small outline, then search or expand compact refs under an explicit token budget, reporting omitted items instead of silently overflowing; full text is paid for only through get_entity on a chosen ref.",
-        "risks": "contract: MCP payloads for search, subgraph and related_findings become compact and gain tokens arguments, while CLI gains commands and flags; dependency: standard library only; concurrency: read-only views over existing queries; state: no schema or persistence change.",
-        "mitigation": "Build the compact views as pure functions over existing repository payloads, keep the web UI and human CLI defaults on full data, retain refs on every item so nothing becomes unreachable, report omitted counts, floor the budget, and pin shapes, truncation and omission behavior in tests before the gates."
-      }
-    },
-    {
-      "task_id": "lattice-token-frugal-navigation",
-      "phase": "phase 3",
-      "phase_num": 3,
-      "description": "[1/5] done: lattice/context.py with outline, compact_search, compact_related, compact_subgraph; truncation, omission counts, MIN_TOKENS floor; tests/test_context.py 6/6 pass. Next [2/5]: wire MCP compact payloads + outline tool.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792438819.7098885,
-      "timestamp_str": "2026-10-19 22:40:19"
-    },
-    {
-      "task_id": "lattice-token-frugal-navigation",
-      "phase": "phase 3",
-      "phase_num": 3,
-      "description": "[2/5] done: MCP search/related_findings/subgraph return compact budgeted views with tokens args; new outline tool; add_paper exposes tags/study_type; tests 15/15. Next [3/5]: CLI outline + tokens flags and tests.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792438884.8992522,
-      "timestamp_str": "2026-10-19 22:41:24"
-    },
-    {
-      "task_id": "lattice-token-frugal-navigation",
-      "phase": "phase 3",
-      "phase_num": 3,
-      "description": "[3/5] done: CLI outline command and --tokens on search/related/subgraph; tests 13/13. Measured on demo: search 944->288, related 427->316, subgraph 1763->394, outline 123 tokens. Next [4/5]: README, ADR-010, codebase map.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792439001.1724863,
-      "timestamp_str": "2026-10-19 22:43:21"
-    },
-    {
-      "task_id": "lattice-token-frugal-navigation",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[4/5]-[5/5] Token-budgeted AI navigation verified: lattice.context module with outline, compact search, compact related and compact subgraph; MCP and CLI support with tokens argument/flags; ADR-010 and README; 131/131 tests green (1.2s); codebase map regenerated; aikit check lattice 4/4 gates (test, hygiene, guidelines, secrets); checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792439318.4625733,
-      "timestamp_str": "2026-10-19 22:48:38"
-    },
-    {
-      "task_id": "lattice-token-frugal-navigation",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-token-frugal-navigation' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792439392.4439065,
-      "timestamp_str": "2026-10-19 22:49:52"
-    },
-    {
-      "task_id": "lattice-web-outline-bibtex-export",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/4] Repository.export_bibtex and CLI export --format jsonl|bibtex (auto-detected from .bib/.jsonl suffix); failing-first tests. [2/4] Web API routes: GET /api/outline and GET /api/export-bibtex; tests in test_web.py. [3/4] Web Research Studio UI: Corpus Outline drawer/modal, 1-click clipboard copy buttons for synthesis Markdown/BibTeX, and BibTeX download actions. [4/4] Verification, ADR-011, README, codebase map refresh, and delivery gates.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792439581.4378324,
-      "timestamp_str": "2026-10-19 22:53:01",
-      "impact_assessment": {
-        "why": "Researchers need quick visual orientation through a Corpus Outline drawer, standard BibTeX bibliography export for paper writing, and 1-click synthesis copying in the Web Studio.",
-        "benefits": "Enables direct export of entire or filtered literature sets into BibTeX for LaTeX reference managers, exposes token-frugal graph outlines directly in the web UI, and streamlines human synthesis workflows with instant clipboard copies.",
-        "risks": "contract: CLI export gains optional --format flag while keeping JSONL default backward-compatible; dependency: standard library only; concurrency: read-only exports over SQLite; state: atomic file writing for exports.",
-        "mitigation": "Default to JSONL if format is omitted unless filename ends in .bib/.bibtex, keep SQLite read transactions short, test CLI, web API and UI handlers with sub-second unit tests before Phase 4 gates."
-      }
-    },
-    {
-      "task_id": "lattice-web-outline-bibtex-export",
-      "phase": "phase 3",
-      "phase_num": 3,
-      "description": "[1/4] done: Repository.export_bibtex and CLI export --format jsonl|bibtex with auto-detection for .bib/.bibtex files; tests green. Next [2/4]: Web API routes GET /api/outline and GET /api/export-bibtex.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792439706.7983491,
-      "timestamp_str": "2026-10-19 22:55:06"
-    },
-    {
-      "task_id": "lattice-web-outline-bibtex-export",
-      "phase": "phase 3",
-      "phase_num": 3,
-      "description": "[2/4] done: Web API routes GET /api/outline and GET /api/export-bibtex implemented and verified; tests 10/10 green. Next [3/4]: Web Research Studio UI (Corpus Outline drawer/modal, 1-click clipboard copy, and export buttons).",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792439796.7312,
-      "timestamp_str": "2026-10-19 22:56:36"
-    },
-    {
-      "task_id": "lattice-web-outline-bibtex-export",
-      "phase": "phase 3",
-      "phase_num": 3,
-      "description": "[3/4] done: Web Research Studio UI with Corpus Outline drawer/modal, 1-click clipboard copy for Markdown/BibTeX syntheses, and BibTeX download actions; UI JS validates via node --check; tests 134/134 green. Next [4/4]: ADR-011, README, codebase map refresh, and Phase 4 delivery gates.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792439985.7445679,
-      "timestamp_str": "2026-10-19 22:59:45"
-    },
-    {
-      "task_id": "lattice-web-outline-bibtex-export",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[1/4]-[4/4] Verified: Repository.export_bibtex and CLI export --format jsonl|bibtex with auto-detection; GET /api/outline and GET /api/export-bibtex; Web Research Studio Corpus Outline quick drawer, 1-click clipboard copy for Markdown/BibTeX syntheses, and BibTeX export download buttons; ADR-011 and README updated; 134/134 tests green (1.3s); UI JS passes node --check; codebase map regenerated; aikit check lattice 4/4 gates (test, hygiene, guidelines, secrets); checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792440048.6235275,
-      "timestamp_str": "2026-10-19 23:00:48"
-    },
-    {
-      "task_id": "lattice-web-outline-bibtex-export",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-web-outline-bibtex-export' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792440061.666332,
-      "timestamp_str": "2026-10-19 23:01:01"
-    },
-    {
-      "task_id": "lattice-start-file",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/2] Add start.py launcher with companion start.bat and start.sh for 1-click startup, and tests in test_cli.py. [2/2] Update README, refresh codebase map, and run Phase 4 delivery gates.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792440181.8882012,
-      "timestamp_str": "2026-10-19 23:03:01",
-      "impact_assessment": {
-        "why": "Users need a single intuitive start file (start.py, start.bat, start.sh) to launch the Lattice Research Studio in browser without having to remember the full module syntax.",
-        "benefits": "Allows 1-click double-click startup on Windows, instant terminal launch via python start.py or ./start.sh, and transparent forwarding of custom CLI arguments.",
-        "risks": "contract: existing python -m lattice and lattice CLI entrypoints remain unchanged; dependency: standard library only; concurrency: none; state: none.",
-        "mitigation": "Delegate all execution to existing lattice.cli.main(), keep start.py self-contained, and test default and forwarded invocations in test_cli.py."
-      }
-    },
-    {
-      "task_id": "lattice-start-file",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[1/2]-[2/2] Verified: start.py launcher with companion start.bat and start.sh; defaults to web studio and forwards CLI commands; tests pass; README updated; codebase map regenerated; aikit check lattice 4/4 gates (test, hygiene, guidelines, secrets); checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792440274.0927627,
-      "timestamp_str": "2026-10-19 23:04:34"
-    },
     {
       "task_id": "lattice-start-file",
       "phase": "completed",
@@ -227,6 +62,168 @@
       "status": "completed",
       "timestamp": 1792589047.0752413,
       "timestamp_str": "2026-10-21 16:24:07"
+    },
+    {
+      "task_id": "lattice-public-api-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/4] Failing-first test_api.py pins the zero-detail-loss surface: every actual public module symbol re-exported, design aliases resolve, and the neurocore evidence helpers return the repository shapes. [2/4] Implement lattice/api.py as a thin, import-only facade over the existing modules. [3/4] Add README API section, ADR-013 and refresh the codebase map. [4/4] Run the project Phase 4 gates and record the checklist outcome.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792624556.290362,
+      "timestamp_str": "2026-10-22 02:15:56",
+      "impact_assessment": {
+        "why": "ADR-012 is accepted in principle but its Phase 1 lattice-side deliverable does not exist: neurocore cannot import a stable public surface and the proposed design names symbols the package does not expose, so direct backend integration would reach into private modules or fail at import.",
+        "benefits": "A single documented import surface gives neurocore and other hosts zero-overhead access to the graph, analysis, synthesis, snapshots, discovery, extraction, ingestion, checks and error contracts without CLI or MCP overhead; the design aliases make the proposed adapter code importable without weakening the existing function-based modules.",
+        "risks": "contract: adds a new public lattice.api module and two helper functions, no existing signature changes; dependency: standard library only; concurrency: import-time only plus read-only helpers; state: no schema or persistence change.",
+        "mitigation": "api.py only re-exports existing symbols, so behavior cannot drift; a test compares __all__ against the modules and calls a representative function per family on a temporary database; the two neurocore read helpers are thin filters over build_evidence_matrix and Repository.evidence and are covered by tests; docs and the AST map are regenerated in the same commit."
+      }
+    },
+    {
+      "task_id": "lattice-public-api-v1",
+      "phase": "phase 3",
+      "phase_num": 3,
+      "description": "[1/4] Failing-first tests/test_api.py (7 tests) and lattice/api.py facade implemented: sorted __all__ of 90+ existing symbols, design aliases synthesize_question/extract_claims_for_paper, get_evidence_matrix filter and get_hypothesis_evidence; full suite 142/142 green.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792647662.0317788,
+      "timestamp_str": "2026-10-22 08:41:02"
+    },
+    {
+      "task_id": "lattice-public-api-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[2/4]-[4/4] README Python API section, ADR-013 and codebase map synchronized; python aikit.py check lattice 4/4 gates (test 142/142, hygiene, guidelines, secrets); checklists: passed. Uncommitted by PRINCIPLE-018 R1 (no commit requested).",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792647730.6818864,
+      "timestamp_str": "2026-10-22 08:42:10"
+    },
+    {
+      "task_id": "lattice-public-api-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[4/4] Delivered lattice/api.py (import-only facade, 100 exports, design aliases, get_evidence_matrix/get_hypothesis_evidence), tests/test_api.py, README Python API section, ADR-013 accepted, codebase map refreshed. checklists: passed; 142/142 tests; aikit check lattice 4/4 gates. Uncommitted because the host forbids unrequested commits (PRINCIPLE-018 R1).",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792647746.5514915,
+      "timestamp_str": "2026-10-22 08:42:26"
+    },
+    {
+      "task_id": "lattice-public-api-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-public-api-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792647760.8432517,
+      "timestamp_str": "2026-10-22 08:42:40"
+    },
+    {
+      "task_id": "lattice-public-api-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-public-api-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792647761.7415912,
+      "timestamp_str": "2026-10-22 08:42:41"
+    },
+    {
+      "task_id": "lattice-api-surface-fix-v1",
+      "phase": "phase 1",
+      "phase_num": 1,
+      "description": "[1/3] Plan: close the review findings - accept a single string in get_evidence_matrix, re-export every public module symbol including PAPER_FIELDS and MCP/web constants, and enforce the surface with an AST/introspection test; then ADR-014, README, map and gates.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792648559.3583796,
+      "timestamp_str": "2026-10-22 08:55:59",
+      "impact_assessment": {
+        "why": "Review found a silent empty result when a single question id string is passed, six public module constants missing from the facade including the adapter's PAPER_FIELDS map, and a subset-only test that let the omissions pass despite ADR-013's no-silent-drift claim.",
+        "benefits": "The facade matches its documented contract, host adapters can read the canonical paper field tuple and MCP/web metadata from one import, and a future symbol omission fails a test instead of relying on manual bookkeeping.",
+        "risks": "contract: api.__all__ grows and get_evidence_matrix accepts str; dependency: stdlib only; concurrency: none; state: none.",
+        "mitigation": "Add the failing surface test first, then the one-line input normalization and the missing imports; record ADR-014, update README, refresh the map and run the full Phase 4 gate set."
+      }
+    },
+    {
+      "task_id": "lattice-api-surface-fix-v1",
+      "phase": "superseded",
+      "phase_num": 1,
+      "description": "Superseded by 'lattice-api-hardening-v1' without --complete or --reset",
+      "status": "superseded",
+      "timestamp": 1792648562.2575545,
+      "timestamp_str": "2026-10-22 08:56:02"
+    },
+    {
+      "task_id": "lattice-api-hardening-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/3] Failing-first tests: get_evidence_matrix accepts one question reference string, rejects empty/non-question bare ids with LatticeError, and an AST inventory asserts every public top-level definition in the surfaced modules is exported. [2/3] Implement input normalization and export the seven missing public definitions. [3/3] Record ADR-014, update the README note, run the Phase 4 gates and complete.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792648562.2575545,
+      "timestamp_str": "2026-10-22 08:56:02",
+      "impact_assessment": {
+        "why": "Review found a silent wrong result: passing a single string to get_evidence_matrix iterates its characters and returns an empty matrix, bare ids skip validation, and ADR-013's no-silent-drift claim is not enforced because the test pins only a hardcoded subset.",
+        "benefits": "A single reference behaves like a one-item list, malformed selections fail loudly with the Error/Why/Fix triad, and the export inventory now fails whenever a public definition is added to a surfaced module without being exported.",
+        "risks": "contract: get_evidence_matrix gains str acceptance and stricter invalid-input errors; dependency: standard library ast/pathlib only; concurrency: tests are read-only; state: no schema or persistence change.",
+        "mitigation": "Normalize strings and bare ids through the existing validate_ref rules, add regression tests for each failure mode, and derive the inventory from the module AST so no second hardcoded list can drift."
+      }
+    },
+    {
+      "task_id": "lattice-api-surface-fix-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/3] Add failing-first tests: single-string matrix filter and an AST/introspection check that every public module symbol is re-exported. [2/3] Normalize string input and add the missing imports/exports. [3/3] ADR-014, README wording, codebase map, Phase 4 gates.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792648564.6155155,
+      "timestamp_str": "2026-10-22 08:56:04"
+    },
+    {
+      "task_id": "lattice-api-hardening-v1",
+      "phase": "superseded",
+      "phase_num": 2,
+      "description": "Superseded by 'lattice-api-surface-fix-v1' without --complete or --reset",
+      "status": "superseded",
+      "timestamp": 1792648564.6155155,
+      "timestamp_str": "2026-10-22 08:56:04"
+    },
+    {
+      "task_id": "lattice-api-surface-fix-v1",
+      "phase": "phase 3",
+      "phase_num": 3,
+      "description": "[3/3] Hardened lattice/api.py: strings accepted as one selection, empty/non-question ids raise LatticeError, and all public definitions exported (105 names incl. PAPER_FIELDS, SEED_CORPUS, Record, __version__, MCP metadata, WEB_HTML). tests/test_api.py now derives the inventory from module ASTs. ADR-014, README and map updated. checklists: passed; 145/145 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792648776.6549313,
+      "timestamp_str": "2026-10-22 08:59:36"
+    },
+    {
+      "task_id": "lattice-api-surface-fix-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-api-surface-fix-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792648779.9225228,
+      "timestamp_str": "2026-10-22 08:59:39"
+    },
+    {
+      "task_id": "lattice-api-surface-fix-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[2/3]-[3/3] Fixed: get_evidence_matrix accepts one string and rejects empty/non-question ids via LatticeError; facade exports all public module definitions (PAPER_FIELDS, SEED_CORPUS, Record, __version__, PROTOCOL_VERSION, RESOURCES, PROMPTS, WEB_HTML); AST-driven inventory test enforces the surface; ADR-014, README and codebase map updated. checklists: passed; 145/145 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792648857.7856207,
+      "timestamp_str": "2026-10-22 09:00:57"
+    },
+    {
+      "task_id": "lattice-api-surface-fix-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-api-surface-fix-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792648864.459989,
+      "timestamp_str": "2026-10-22 09:01:04"
     }
   ]
 }

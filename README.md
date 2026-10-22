@@ -116,6 +116,28 @@ stdio with tools (`search`, `discover_papers`, `extract_claims`, `get_entity`, `
 (`literature-synthesis`). `outline` is the cheap first call; `search`, `related_findings` and
 `subgraph` return compact token-budgeted views by default; `get_entity` is the full drill-down.
 
+### Python API
+
+Host applications can skip the CLI and MCP layers and import one stable surface. Importing
+`lattice.api` has no side effects; every symbol is the original object from its module.
+
+```python
+from lattice.api import Repository, get_evidence_matrix, open_database, synthesize_question
+
+repository = Repository(open_database("lattice.db"))
+matrix = get_evidence_matrix(repository, ["q_000001"])
+report = synthesize_question(repository, "q_000001", tokens=1200)
+```
+
+`get_evidence_matrix` accepts one question reference or an iterable of references/bare ids;
+empty or non-question selections raise `LatticeError` instead of returning a silent empty result.
+`get_hypothesis_evidence(repository, question_id)` returns the evidence grouped by link kind.
+The surface re-exports the repository, analysis, synthesis, snapshots, discovery, extraction,
+ingestion, checks, models, context, database, MCP metadata and dispatch, web assets and dispatch,
+and error contracts.
+The neurocore design names `synthesize_question` and `extract_claims_for_paper` resolve to
+`synthesize` and `extract_from_paper`; inquiry stays function-based (`ask`, `brief`, `review`).
+
 ### Supported Inputs
 
 | Format | Suffix | Notes |
@@ -144,6 +166,7 @@ lattice/
 │   ├── __init__.py
 │   ├── __main__.py           <- `python -m lattice`
 │   ├── analysis.py           <- contradiction detection, related-finding links, keystone centrality and evidence matrix
+│   ├── api.py                <- stable public Python surface for host integrations
 │   ├── checks.py             <- integrity gate: endpoints, provenance, duplicates, cycles
 │   ├── cli.py                <- argument grammar, handlers and human/JSON output
 │   ├── context.py            <- token-budgeted AI views: outline, compact search/related/subgraph
@@ -162,6 +185,7 @@ lattice/
 └── tests/
     ├── __init__.py
     ├── test_analysis.py
+    ├── test_api.py
     ├── test_checks.py
     ├── test_cli.py
     ├── test_context.py
@@ -183,5 +207,6 @@ lattice/
 The schema, identifier policy, dedupe order and evidence direction are recorded in
 `.aikit/decisions.md` (ADR-001 and ADR-002). The graph deliberately stores claims rather than
 free-form notes: an agent may only cite an ingested paper, and only through a claim that carries
-the quote it came from. Token budgets and compact AI views are recorded in ADR-010, and
-the web outline drawer and BibTeX export in ADR-011.
+the quote it came from. Token budgets and compact AI views are recorded in ADR-010, the web
+outline drawer and BibTeX export in ADR-011, the public integration surface in ADR-013, and its
+input hardening and export inventory in ADR-014.

@@ -233,6 +233,61 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   - *Positive*: Lattice becomes a reusable evidence engine; neurocore gains provenance, contradiction detection, synthesis without reimplementation; shared MCP tools enable consistent agent behavior across both systems.
   - *Trade-offs*: Lattice must maintain backward compatibility for neurocore adapter; schema changes require coordinated migration; neurocore's ResearchManager migration is a separate effort tracked in neurocore's ADR-007. **Lattice's own test suite and CLI must remain the primary verification surface.**
 
+## ADR-013: Public Python API Surface for Host Integrations (2026-10-22)
+
+- **Status**: Accepted
+- **Context**: ADR-012's Phase 1 requires a `lattice/api.py` module so a host such as neurocore can
+  use the graph without CLI or MCP overhead. The drafted import block named several symbols that do
+  not exist in this package (`InquiryService`, `synthesize_question`,
+  `extract_claims_for_paper`), so following it literally would fail at import.
+  The package also exposes ingestion, checks, database, MCP dispatch and web dispatch contracts that
+  a host may need, and the draft omitted them.
+- **Decision**:
+  1. Add `lattice/api.py` as a thin, import-only facade that re-exports the existing public symbols
+     from repository, analysis, synthesis, snapshots, discovery, extraction, ingest, checks,
+     inquiry, context, models, errors, database, MCP dispatch and web dispatch. Importing it has no
+     side effects and must not duplicate behavior.
+  2. Keep inquiry function-based (`ask`, `brief`, `review`) rather than inventing a service class.
+     Preserve the draft integration names as aliases: `synthesize_question = synthesize` and
+     `extract_claims_for_paper = extract_from_paper`.
+  3. Add two read-only helpers: `get_evidence_matrix(repository, question_ids=None)` narrows the
+     Paper x Question matrix to selected question references (keeping only their cells, gaps and
+     the papers that carry a cell), and `get_hypothesis_evidence(repository, question_id)` returns
+     `Repository.evidence` for one question.
+  4. Pin the surface with `tests/test_api.py`: expected exports, sorted unique `__all__`, identity
+     of re-exports, alias identity, and both helper behaviors.
+  5. Do not implement the still-aspirational ADR-012 items such as `details` JSON columns,
+     update/delete methods, a sync engine or `sync_article_from_neurocore`; they need their own
+     schema and adapter decisions.
+- **Consequences**: Hosts get one stable, documented import surface and the neurocore adapter can
+  start from real symbols. Every future public module addition must update `api.__all__` and the
+  test; the facade cannot drift silently. No runtime behavior, schema or persistence changes.
+  The draft design document's `InquiryService` and helper names must be read through this ADR.
+
+## ADR-014: API Input Hardening and a Self-Checking Export Inventory (2026-10-22)
+
+- **Status**: Accepted
+- **Context**: Reviewing ADR-013 found three gaps. A single string passed to
+  `get_evidence_matrix` was iterated character-by-character and silently returned an empty
+  matrix; bare identifiers skipped validation, so a paper id or a typo filtered to nothing; and
+  the subset-only export test let eight public definitions (`PAPER_FIELDS`, `SEED_CORPUS`,
+  `Record`, `__version__`, `PROTOCOL_VERSION`, `RESOURCES`, `PROMPTS`, `WEB_HTML`) stay outside
+  `api.__all__` despite the no-silent-drift claim.
+- **Decision**:
+  1. `get_evidence_matrix` accepts one question reference string or an iterable. A string is
+     treated as a one-item selection.
+  2. `_question_key` rejects empty or whitespace-only values and anything that is not a `q_xxx`
+     or `question:q_xxx` identifier with the Error/Why/Fix triad. Well-formed ids that do not
+     exist still filter to an empty selection.
+  3. Export the remaining public definitions, including the adapter's canonical `PAPER_FIELDS`
+     tuple, the MCP protocol/resources/prompts metadata and `lattice.__version__`.
+  4. `tests/test_api.py` derives every public top-level function, class and assignment from the
+     AST of each surfaced module and fails when one is missing from `api.__all__`. The inventory
+     replaces manual bookkeeping as the drift guard.
+- **Consequences**: Host adapters can pass either form without a silent wrong result, malformed
+  selections fail loudly, and adding a public symbol to a surfaced module now requires exporting
+  it. No runtime, dependency, schema or persistence change.
+
 
 
 
