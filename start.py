@@ -12,6 +12,13 @@ if str(_ROOT) not in sys.path:
 from lattice.cli import main  # noqa: E402
 
 
+def _with_project_db(argv):
+    """Use the project-local database unless the caller explicitly chose one."""
+    if any(arg == "--db" or arg.startswith("--db=") for arg in argv[1:]):
+        return argv
+    return [argv[0], "--db", str(_ROOT / "lattice.db"), *argv[1:]]
+
+
 def start(argv=None) -> int:
     """Launch the Lattice Web Research Studio by default, or forward custom CLI arguments."""
     if argv is not None:
@@ -19,6 +26,7 @@ def start(argv=None) -> int:
     if len(sys.argv) == 1:
         # Default zero-friction startup: launch local web studio in browser with demo corpus
         sys.argv.extend(["web", "--open", "--demo"])
+    sys.argv = _with_project_db(sys.argv)
     return main()
 
 

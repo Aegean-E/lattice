@@ -256,6 +256,9 @@ class CliTests(unittest.TestCase):
             code = start_module.start(["start.py"])
             self.assertEqual(code, 0)
             mock_serve.assert_called_once()
+            db_path = Path(mock_serve.call_args.kwargs["db_path"])
+            self.assertTrue(db_path.is_absolute())
+            self.assertEqual(db_path, Path(start_module._ROOT) / "lattice.db")
 
 
 if __name__ == "__main__":
