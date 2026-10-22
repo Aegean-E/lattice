@@ -310,7 +310,90 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   and the inventory test keeps pace with new modules and assignment forms without manual lists. No
   dependency, schema or persistence change.
 
+## ADR-016: Turnkey Client Facade for AI Hosts (2026-10-22)
+
+- **Status**: Accepted
+- **Context**: `lattice.api` is a stable library surface, but an AI host still had to open and
+  close the SQLite connection, copy the 21 MCP tool declarations, map tool names to repository
+  calls, and find a thread-safe way to call the graph from asyncio. The published MCP server
+  already has the exact tool semantics, so duplicating them in a new adapter would let the two
+  surfaces drift.
+- **Decision**:
+  1. Add `lattice.client.LatticeClient`, a synchronous context manager that owns one connection.
+     It exposes `tool_schemas()` (a deep copy of the MCP declarations), `call_tool(name,
+     arguments)`, and one convenience method per MCP tool (21, plus `ask` for search-mode
+     question answering). Close is idempotent; any call after close fails with the Error/Why/Fix
+     triad.
+  2. Publish the existing dispatcher as `lattice.mcp.dispatch_tool`, so the client and the MCP
+     server share one implementation. Malformed tool arguments become `LatticeError` instead of
+     leaking `ValueError`.
+  3. Add `AsyncLatticeClient`, which opens and uses the synchronous client on one dedicated
+     `ThreadPoolExecutor` thread. This preserves SQLite's thread affinity without weakening
+     `check_same_thread` globally. It supports `async with`; public methods are awaitable;
+     `repository` is intentionally unavailable because direct cross-thread use would be unsafe.
+  4. Export `LatticeClient`, `AsyncLatticeClient`, `DEFAULT_DB` and `dispatch_tool` from
+     `lattice.api`, and cover lifecycle, tool parity, schemas, failure modes and async behavior in
+     `tests/test_client.py`.
+- **Consequences**: A Python AI host imports one client, lists the 21 tool schemas, and dispatches
+  calls with the same behavior as the MCP server; async hosts do not need to know about SQLite
+  threads. The client adds no schema, dependency or persistence change. The async facade serializes
+  calls on one thread, so it is not a parallel query pool; hosts that need concurrency should open
+  one client per worker.
+
+## ADR-017: Read-Only Client Policy, Path Validation and Resource Parity (2026-10-22)
+
+- **Status**: Accepted
+- **Context**: The first client facade gave an autonomous agent every tool, including writes,
+  arbitrary snapshot paths and remote discovery. It also accepted an empty or `None` database
+  path (`str(None)` became a file named `None`), exposed tools but not the MCP resources or prompt,
+  and only spot-checked tool execution in its tests. ADR-016 documented the tool surface but no
+  safety boundary.
+- **Decision**:
+  1. `LatticeClient(db_path, read_only=False)` validates that the path is a non-empty string
+     before opening the database. A read-only client requires an existing file, opens it through
+     SQLite's `mode=ro` URI, sets `PRAGMA query_only=ON`, and refuses a schema version that would
+     need a migration. It never creates or migrates a file; an in-memory read-only database still
+     creates only its in-memory schema.
+  2. A read-only client advertises only the 12 non-mutating tools; `tool_schemas()` removes the
+     `auto_link` property from `analyze_graph` and `detect_contradictions`, and `call_tool()`
+     rejects every other tool name plus any `auto_link=True` call. The raw `repository` is not
+     exposed in read-only mode, so the facade cannot be trivially bypassed.
+  3. Publish `mcp.read_resource` and `mcp.get_prompt` (the JSON-RPC handlers now wrap them) and
+     expose `resource_schemas`, `prompt_schemas`, `read_resource` and `get_prompt` on the client.
+     Prompt arguments and MCP params/arguments are validated before use, so malformed tokens or
+     non-object values return a `-32602` error instead of escaping the JSON-RPC loop.
+  4. Add a table-driven test that executes all 21 tools through the client and JSON-serializes
+     every payload, plus read-only, path-validation, resource and async-policy tests, and database
+     tests for missing files, query-only enforcement and refused v1 migration.
+- **Consequences**: Hosts can hand an autonomous agent a client whose advertised and accepted
+  surface contains no writes, network discovery or snapshot paths, and whose connection cannot
+  write the database file. Hard isolation from other OS users still benefits from file permissions.
+  The 12-tool allowlist is conservative: a new tool stays blocked until it is reviewed and added.
+  Read-only WAL access may still require a readable `-shm` file, so filesystems that cannot provide
+  one need a copy or immutable storage. The async facade inherits the same policy. No schema change.
 
 
 
 
+
+
+## ADR-018: Guided Cold Start and Decluttered Studio Chrome (2026-10-22)
+
+- **Status**: Accepted
+- **Context**: The Web Research Studio opened with nine header controls, five long numbered tab
+  labels, and always-visible import and manual-entry forms. A first-time user had no single
+  obvious entry point, and the chrome competed with the evidence workflow on narrow screens.
+- **Decision**:
+  1. Add a "Start here" onboarding card to the Synthesize tab with a three-step path and three
+     actions: load the demo, add own papers, or ask a question. It hides automatically as soon as
+     the corpus contains a paper or claim.
+  2. Keep one primary header action (Load Demo Corpus) and move Corpus Outline, Extract All
+     Claims, Download Snapshot and Export BibTeX behind a single "More Actions" overflow menu.
+  3. Shorten the workflow tabs to Synthesize, Discover, Curate, Graph and Matrix; keep their full
+     descriptions as tooltips, allow horizontal scrolling on narrow screens, and expose one-line
+     pane intros on every tab.
+  4. Put the paste-ingestion and manual-paper forms behind collapsed disclosure cards so
+     discovery remains the visible first task.
+- **Consequences**: The first screen presents one primary path instead of a wall of controls, and
+  the tab bar remains usable on small viewports. All existing commands, endpoints and identifiers
+  remain available through the overflow menu or disclosures. No API, schema or persistence change.

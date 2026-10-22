@@ -1,176 +1,14 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "lattice-api-hardening-v2",
+    "task_id": "lattice-api-consistency-v1",
     "last_phase": "phase 4",
     "active_phase": 5,
     "status": "completed",
-    "updated_at": 1792649454.2428114,
-    "completed_at": 1792649454.4372659
+    "updated_at": 1792682471.9310186,
+    "completed_at": 1792682485.4411857
   },
   "checkpoints": [
-    {
-      "task_id": "task-lattice-neurocore-adr",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'task-lattice-neurocore-adr' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792589047.0752413,
-      "timestamp_str": "2026-10-21 16:24:07"
-    },
-    {
-      "task_id": "lattice-public-api-v1",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/4] Failing-first test_api.py pins the zero-detail-loss surface: every actual public module symbol re-exported, design aliases resolve, and the neurocore evidence helpers return the repository shapes. [2/4] Implement lattice/api.py as a thin, import-only facade over the existing modules. [3/4] Add README API section, ADR-013 and refresh the codebase map. [4/4] Run the project Phase 4 gates and record the checklist outcome.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792624556.290362,
-      "timestamp_str": "2026-10-22 02:15:56",
-      "impact_assessment": {
-        "why": "ADR-012 is accepted in principle but its Phase 1 lattice-side deliverable does not exist: neurocore cannot import a stable public surface and the proposed design names symbols the package does not expose, so direct backend integration would reach into private modules or fail at import.",
-        "benefits": "A single documented import surface gives neurocore and other hosts zero-overhead access to the graph, analysis, synthesis, snapshots, discovery, extraction, ingestion, checks and error contracts without CLI or MCP overhead; the design aliases make the proposed adapter code importable without weakening the existing function-based modules.",
-        "risks": "contract: adds a new public lattice.api module and two helper functions, no existing signature changes; dependency: standard library only; concurrency: import-time only plus read-only helpers; state: no schema or persistence change.",
-        "mitigation": "api.py only re-exports existing symbols, so behavior cannot drift; a test compares __all__ against the modules and calls a representative function per family on a temporary database; the two neurocore read helpers are thin filters over build_evidence_matrix and Repository.evidence and are covered by tests; docs and the AST map are regenerated in the same commit."
-      }
-    },
-    {
-      "task_id": "lattice-public-api-v1",
-      "phase": "phase 3",
-      "phase_num": 3,
-      "description": "[1/4] Failing-first tests/test_api.py (7 tests) and lattice/api.py facade implemented: sorted __all__ of 90+ existing symbols, design aliases synthesize_question/extract_claims_for_paper, get_evidence_matrix filter and get_hypothesis_evidence; full suite 142/142 green.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792647662.0317788,
-      "timestamp_str": "2026-10-22 08:41:02"
-    },
-    {
-      "task_id": "lattice-public-api-v1",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[2/4]-[4/4] README Python API section, ADR-013 and codebase map synchronized; python aikit.py check lattice 4/4 gates (test 142/142, hygiene, guidelines, secrets); checklists: passed. Uncommitted by PRINCIPLE-018 R1 (no commit requested).",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792647730.6818864,
-      "timestamp_str": "2026-10-22 08:42:10"
-    },
-    {
-      "task_id": "lattice-public-api-v1",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[4/4] Delivered lattice/api.py (import-only facade, 100 exports, design aliases, get_evidence_matrix/get_hypothesis_evidence), tests/test_api.py, README Python API section, ADR-013 accepted, codebase map refreshed. checklists: passed; 142/142 tests; aikit check lattice 4/4 gates. Uncommitted because the host forbids unrequested commits (PRINCIPLE-018 R1).",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792647746.5514915,
-      "timestamp_str": "2026-10-22 08:42:26"
-    },
-    {
-      "task_id": "lattice-public-api-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-public-api-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792647760.8432517,
-      "timestamp_str": "2026-10-22 08:42:40"
-    },
-    {
-      "task_id": "lattice-public-api-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-public-api-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792647761.7415912,
-      "timestamp_str": "2026-10-22 08:42:41"
-    },
-    {
-      "task_id": "lattice-api-surface-fix-v1",
-      "phase": "phase 1",
-      "phase_num": 1,
-      "description": "[1/3] Plan: close the review findings - accept a single string in get_evidence_matrix, re-export every public module symbol including PAPER_FIELDS and MCP/web constants, and enforce the surface with an AST/introspection test; then ADR-014, README, map and gates.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792648559.3583796,
-      "timestamp_str": "2026-10-22 08:55:59",
-      "impact_assessment": {
-        "why": "Review found a silent empty result when a single question id string is passed, six public module constants missing from the facade including the adapter's PAPER_FIELDS map, and a subset-only test that let the omissions pass despite ADR-013's no-silent-drift claim.",
-        "benefits": "The facade matches its documented contract, host adapters can read the canonical paper field tuple and MCP/web metadata from one import, and a future symbol omission fails a test instead of relying on manual bookkeeping.",
-        "risks": "contract: api.__all__ grows and get_evidence_matrix accepts str; dependency: stdlib only; concurrency: none; state: none.",
-        "mitigation": "Add the failing surface test first, then the one-line input normalization and the missing imports; record ADR-014, update README, refresh the map and run the full Phase 4 gate set."
-      }
-    },
-    {
-      "task_id": "lattice-api-surface-fix-v1",
-      "phase": "superseded",
-      "phase_num": 1,
-      "description": "Superseded by 'lattice-api-hardening-v1' without --complete or --reset",
-      "status": "superseded",
-      "timestamp": 1792648562.2575545,
-      "timestamp_str": "2026-10-22 08:56:02"
-    },
-    {
-      "task_id": "lattice-api-hardening-v1",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/3] Failing-first tests: get_evidence_matrix accepts one question reference string, rejects empty/non-question bare ids with LatticeError, and an AST inventory asserts every public top-level definition in the surfaced modules is exported. [2/3] Implement input normalization and export the seven missing public definitions. [3/3] Record ADR-014, update the README note, run the Phase 4 gates and complete.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792648562.2575545,
-      "timestamp_str": "2026-10-22 08:56:02",
-      "impact_assessment": {
-        "why": "Review found a silent wrong result: passing a single string to get_evidence_matrix iterates its characters and returns an empty matrix, bare ids skip validation, and ADR-013's no-silent-drift claim is not enforced because the test pins only a hardcoded subset.",
-        "benefits": "A single reference behaves like a one-item list, malformed selections fail loudly with the Error/Why/Fix triad, and the export inventory now fails whenever a public definition is added to a surfaced module without being exported.",
-        "risks": "contract: get_evidence_matrix gains str acceptance and stricter invalid-input errors; dependency: standard library ast/pathlib only; concurrency: tests are read-only; state: no schema or persistence change.",
-        "mitigation": "Normalize strings and bare ids through the existing validate_ref rules, add regression tests for each failure mode, and derive the inventory from the module AST so no second hardcoded list can drift."
-      }
-    },
-    {
-      "task_id": "lattice-api-surface-fix-v1",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/3] Add failing-first tests: single-string matrix filter and an AST/introspection check that every public module symbol is re-exported. [2/3] Normalize string input and add the missing imports/exports. [3/3] ADR-014, README wording, codebase map, Phase 4 gates.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792648564.6155155,
-      "timestamp_str": "2026-10-22 08:56:04"
-    },
-    {
-      "task_id": "lattice-api-hardening-v1",
-      "phase": "superseded",
-      "phase_num": 2,
-      "description": "Superseded by 'lattice-api-surface-fix-v1' without --complete or --reset",
-      "status": "superseded",
-      "timestamp": 1792648564.6155155,
-      "timestamp_str": "2026-10-22 08:56:04"
-    },
-    {
-      "task_id": "lattice-api-surface-fix-v1",
-      "phase": "phase 3",
-      "phase_num": 3,
-      "description": "[3/3] Hardened lattice/api.py: strings accepted as one selection, empty/non-question ids raise LatticeError, and all public definitions exported (105 names incl. PAPER_FIELDS, SEED_CORPUS, Record, __version__, MCP metadata, WEB_HTML). tests/test_api.py now derives the inventory from module ASTs. ADR-014, README and map updated. checklists: passed; 145/145 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792648776.6549313,
-      "timestamp_str": "2026-10-22 08:59:36"
-    },
-    {
-      "task_id": "lattice-api-surface-fix-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-api-surface-fix-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792648779.9225228,
-      "timestamp_str": "2026-10-22 08:59:39"
-    },
-    {
-      "task_id": "lattice-api-surface-fix-v1",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[2/3]-[3/3] Fixed: get_evidence_matrix accepts one string and rejects empty/non-question ids via LatticeError; facade exports all public module definitions (PAPER_FIELDS, SEED_CORPUS, Record, __version__, PROTOCOL_VERSION, RESOURCES, PROMPTS, WEB_HTML); AST-driven inventory test enforces the surface; ADR-014, README and codebase map updated. checklists: passed; 145/145 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792648857.7856207,
-      "timestamp_str": "2026-10-22 09:00:57"
-    },
     {
       "task_id": "lattice-api-surface-fix-v1",
       "phase": "completed",
@@ -224,6 +62,181 @@
       "status": "completed",
       "timestamp": 1792649454.4372678,
       "timestamp_str": "2026-10-22 09:10:54"
+    },
+    {
+      "task_id": "lattice-client-adapter-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/4] Failing-first tests for a turnkey LatticeClient: connection lifecycle, MCP-parity call_tool over all 21 tools, tool schemas, convenience methods, closed-client errors, and an async facade on a dedicated thread. [2/4] Publish dispatch_tool in lattice.mcp and add lattice/client.py with LatticeClient/AsyncLatticeClient. [3/4] Export the client from lattice.api, record ADR-016, update README and the codebase map. [4/4] Run every Phase 4 gate, record checklists and complete.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792650005.4574356,
+      "timestamp_str": "2026-10-22 09:20:05",
+      "impact_assessment": {
+        "why": "lattice.api is a stable library surface but not a turnkey AI integration: callers must manage the SQLite connection, map MCP schemas to calls themselves, and async agent hosts have no safe wrapper. The neurocore draft expects an async adapter that does not exist.",
+        "benefits": "An AI host imports one client, enters a context manager, lists 21 JSON tool schemas and calls any tool by name with identical behavior to the MCP server; a dedicated-thread async facade makes the same surface safe for asyncio hosts without changing sqlite thread settings.",
+        "risks": "contract: mcp._dispatch becomes public dispatch_tool and api gains two client classes plus DEFAULT_DB; dependency: standard library copy/concurrent.futures/asyncio only; concurrency: the async facade serializes all work on one dedicated thread; state: the client owns one existing connection and closes it; no schema change.",
+        "mitigation": "Build the sync client as a thin wrapper over the existing MCP dispatch so tool semantics cannot drift, prove parity against TOOLS in tests, run async calls on one executor thread so SQLite keeps its thread affinity, and close idempotently in the context manager."
+      }
+    },
+    {
+      "task_id": "lattice-client-adapter-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[2/4]-[4/4] Delivered lattice/client.py: LatticeClient owns one connection, exposes all 21 MCP tool schemas and call_tool plus convenience methods; AsyncLatticeClient runs the same surface on one dedicated thread with async context management. Published mcp.dispatch_tool, exported the client from lattice.api, recorded ADR-016, updated README and the map. checklists: passed; 159/159 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792650365.5476286,
+      "timestamp_str": "2026-10-22 09:26:05"
+    },
+    {
+      "task_id": "lattice-client-adapter-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-client-adapter-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792650370.4578178,
+      "timestamp_str": "2026-10-22 09:26:10"
+    },
+    {
+      "task_id": "lattice-client-safety-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/4] Failing-first tests: read-only mode filters schemas and blocks every write/IO tool, db_path rejects empty/None, resource/prompt metadata and reads exist, and all 21 tools execute with JSON-serializable payloads. [2/4] Implement read_only, path validation, public read_resource/get_prompt, and client resource/prompt helpers. [3/4] Record ADR-017, update README and the codebase map. [4/4] Run every Phase 4 gate and complete.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792665128.1326323,
+      "timestamp_str": "2026-10-22 13:32:08",
+      "impact_assessment": {
+        "why": "The analysis found the new client has no read-only/sandboxed mode: an autonomous agent gets every write tool, arbitrary snapshot paths and network discovery. It also accepts an empty or None database path, hides resources/prompts, and only spot-checks tool execution.",
+        "benefits": "A host can hand an agent a read-only client whose schema list contains only safe tools, while resources and prompts gain the same first-class client parity as tools; every tool's payload is frozen by a table-driven test.",
+        "risks": "contract: LatticeClient gains read_only and repository becomes unavailable in that mode; MCP gains public read_resource/get_prompt functions; dependency: standard library only; concurrency: unchanged single-thread serialization; state: no schema change.",
+        "mitigation": "Enforce read-only both in tool_schemas and call_tool, reject auto_link writes, keep the raw repository unavailable in read-only mode, validate the path before opening, refactor MCP resource/prompt helpers into public functions, and pin each tool through the client."
+      }
+    },
+    {
+      "task_id": "lattice-client-safety-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[2/4]-[4/4] Delivered read-only LatticeClient policy: 12-tool schema filter with auto_link removed, call_tool rejects writes/network/snapshot tools and auto_link, repository hidden; db_path validation; public mcp.read_resource/get_prompt plus client resource/prompt schemas and readers; ADR-017, README and map updated. checklists: passed; 164/164 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792665890.8014514,
+      "timestamp_str": "2026-10-22 13:44:50"
+    },
+    {
+      "task_id": "lattice-client-safety-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-client-safety-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792665899.1339164,
+      "timestamp_str": "2026-10-22 13:44:59"
+    },
+    {
+      "task_id": "lattice-readonly-db-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/3] Hybrid tests: read-only open must not create a missing file, must enforce query_only, must refuse a v1 migration, must work for :memory:; client read-only must require an existing DB; malformed prompt tokens/arguments must return -32602. [2/3] Add open_database(read_only), close-on-failure, SQLite mode=ro/query_only and schema verification; harden get_prompt arguments. [3/3] Update ADR-017, README, map and run gates.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792673575.9344983,
+      "timestamp_str": "2026-10-22 15:52:55",
+      "impact_assessment": {
+        "why": "Verification showed a read-only client still created/migrated the database and the MCP prompt endpoint leaked ValueError instead of a JSON-RPC error; the async repository error also disagreed with the sync client.",
+        "benefits": "Read-only is now a file-level guarantee as well as a tool-surface policy, malformed prompts fail safely at the protocol boundary, and both client facades raise the same LatticeError for repository access.",
+        "risks": "contract: open_database gains a backward-compatible read_only keyword and refuses missing/v1 files in that mode; dependency: standard library sqlite3/pathlib only; concurrency: unchanged; state: read-only paths do not write or migrate.",
+        "mitigation": "Open existing read-only files with mode=ro and query_only, verify the schema without migrating, close connections on every failure path, validate prompt arguments before synthesis, and pin each behavior with database, client and MCP tests."
+      }
+    },
+    {
+      "task_id": "lattice-readonly-db-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[2/3]-[3/3] Delivered file-level read-only opens: open_database(path, read_only=True) requires an existing file, uses SQLite mode=ro plus query_only, verifies the schema without migrating, and closes on failure. LatticeClient read-only requires an existing DB; get_prompt validates token/argument types so MCP returns -32602; async repository now raises LatticeError. ADR-017, README and map updated. checklists: passed; 170/170 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792673583.5728118,
+      "timestamp_str": "2026-10-22 15:53:03"
+    },
+    {
+      "task_id": "lattice-readonly-db-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-readonly-db-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792673589.5295188,
+      "timestamp_str": "2026-10-22 15:53:09"
+    },
+    {
+      "task_id": "lattice-protocol-params-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/3] Failing-first tests for truthy non-object MCP params and arguments, direct dispatch_tool with non-dict arguments, and open_database(None/empty). [2/3] Preserve params instead of masking falsy values, validate mapping shapes in both handlers and dispatch_tool, and type/empty-check the database path. [3/3] Record the WAL and allowlist caveats in ADR-017/README, refresh the map and run gates.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792680882.292512,
+      "timestamp_str": "2026-10-22 17:54:42",
+      "impact_assessment": {
+        "why": "Verification showed remaining crashes: resources/read and prompts/get raised AttributeError for truthy list params, and open_database(None) raised TypeError instead of the LatticeError contract; direct dispatch_tool had the same unvalidated-shape gap.",
+        "benefits": "Every malformed JSON-RPC params/arguments shape now returns -32602, direct Python callers get the Error/Why/Fix triad from dispatch_tool and open_database, and the read-only WAL/allowlist limitations are documented.",
+        "risks": "contract: MCP rejects empty-list params that previously fell through to unknown-resource errors, and open_database rejects None/empty paths; dependency: standard library os.PathLike only; concurrency: unchanged; state: none.",
+        "mitigation": "Keep the original params object, guard each handler and dispatcher with an isinstance dict check, validate path types and emptiness before Path/sqlite work, and pin every boundary with MCP and database tests."
+      }
+    },
+    {
+      "task_id": "lattice-protocol-params-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[2/3]-[3/3] Delivered MCP boundary validation: params are preserved (empty list no longer becomes {}), resources/read and prompts/get reject non-object params with -32602, tools/call rejects non-object arguments, and public dispatch_tool raises LatticeError for non-dict arguments. open_database validates path type and emptiness before Path/sqlite. ADR-017/README document WAL and allowlist caveats. checklists: passed; 173/173 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792680894.8182049,
+      "timestamp_str": "2026-10-22 17:54:54"
+    },
+    {
+      "task_id": "lattice-protocol-params-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-protocol-params-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792680898.8679717,
+      "timestamp_str": "2026-10-22 17:54:58"
+    },
+    {
+      "task_id": "lattice-api-consistency-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/3] Failing-first tests: client.call_tool and dispatch_tool reject non-string tool names, and LatticeClient/open_database normalize a whitespace-wrapped :memory: sentinel while preserving real paths. [2/3] Add name guards and align client/database path normalization. [3/3] Refresh the map, run gates and complete.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792681438.6079254,
+      "timestamp_str": "2026-10-22 18:03:58",
+      "impact_assessment": {
+        "why": "Verification found two low API inconsistencies: an unhashable tool name crashes only the read-only allowlist check, and LatticeClient strips path whitespace while open_database preserves it.",
+        "benefits": "Both entry points reject malformed names with the Error/Why/Fix triad, and a database path opens the same way through the client and the database layer, including a whitespace-wrapped :memory: sentinel.",
+        "risks": "contract: non-string tool names now fail consistently; dependency: none; concurrency: none; state: path handling changes only for whitespace around the sentinel and for previously stripped real paths.",
+        "mitigation": "Validate names before any set membership or dispatch, normalize only the :memory: sentinel in one shared style, preserve other path text, and pin both behaviors with client, MCP and database tests."
+      }
+    },
+    {
+      "task_id": "lattice-api-consistency-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[2/3]-[3/3] Added string-name guards to LatticeClient.call_tool and public dispatch_tool, made tools/call reject blank names with -32602, and normalized a whitespace-wrapped :memory: sentinel in both LatticeClient and open_database while preserving real path text. checklists: passed; 177/177 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792682471.9310186,
+      "timestamp_str": "2026-10-22 18:21:11"
+    },
+    {
+      "task_id": "lattice-api-consistency-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-api-consistency-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792682485.4411874,
+      "timestamp_str": "2026-10-22 18:21:25"
     }
   ]
 }

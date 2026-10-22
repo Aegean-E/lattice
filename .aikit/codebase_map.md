@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `37`
-- **Total Classes**: `44`
-- **Total Top-Level Functions**: `178`
-- **Total Class Methods**: `233`
-- **Total Source Lines**: `9862`
+- **Total Python Modules**: `39`
+- **Total Classes**: `51`
+- **Total Top-Level Functions**: `183`
+- **Total Class Methods**: `317`
+- **Total Source Lines**: `10833`
 
 ---
 
@@ -59,7 +59,7 @@
 ### [`lattice/api.py`](lattice/api.py)
 > *Stable public Python surface for host integrations such as neurocore.*
 
-**Size**: `275` lines (`7448` bytes)
+**Size**: `285` lines (`7700` bytes)
 
 **Functions:**
 - `def _question_key(value)` - *Normalize `question:q_000001` or `q_000001` to the bare identifier.*
@@ -132,6 +132,65 @@
 
 ---
 
+### [`lattice/client.py`](lattice/client.py)
+> *Turnkey client facade for AI hosts: own one connection, call MCP-parity tools.*
+
+**Size**: `321` lines (`14197` bytes)
+
+**Classes:**
+- `class LatticeClient` - *A synchronous, context-managed graph client with MCP tool parity.*
+  - Method `.__init__(db_path, read_only)`
+  - Property `.repository` - *The underlying repository for advanced writable callers.*
+  - Method `.__enter__()`
+  - Method `.__exit__(exc_type, exc, traceback)`
+  - Method `.close()` - *Close the owned connection; safe to call more than once.*
+  - Method `._ensure_open()`
+  - Method `.tool_schemas()` - *The MCP tool declarations, filtered to the read-only set when requested.*
+  - Method `.resource_schemas()` - *A deep copy of the advertised MCP resource declarations.*
+  - Method `.prompt_schemas()` - *A deep copy of the advertised MCP prompt declarations.*
+  - Method `.read_resource(uri)` - *Read one advertised resource such as `lattice://stats`.*
+  - Method `.get_prompt(name, arguments)` - *Render one advertised prompt with its arguments.*
+  - Method `.call_tool(name, arguments, **kwargs)` - *Run one MCP tool by name; arguments may be a mapping plus keyword overrides.*
+  - Method `.search(query, limit, stance, min_confidence, year, tokens)`
+  - Method `.discover_papers(query, source, limit, ingest)`
+  - Method `.extract_claims(paper, question)`
+  - Method `.get_entity(ref)`
+  - Method `.neighbors(ref, kind)`
+  - Method `.subgraph(ref, depth, tokens)`
+  - Method `.related_findings(target, limit, tokens)`
+  - Method `.outline(tokens)`
+  - Method `.add_paper(metadata)`
+  - Method `.add_claim(paper, text, quote, locator, stance, confidence)`
+  - Method `.add_question(text)`
+  - Method `.set_question_status(question, status)`
+  - Method `.add_edge(src, dst, kind, note)`
+  - Method `.ask(target, limit)` - *Evidence-first question answering, including search mode outside MCP.*
+  - Method `.brief(target, tokens)`
+  - Method `.review(target)`
+  - Method `.synthesize(target, tokens)`
+  - Method `.analyze_graph(auto_link, limit)`
+  - Method `.detect_contradictions(auto_link)`
+  - Method `.export_snapshot(path)`
+  - Method `.import_snapshot(path)`
+  - Method `.stats()`
+- `class AsyncLatticeClient` - *An asyncio facade that serializes the sync client on one dedicated thread.*
+  - Method `.__init__(db_path, read_only)`
+  - Method `async def .__aenter__()`
+  - Method `async def .__aexit__(exc_type, exc, traceback)`
+  - Method `async def .close()` - *Close the owned connection and stop the worker thread.*
+  - Method `._ensure_open()`
+  - Property `.repository` - *The repository is sync-only; exposing it would cross the worker thread.*
+  - Method `async def ._run(func, *args, **kwargs)`
+  - Method `async def .tool_schemas()`
+  - Method `async def .resource_schemas()`
+  - Method `async def .prompt_schemas()`
+  - Method `async def .read_resource(uri)`
+  - Method `async def .get_prompt(name, arguments)`
+  - Method `async def .call_tool(name, arguments, **kwargs)`
+  - Method `.__getattr__(name)`
+
+---
+
 ### [`lattice/context.py`](lattice/context.py)
 > *Token-budgeted context views for AI agents: peek, search, expand, drill down.*
 
@@ -152,11 +211,12 @@
 ### [`lattice/database.py`](lattice/database.py)
 > *SQLite connection, versioned schema and migration veil for the knowledge graph.*
 
-**Size**: `164` lines (`6270` bytes)
+**Size**: `220` lines (`9126` bytes)
 
 **Functions:**
 - `def utc_now()` - *An ISO-8601 UTC timestamp with a stable seconds precision.*
-- `def open_database(path)` - *Open or create the database, verify its schema version and return it.*
+- `def open_database(path, read_only)` - *Open or create the database, verify its schema version and return it.*
+- `def _verify_schema_read_only(connection)` - *Verify a read-only database is current without creating or migrating anything.*
 - `def _ensure_schema(connection)` - *Create the schema once, migrate v1 and refuse a database from a newer version.*
 - `def _set_schema_version(connection, version)` - *Persist the schema version after a fresh create or a completed migration.*
 - `def _add_column_if_missing(connection, table, column, definition)` - *Add one column once, so an interrupted migration can be retried.*
@@ -297,15 +357,17 @@
 ### [`lattice/mcp.py`](lattice/mcp.py)
 > *A dependency-free MCP stdio server exposing the graph as JSON-RPC tools.*
 
-**Size**: `343` lines (`17193` bytes)
+**Size**: `397` lines (`19551` bytes)
 
 **Functions:**
 - `def _tool(name, description, properties, required)` - *An MCP tool declaration with a JSON Schema for its arguments.*
 - `def handle_message(repository, message)` - *Dispatch one JSON-RPC message; notifications return None.*
 - `def _call_tool(repository, request_id, params)` - *Run one MCP tool call and wrap the result as text content.*
+- `def read_resource(repository, uri)` - *Return the payload for one advertised resource URI.*
+- `def get_prompt(repository, name, arguments)` - *Render one advertised prompt into MCP message content.*
 - `def _read_resource(repository, request_id, params)` - *Return an MCP resource payload by URI.*
 - `def _get_prompt(repository, request_id, params)` - *Render a structured scientific synthesis prompt for an AI agent.*
-- `def _dispatch(repository, name, arguments)` - *Map a tool name to its repository, discovery, extraction or synthesis operation.*
+- `def dispatch_tool(repository, name, arguments)` - *Map a tool name to its repository, discovery, extraction or synthesis operation.*
 - `def _text(arguments, name)` - *A required string argument.*
 - `def _result(request_id, result)` - *A JSON-RPC success response.*
 - `def _error(request_id, code, message)` - *A JSON-RPC error response.*
@@ -437,7 +499,7 @@
 ### [`lattice/web.py`](lattice/web.py)
 > *Zero-dependency web server and human-friendly Research Studio UI for Lattice.*
 
-**Size**: `1849` lines (`73244` bytes)
+**Size**: `1979` lines (`78328` bytes)
 
 **Classes:**
 - `class WebResponse` - *Immutable HTTP response returned by `dispatch_web_request`.*
@@ -465,9 +527,10 @@
 ### [`start.py`](start.py)
 > *Start file launcher for the Lattice Research Studio and CLI.*
 
-**Size**: `26` lines (`772` bytes)
+**Size**: `34` lines (`1086` bytes)
 
 **Functions:**
+- `def _with_project_db(argv)` - *Use the project-local database unless the caller explicitly chose one.*
 - `def start(argv)` - *Launch the Lattice Web Research Studio by default, or forward custom CLI arguments.*
 
 ---
@@ -547,7 +610,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `263` lines (`11583` bytes)
+**Size**: `266` lines (`11780` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
@@ -571,6 +634,47 @@
 
 ---
 
+### [`tests/test_client.py`](tests/test_client.py)
+> *Tests for the turnkey client facade used by AI hosts.*
+
+**Size**: `276` lines (`13433` bytes)
+
+**Classes:**
+- `class LatticeClientTests` - *Verify lifecycle, tool parity, convenience methods and failure modes.*
+  - Method `.setUp()`
+  - Method `.test_context_manager_owns_and_closes_the_connection()`
+  - Method `.test_close_is_idempotent()`
+  - Method `.test_write_and_read_flow()`
+  - Method `.test_synthesis_and_brief()`
+  - Method `.test_tool_schemas_match_mcp_and_are_copies()`
+  - Method `.test_call_tool_matches_mcp_tool_names()`
+  - Method `.test_unknown_tool_raises_lattice_error()`
+  - Method `.test_missing_argument_raises_lattice_error()`
+  - Method `.test_non_mapping_arguments_raise_lattice_error()`
+  - Method `.test_non_string_tool_names_raise_lattice_error()`
+- `class AsyncLatticeClientTests` - *Verify the async facade serializes work on its dedicated thread.*
+  - Method `async def .asyncSetUp()`
+  - Method `async def .asyncTearDown()`
+  - Method `async def .test_async_write_and_read_flow()`
+  - Method `async def .test_async_schemas_and_call_tool()`
+  - Method `async def .test_async_context_manager_closes()`
+  - Method `async def .test_async_rejects_sync_repository_access()`
+- `class ClientSafetyTests` - *Verify read-only policy, path validation, metadata parity and full tool coverage.*
+  - Method `.test_invalid_database_paths_raise()`
+  - Method `.test_whitespace_memory_sentinel_is_normalized()`
+  - Method `.test_read_only_requires_an_existing_database()`
+  - Method `.test_read_only_client_reads_existing_database()`
+  - Method `.test_read_only_filters_schemas_and_blocks_writes()`
+  - Method `.test_resource_and_prompt_parity()`
+  - Method `.test_every_tool_executes_and_serializes()`
+- `class AsyncClientSafetyTests` - *Verify the read-only policy survives the async facade.*
+  - Method `async def .test_async_read_only_filters_and_blocks_writes()`
+
+**Functions:**
+- `def seed(client)` - *Create one question, paper, claim and support edge through the client.*
+
+---
+
 ### [`tests/test_context.py`](tests/test_context.py)
 > *Unit tests for the token-budgeted, RLM-style AI context views.*
 
@@ -591,12 +695,20 @@
 ### [`tests/test_database.py`](tests/test_database.py)
 > *Schema migration from the first release keeps an existing graph usable.*
 
-**Size**: `85` lines (`2717` bytes)
+**Size**: `148` lines (`5365` bytes)
 
 **Classes:**
 - `class MigrationTests` - *A version 1 database gains the literature metadata columns without losing papers.*
   - Method `.setUp()`
   - Method `.test_v1_database_migrates_tags_and_study_type()`
+- `class ReadOnlyDatabaseTests` - *A read-only open neither creates, migrates nor writes the database.*
+  - Method `.setUp()`
+  - Method `.test_missing_database_is_not_created()`
+  - Method `.test_invalid_paths_raise_lattice_error()`
+  - Method `.test_whitespace_memory_sentinel_is_normalized()`
+  - Method `.test_existing_database_is_current_and_query_only()`
+  - Method `.test_in_memory_read_only_is_query_only()`
+  - Method `.test_v1_database_is_not_migrated_read_only()`
 
 ---
 
@@ -688,7 +800,7 @@
 ### [`tests/test_mcp.py`](tests/test_mcp.py)
 > *MCP JSON-RPC contracts and stdio framing.*
 
-**Size**: `221` lines (`11129` bytes)
+**Size**: `259` lines (`12785` bytes)
 
 **Classes:**
 - `class McpTests` - *Call the protocol handler directly; no sockets or spawns.*
@@ -709,6 +821,9 @@
   - Method `.test_stdio_reports_parse_error()`
   - Method `.test_discover_extract_synthesize_and_subgraph_tools()`
   - Method `.test_resources_and_prompts_endpoints()`
+  - Method `.test_dispatch_tool_rejects_non_object_arguments()`
+  - Method `.test_dispatch_tool_rejects_non_string_names()`
+  - Method `.test_non_object_params_are_rejected()`
   - Method `.test_analyze_and_contradictions_tools_and_matrix_resource()`
 
 ---
@@ -799,13 +914,14 @@
 ### [`tests/test_web.py`](tests/test_web.py)
 > *Tests for the web-based human UI and JSON API dispatcher (zero sockets).*
 
-**Size**: `254` lines (`10979` bytes)
+**Size**: `266` lines (`11627` bytes)
 
 **Classes:**
 - `class WebInterfaceTests` - *Verify HTML rendering and REST API handlers via pure request dispatch.*
   - Method `.setUp()`
   - Method `.request_json(method, path, payload)`
   - Method `.test_index_serves_self_contained_human_ui()`
+  - Method `.test_index_has_guided_cold_start_and_compact_actions()`
   - Method `.test_link_related_endpoint_and_map_legend()`
   - Method `.test_demo_seed_and_overview_workflow()`
   - Method `.test_create_entities_and_synthesize_via_web_api()`
