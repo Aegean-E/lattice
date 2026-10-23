@@ -1,6 +1,6 @@
 """Turnkey client facade for AI hosts: own one connection, call MCP-parity tools.
 
-`LatticeClient` wraps a single SQLite connection and exposes the same 21 tools the MCP server
+`LatticeClient` wraps a single SQLite connection and exposes the same 22 tools the MCP server
 advertises, so a Python agent can register `tool_schemas()` and dispatch through `call_tool`
 without reimplementing the graph rules. `AsyncLatticeClient` runs that client on one dedicated
 thread, which keeps SQLite's thread affinity intact for asyncio hosts.
@@ -28,6 +28,7 @@ DEFAULT_DB = "lattice.db"
 _READ_ONLY_TOOLS = frozenset({
     "search", "get_entity", "neighbors", "subgraph", "related_findings", "outline",
     "brief", "review", "synthesize", "stats", "analyze_graph", "detect_contradictions",
+    "diff_snapshot",
 })
 
 
@@ -223,6 +224,13 @@ class LatticeClient:
 
     def import_snapshot(self, path: str) -> Dict[str, Any]:
         return self.call_tool("import_snapshot", {"path": path})
+
+    def diff_snapshot(self, old_path: str, new_path: str = "") -> Dict[str, Any]:
+        """Diff a baseline snapshot against another snapshot or the live graph."""
+        arguments: Dict[str, Any] = {"old_path": old_path}
+        if new_path:
+            arguments["new_path"] = new_path
+        return self.call_tool("diff_snapshot", arguments)
 
     def stats(self) -> Dict[str, Any]:
         return self.call_tool("stats", {})

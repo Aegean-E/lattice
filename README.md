@@ -68,6 +68,10 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
   follow-up queries, and formats resolved Markdown and BibTeX references.
 - **Snapshots & BibTeX (`export` / `import`)** write and merge portable JSONL graph bundles atomically,
   or export bibliographies to standard `.bib` files (with auto-detection or `--format bibtex`).
+- **Snapshot diffing (`diff`)** compares a JSONL snapshot against another snapshot or the live
+  graph and reports added, removed and changed papers, questions, claims and edges with the
+  changed field names. Comparison ignores the volatile `created_at` field, and the command exits
+  with code 1 when the graphs differ, so scripts can gate on it.
 - **Web Research Studio (`web`)** serves a local, zero-dependency human UI with a guided
   "Start here" onboarding card, compact header actions behind one overflow menu, short workflow
   tabs, and collapsible import forms so the first screen stays uncluttered. It includes one-click
@@ -103,6 +107,7 @@ python -m lattice [--db PATH] [--json] synthesize TARGET [--tokens N] [--out PAT
 python -m lattice [--db PATH] [--json] analyze [--auto-link] [--limit N]
 python -m lattice [--db PATH] [--json] export PATH [--format jsonl|bibtex]
 python -m lattice [--db PATH] [--json] import PATH
+python -m lattice [--db PATH] [--json] diff OLD_SNAPSHOT [NEW_SNAPSHOT]
 python -m lattice [--db PATH] [--json] stats
 python -m lattice [--db PATH] check
 python -m lattice [--db PATH] mcp
@@ -113,7 +118,7 @@ python -m lattice [--db PATH] web [--host 127.0.0.1] [--port 8765] [--demo] [--o
 stdio with tools (`search`, `discover_papers`, `extract_claims`, `get_entity`, `neighbors`,
 `subgraph`, `related_findings`, `outline`, `add_paper`, `add_claim`, `add_question`,
 `set_question_status`, `add_edge`, `brief`, `review`, `synthesize`, `analyze_graph`,
-`detect_contradictions`, `export_snapshot`, `import_snapshot`, `stats`), resources
+`detect_contradictions`, `export_snapshot`, `import_snapshot`, `diff_snapshot`, `stats`), resources
 (`lattice://stats`, `lattice://questions`, `lattice://matrix`), and prompts
 (`literature-synthesis`). `outline` is the cheap first call; `search`, `related_findings` and
 `subgraph` return compact token-budgeted views by default; `get_entity` is the full drill-down.
@@ -135,15 +140,15 @@ report = synthesize_question(repository, "q_000001", tokens=1200)
 An empty string or a non-question reference raises `LatticeError`; an empty iterable returns the
 empty selection. `get_hypothesis_evidence(repository, question_id)` returns the evidence grouped
 by role (`supports`, `contradicts`, `answers`, `other`); each item keeps its exact `link` kind.
-The surface re-exports the repository, analysis, synthesis, snapshots, discovery, extraction,
-ingestion, checks, models, context, database, MCP metadata and dispatch, web assets and dispatch,
-and error contracts.
+The surface re-exports the repository, analysis, synthesis, snapshots, diffing, discovery,
+extraction, ingestion, checks, models, context, database, MCP metadata and dispatch, web assets
+and dispatch, and error contracts.
 The neurocore design names `synthesize_question` and `extract_claims_for_paper` resolve to
 `synthesize` and `extract_from_paper`; inquiry stays function-based (`ask`, `brief`, `review`).
 
 ### AI Client
 
-For an AI host, `LatticeClient` owns the connection and exposes the same 21 tools (12 in
+For an AI host, `LatticeClient` owns the connection and exposes the same 22 tools (13 in
 read-only mode) as the MCP server, so the tool declarations and the dispatch path come from one
 implementation:
 
@@ -162,8 +167,9 @@ asyncio hosts; it serializes work on one dedicated thread so SQLite's thread aff
 violated. Close the client with the context manager; `close()` is idempotent.
 
 Autonomous agents should start read-only: `LatticeClient("lattice.db", read_only=True)` advertises
-only the non-mutating tools and rejects writes, snapshot paths and network discovery at
-`call_tool`. It requires an existing database, opens it with SQLite `mode=ro` and `query_only`, and
+only the non-mutating tools and rejects writes, snapshot import/export and network discovery at
+`call_tool`; `diff_snapshot` stays available because it only reads snapshot files and the
+database. It requires an existing database, opens it with SQLite `mode=ro` and `query_only`, and
 never creates or migrates the file; the raw repository is unavailable. New tools stay blocked until
 they are reviewed and added to the allowlist. OS-level file permissions remain the right hard
 boundary for other users, and WAL databases may need a readable `-shm` file.
@@ -206,6 +212,7 @@ lattice/
 │   ├── client.py             <- turnkey sync/async client with MCP tool parity
 │   ├── context.py            <- token-budgeted AI views: outline, compact search/related/subgraph
 │   ├── database.py           <- SQLite schema, connection and version refusal
+│   ├── diff.py               <- deterministic snapshot and live-graph diffing
 │   ├── discovery.py          <- pluggable literature discovery (arXiv, Crossref, OpenAlex, EuropePMC, offline)
 │   ├── errors.py             <- the Error/Why/Fix triad
 │   ├── extraction.py         <- automated quote-backed claim and edge extraction
@@ -226,6 +233,7 @@ lattice/
     ├── test_client.py
     ├── test_context.py
     ├── test_database.py
+    ├── test_diff.py
     ├── test_discovery.py
     ├── test_extraction.py
     ├── test_ingest.py
@@ -246,5 +254,5 @@ free-form notes: an agent may only cite an ingested paper, and only through a cl
 the quote it came from. Token budgets and compact AI views are recorded in ADR-010, the web
 outline drawer and BibTeX export in ADR-011, the public integration surface in ADR-013, and its
 input hardening and export inventory in ADR-014, strict question references and a
-self-discovering inventory in ADR-015, the turnkey AI client in ADR-016, and its read-only
-policy and resource parity in ADR-017.
+self-discovering inventory in ADR-015, the turnkey AI client in ADR-016, its read-only
+policy and resource parity in ADR-017, and deterministic snapshot diffing in ADR-019.

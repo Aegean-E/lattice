@@ -15,6 +15,7 @@ from lattice.analysis import (
     related_findings,
 )
 from lattice.context import compact_related, compact_search, compact_subgraph, outline
+from lattice.diff import diff_snapshot, diff_snapshots
 from lattice.discovery import DiscoveryService
 from lattice.errors import LatticeError, fail
 from lattice.extraction import extract_all, extract_from_paper
@@ -97,6 +98,9 @@ TOOLS: List[Dict[str, Any]] = [
           {"path": {"type": "string"}}, ["path"]),
     _tool("import_snapshot", "Import a JSONL snapshot file idempotently.",
           {"path": {"type": "string"}}, ["path"]),
+    _tool("diff_snapshot", "Compare a JSONL snapshot against another snapshot or the live graph; "
+          "reports added, removed and changed papers, questions, claims and edges.",
+          {"old_path": {"type": "string"}, "new_path": {"type": "string"}}, ["old_path"]),
     _tool("stats", "Entity and edge counts.", {}, []),
 ]
 
@@ -353,6 +357,11 @@ def dispatch_tool(repository: Repository, name: str, arguments: Dict[str, Any]) 
         return export_snapshot(repository, Path(_text(arguments, "path")))
     if name == "import_snapshot":
         return import_snapshot(repository, Path(_text(arguments, "path")))
+    if name == "diff_snapshot":
+        new_path = arguments.get("new_path")
+        if new_path:
+            return diff_snapshots(Path(_text(arguments, "old_path")), Path(str(new_path)))
+        return diff_snapshot(repository, Path(_text(arguments, "old_path")))
     if name == "stats":
         return repository.stats()
     raise LatticeError(f"unknown tool '{name}'", "the server advertises its tools in tools/list",

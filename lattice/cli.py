@@ -17,6 +17,7 @@ from lattice.analysis import (
 from lattice.checks import run_checks
 from lattice.context import compact_related, compact_search, compact_subgraph, outline
 from lattice.database import SCHEMA_VERSION, open_database
+from lattice.diff import diff_snapshot, diff_snapshots
 from lattice.discovery import DiscoveryService
 from lattice.errors import LatticeError, fail
 from lattice.extraction import extract_all, extract_from_paper
@@ -156,6 +157,13 @@ def build_parser() -> argparse.ArgumentParser:
     import_cmd = commands.add_parser("import", help="import portable JSONL graph snapshot")
     import_cmd.add_argument("path", help="input JSONL file path")
     import_cmd.set_defaults(handler=_run_import)
+
+    diff_cmd = commands.add_parser(
+        "diff", help="compare a JSONL snapshot against another snapshot or the live graph")
+    diff_cmd.add_argument("old", help="baseline JSONL snapshot file path")
+    diff_cmd.add_argument("new", nargs="?", default=None,
+                          help="newer JSONL snapshot (default: the live database)")
+    diff_cmd.set_defaults(handler=_run_diff)
 
     stats = commands.add_parser("stats", help="entity and edge counts")
     stats.set_defaults(handler=_run_stats)
@@ -513,6 +521,29 @@ def _run_import(args: argparse.Namespace, repository: Repository) -> int:
     ]
     _emit(result, lines, args.json)
     return 0
+
+
+def _run_diff(args: argparse.Namespace, repository: Repository) -> int:
+    """Diff snapshots, or a snapshot against the live graph; exit 1 when they differ."""
+    if args.new:
+        result = diff_snapshots(Path(args.old), Path(args.new))
+    else:
+        result = diff_snapshot(repository, Path(args.old))
+    summary = result["summary"]
+    lines = [
+        f"Diff {result['old']['label']} -> {result['new']['label']}: "
+        f"{summary['added']} added, {summary['removed']} removed, "
+        f"{summary['changed']} changed, {summary['unchanged']} unchanged"
+    ]
+    for title, section in (("Added", result["added"]), ("Removed", result["removed"])):
+        for plural, ids in section.items():
+            for item in ids:
+                lines.append(f"  {title:<7} {plural[:-1]} {item}")
+    for plural, items in result["changed"].items():
+        for item in items:
+            lines.append(f"  Changed {plural[:-1]} {item['id']}: {', '.join(item['fields'])}")
+    _emit(result, lines, args.json)
+    return 1 if summary["added"] + summary["removed"] + summary["changed"] else 0
 
 
 def _run_stats(args: argparse.Namespace, repository: Repository) -> int:

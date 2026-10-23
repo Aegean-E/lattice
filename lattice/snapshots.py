@@ -9,36 +9,46 @@ from lattice.errors import fail
 from lattice.models import normalize_text
 from lattice.repository import Repository
 
+_RECORD_TABLES = (
+    ("paper", "papers"),
+    ("question", "questions"),
+    ("claim", "claims"),
+    ("edge", "edges"),
+)
+
+
+def collect_repository_records(repository: Repository) -> List[Dict[str, Any]]:
+    """Every paper, question, claim and edge as a snapshot record, in stable export order."""
+    records: List[Dict[str, Any]] = []
+    for record_type, table in _RECORD_TABLES:
+        for row in repository.connection.execute(
+                f"SELECT * FROM {table} ORDER BY id").fetchall():
+            records.append({"record_type": record_type, **dict(row)})
+    return records
+
+
+def read_snapshot_records(path: Path) -> List[Dict[str, Any]]:
+    """Read a JSONL snapshot file into validated records."""
+    source = Path(path)
+    if not source.exists() or not source.is_file():
+        fail(f"snapshot '{path}' does not exist",
+             "snapshot reading needs a readable JSONL file",
+             "export a snapshot first or check the file path")
+    try:
+        raw_lines = source.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        fail(f"could not read snapshot '{path}': {exc}",
+             "the file could not be opened as UTF-8 text",
+             "check file permissions and encoding")
+    return _parse_jsonl(raw_lines, str(source))
+
 
 def export_snapshot(repository: Repository, path: Path) -> Dict[str, Any]:
     """Write all papers, questions, claims and edges to a portable JSONL file atomically."""
     target = Path(path).resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
-    papers = [
-        dict(row)
-        for row in repository.connection.execute("SELECT * FROM papers ORDER BY id").fetchall()
-    ]
-    questions = [
-        dict(row)
-        for row in repository.connection.execute("SELECT * FROM questions ORDER BY id").fetchall()
-    ]
-    claims = [
-        dict(row)
-        for row in repository.connection.execute("SELECT * FROM claims ORDER BY id").fetchall()
-    ]
-    edges = [
-        dict(row)
-        for row in repository.connection.execute("SELECT * FROM edges ORDER BY id").fetchall()
-    ]
-    lines: List[str] = []
-    for item in papers:
-        lines.append(json.dumps({"record_type": "paper", **item}, sort_keys=True))
-    for item in questions:
-        lines.append(json.dumps({"record_type": "question", **item}, sort_keys=True))
-    for item in claims:
-        lines.append(json.dumps({"record_type": "claim", **item}, sort_keys=True))
-    for item in edges:
-        lines.append(json.dumps({"record_type": "edge", **item}, sort_keys=True))
+    records = collect_repository_records(repository)
+    lines = [json.dumps(record, sort_keys=True) for record in records]
     payload = ("\n".join(lines) + ("\n" if lines else "")).encode("utf-8")
     temp_path = target.with_name(f".tmp_{target.name}_{os.getpid()}")
     try:
@@ -53,13 +63,11 @@ def export_snapshot(repository: Repository, path: Path) -> Dict[str, Any]:
         fail(f"could not export snapshot to {target}: {exc}",
              "the destination file could not be written atomically",
              "choose a writable output path")
-    return {
-        "path": str(target),
-        "papers": len(papers),
-        "questions": len(questions),
-        "claims": len(claims),
-        "edges": len(edges),
-    }
+    record_table = dict(_RECORD_TABLES)
+    counts = {table: 0 for _, table in _RECORD_TABLES}
+    for record in records:
+        counts[record_table[record["record_type"]]] += 1
+    return {"path": str(target), **counts}
 
 
 def export_bibtex_file(repository: Repository, path: Path) -> Dict[str, Any]:
@@ -92,18 +100,7 @@ def export_bibtex_file(repository: Repository, path: Path) -> Dict[str, Any]:
 
 def import_snapshot(repository: Repository, path: Path) -> Dict[str, Any]:
     """Import a JSONL snapshot idempotently, remapping entity references as needed."""
-    source = Path(path)
-    if not source.exists() or not source.is_file():
-        fail(f"snapshot '{path}' does not exist",
-             "import_snapshot needs a readable JSONL file",
-             "export a snapshot first or check the file path")
-    try:
-        raw_lines = source.read_text(encoding="utf-8").splitlines()
-    except OSError as exc:
-        fail(f"could not read snapshot '{path}': {exc}",
-             "the file could not be opened as UTF-8 text",
-             "check file permissions and encoding")
-    records = _parse_jsonl(raw_lines, str(source))
+    records = read_snapshot_records(path)
     paper_map: Dict[str, str] = {}
     question_map: Dict[str, str] = {}
     claim_map: Dict[str, str] = {}
@@ -138,7 +135,7 @@ def import_snapshot(repository: Repository, path: Path) -> Dict[str, Any]:
         if _import_edge(repository, record, paper_map, claim_map, question_map):
             edges_count += 1
     return {
-        "path": str(source),
+        "path": str(Path(path)),
         "papers": papers_count,
         "questions": questions_count,
         "claims": claims_count,

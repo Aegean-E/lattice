@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `39`
-- **Total Classes**: `51`
-- **Total Top-Level Functions**: `183`
-- **Total Class Methods**: `317`
-- **Total Source Lines**: `10833`
+- **Total Python Modules**: `41`
+- **Total Classes**: `54`
+- **Total Top-Level Functions**: `193`
+- **Total Class Methods**: `332`
+- **Total Source Lines**: `11191`
 
 ---
 
@@ -59,7 +59,7 @@
 ### [`lattice/api.py`](lattice/api.py)
 > *Stable public Python surface for host integrations such as neurocore.*
 
-**Size**: `285` lines (`7700` bytes)
+**Size**: `297` lines (`7971` bytes)
 
 **Functions:**
 - `def _question_key(value)` - *Normalize `question:q_000001` or `q_000001` to the bare identifier.*
@@ -100,7 +100,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `594` lines (`26807` bytes)
+**Size**: `625` lines (`28351` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -124,6 +124,7 @@
 - `def _run_synthesize(args, repository)` - *Generate a consensus-scored scientific synthesis report.*
 - `def _run_export(args, repository)` - *Export the graph to an atomic JSONL snapshot or BibTeX bibliography.*
 - `def _run_import(args, repository)` - *Import a JSONL snapshot idempotently.*
+- `def _run_diff(args, repository)` - *Diff snapshots, or a snapshot against the live graph; exit 1 when they differ.*
 - `def _run_stats(args, repository)` - *Print counts.*
 - `def _run_check(args, repository)` - *Run the integrity gate and return 1 on any error.*
 - `def _run_mcp(args, repository)` - *Serve MCP on stdio; stdout carries protocol messages only.*
@@ -135,7 +136,7 @@
 ### [`lattice/client.py`](lattice/client.py)
 > *Turnkey client facade for AI hosts: own one connection, call MCP-parity tools.*
 
-**Size**: `321` lines (`14197` bytes)
+**Size**: `329` lines (`14567` bytes)
 
 **Classes:**
 - `class LatticeClient` - *A synchronous, context-managed graph client with MCP tool parity.*
@@ -172,6 +173,7 @@
   - Method `.detect_contradictions(auto_link)`
   - Method `.export_snapshot(path)`
   - Method `.import_snapshot(path)`
+  - Method `.diff_snapshot(old_path, new_path)` - *Diff a baseline snapshot against another snapshot or the live graph.*
   - Method `.stats()`
 - `class AsyncLatticeClient` - *An asyncio facade that serializes the sync client on one dedicated thread.*
   - Method `.__init__(db_path, read_only)`
@@ -222,6 +224,21 @@
 - `def _add_column_if_missing(connection, table, column, definition)` - *Add one column once, so an interrupted migration can be retried.*
 - `def _migrate_v1_to_v2(connection)` - *Add searchable tags and study type, backfilling them for existing papers.*
 - `def schema_version(connection)` - *The declared schema version, or 0 when the metadata row is missing.*
+
+---
+
+### [`lattice/diff.py`](lattice/diff.py)
+> *Deterministic diffing between JSONL graph snapshots and the live repository.*
+
+**Size**: `101` lines (`4317` bytes)
+
+**Functions:**
+- `def _index_records(records)` - *Key snapshot records by `(record_type, id)`; unknown record types are skipped.*
+- `def _counts(records)` - *Per-type record counts keyed by plural table names.*
+- `def _database_label(repository)` - *The repository's database file path, or `:memory:` for an in-memory graph.*
+- `def diff_records(old_records, new_records)` - *Compare two snapshot record sets and report added, removed and changed entities.*
+- `def diff_snapshots(old_path, new_path)` - *Diff two JSONL snapshot files: the baseline `old_path` against the newer `new_path`.*
+- `def diff_snapshot(repository, path)` - *Diff a JSONL snapshot (baseline) against the live repository (current).*
 
 ---
 
@@ -357,7 +374,7 @@
 ### [`lattice/mcp.py`](lattice/mcp.py)
 > *A dependency-free MCP stdio server exposing the graph as JSON-RPC tools.*
 
-**Size**: `397` lines (`19551` bytes)
+**Size**: `406` lines (`20147` bytes)
 
 **Functions:**
 - `def _tool(name, description, properties, required)` - *An MCP tool declaration with a JSON Schema for its arguments.*
@@ -460,9 +477,11 @@
 ### [`lattice/snapshots.py`](lattice/snapshots.py)
 > *Portable JSONL graph snapshots with atomic write and idempotent merge import.*
 
-**Size**: `241` lines (`9490` bytes)
+**Size**: `238` lines (`9420` bytes)
 
 **Functions:**
+- `def collect_repository_records(repository)` - *Every paper, question, claim and edge as a snapshot record, in stable export order.*
+- `def read_snapshot_records(path)` - *Read a JSONL snapshot file into validated records.*
 - `def export_snapshot(repository, path)` - *Write all papers, questions, claims and edges to a portable JSONL file atomically.*
 - `def export_bibtex_file(repository, path)` - *Write papers in the graph to a BibTeX file atomically.*
 - `def import_snapshot(repository, path)` - *Import a JSONL snapshot idempotently, remapping entity references as needed.*
@@ -566,7 +585,7 @@
 ### [`tests/test_api.py`](tests/test_api.py)
 > *Unit tests for the public `lattice.api` integration surface.*
 
-**Size**: `270` lines (`9929` bytes)
+**Size**: `275` lines (`10055` bytes)
 
 **Classes:**
 - `class PublicApiTests` - *Verify the facade stays complete, inert at import time and faithful.*
@@ -637,7 +656,7 @@
 ### [`tests/test_client.py`](tests/test_client.py)
 > *Tests for the turnkey client facade used by AI hosts.*
 
-**Size**: `276` lines (`13433` bytes)
+**Size**: `278` lines (`13545` bytes)
 
 **Classes:**
 - `class LatticeClientTests` - *Verify lifecycle, tool parity, convenience methods and failure modes.*
@@ -709,6 +728,35 @@
   - Method `.test_existing_database_is_current_and_query_only()`
   - Method `.test_in_memory_read_only_is_query_only()`
   - Method `.test_v1_database_is_not_migrated_read_only()`
+
+---
+
+### [`tests/test_diff.py`](tests/test_diff.py)
+> *Tests for graph snapshot diffing: record comparison, snapshot pairs and live-repository diffs.*
+
+**Size**: `193` lines (`9360` bytes)
+
+**Classes:**
+- `class DiffRecordsTests` - *The pure record comparison behind every diff entry point.*
+  - Method `.test_reports_added_removed_changed_and_unchanged()`
+  - Method `.test_created_at_differences_are_not_changes()`
+  - Method `.test_identical_records_in_any_order_report_no_differences()`
+- `class SnapshotDiffTests` - *Diff exported snapshot files and snapshots against the live repository.*
+  - Method `.setUp()`
+  - Method `.test_diff_snapshots_between_two_files()`
+  - Method `.test_diff_snapshot_against_live_repository()`
+  - Method `.test_diff_snapshot_identical_to_repository_reports_nothing()`
+  - Method `.test_diff_missing_snapshot_file_fails()`
+- `class DiffCliTests` - *The `diff` command against a temporary database file.*
+  - Method `.setUp()`
+  - Method `.run_cli(*arguments)`
+  - Method `.test_diff_against_unchanged_graph_exits_zero()`
+  - Method `.test_diff_against_changed_graph_exits_one_and_reports()`
+  - Method `.test_diff_between_two_snapshot_files()`
+  - Method `.test_diff_missing_snapshot_fails()`
+
+**Functions:**
+- `def seed_graph(repository)` - *One paper, claim, question and edge as a diffing baseline.*
 
 ---
 

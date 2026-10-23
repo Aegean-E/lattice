@@ -34,6 +34,7 @@ from lattice.context import (
     outline,
 )
 from lattice.database import SCHEMA, SCHEMA_VERSION, open_database, schema_version, utc_now
+from lattice.diff import diff_records, diff_snapshot, diff_snapshots
 from lattice.discovery import (
     ArxivProvider,
     CrossrefProvider,
@@ -107,7 +108,13 @@ from lattice.models import (
     validate_stance,
 )
 from lattice.repository import PAPER_FIELDS, Repository
-from lattice.snapshots import export_bibtex_file, export_snapshot, import_snapshot
+from lattice.snapshots import (
+    collect_repository_records,
+    export_bibtex_file,
+    export_snapshot,
+    import_snapshot,
+    read_snapshot_records,
+)
 from lattice.synthesis import (
     SynthesisReport,
     cluster_claims,
@@ -222,6 +229,7 @@ __all__ = sorted([
     "brief",
     "build_evidence_matrix",
     "cluster_claims",
+    "collect_repository_records",
     "compact_related",
     "compact_search",
     "compact_subgraph",
@@ -229,6 +237,9 @@ __all__ = sorted([
     "default_registry",
     "derive_tags",
     "detect_contradictions",
+    "diff_records",
+    "diff_snapshot",
+    "diff_snapshots",
     "dispatch_tool",
     "dispatch_web_request",
     "empty_record",
@@ -268,6 +279,7 @@ __all__ = sorted([
     "parse_text",
     "rank_influential_entities",
     "read_resource",
+    "read_snapshot_records",
     "related_findings",
     "review",
     "run_checks",

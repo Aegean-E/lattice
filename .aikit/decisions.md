@@ -397,3 +397,29 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Consequences**: The first screen presents one primary path instead of a wall of controls, and
   the tab bar remains usable on small viewports. All existing commands, endpoints and identifiers
   remain available through the overflow menu or disclosures. No API, schema or persistence change.
+
+## ADR-019: Deterministic Snapshot Diffing (2026-10-23)
+
+- **Status**: Accepted
+- **Context**: Snapshots could be exported and imported but never compared. A researcher or
+  agent holding a baseline JSONL export had no way to see how the evidence graph had evolved
+  since, and scripts had no gate for "did the graph change".
+- **Decision**:
+  1. Add `lattice/diff.py` with three public functions: `diff_records` (pure comparison of two
+     record sets), `diff_snapshots` (two JSONL files) and `diff_snapshot` (a baseline file
+     against the live repository). Records are matched by `(record_type, id)`; the report lists
+     added and removed ids plus changed ids with their changed field names, sorted for
+     determinism.
+  2. The volatile `created_at` field never counts as a change, so an idempotent re-import of a
+     snapshot diffs as unchanged rather than reporting timestamp noise.
+  3. Extract `read_snapshot_records` and `collect_repository_records` in `snapshots.py` so
+     export, import and diff share one record reader; `export_snapshot` and `import_snapshot`
+     now build on them.
+  4. Surface the feature everywhere snapshots already live: the `diff OLD [NEW]` CLI command
+     (exit code 1 when the graphs differ, like `git diff`), the read-only-allowed
+     `diff_snapshot` MCP tool with `old_path`/optional `new_path`, client convenience methods
+     (async facade proxies them automatically), and `lattice.api` re-exports.
+- **Consequences**: Graph evolution becomes inspectable and scriptable. Ids are stable within
+  one database lineage, so diffs are meaningful for snapshots of an evolving graph; two
+  unrelated graphs still compare deterministically by id. Read-only clients gain a new allowed
+  tool because diffing only reads files and the database. No schema or persistence change.
