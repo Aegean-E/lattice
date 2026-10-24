@@ -321,6 +321,29 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(payload["ingested"], 1)
         self.assertEqual(payload["papers"][0]["title"], "CSL Study Title")
 
+    def test_api_prisma_and_screen_endpoints(self) -> None:
+        resp = dispatch_web_request(self.repository, "GET", "/")
+        self.assertIn("PRISMA 2020 Screening", resp.body)
+        self.assertIn("loadPrismaFlow()", resp.body)
+        self.assertIn('id="prisma-card"', resp.body)
+        self.assertIn('id="screen-paper-select"', resp.body)
+
+        self.request_json("POST", "/api/demo", {})
+        paper_id = self.repository.search("sleep")["papers"][0]["id"]
+        status, flow_res = self.request_json("GET", "/api/prisma")
+        self.assertEqual(status, 200)
+        self.assertIn("flow", flow_res)
+        self.assertIn("svg", flow_res)
+        self.assertIn("<svg", flow_res["svg"])
+
+        status, scr_res = self.request_json("POST", "/api/screen", {
+            "paper_id": paper_id,
+            "status": "included",
+            "notes": "Verified RCT design",
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(scr_res["decision"]["status"], "included")
+
 
 if __name__ == "__main__":
     unittest.main()

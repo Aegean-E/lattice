@@ -100,6 +100,14 @@ def dispatch_web_request(repository: Repository, method: str, path: str,
             return _json_response(200, _handle_path(repository, query))
         if verb == "GET" and route == "/api/hypothesize":
             return _json_response(200, _handle_hypothesize(repository, query))
+        if verb == "GET" and route == "/api/prisma":
+            from lattice.screening import compute_prisma_flow, render_prisma_markdown, render_prisma_svg
+            flow = compute_prisma_flow(repository)
+            return _json_response(200, {
+                "flow": flow.to_dict(),
+                "svg": render_prisma_svg(flow),
+                "markdown": render_prisma_markdown(flow),
+            })
         if verb == "POST":
             payload = _parse_json_body(body)
             return _dispatch_post(repository, route, payload)
@@ -186,6 +194,16 @@ def _dispatch_post(repository: Repository, route: str,
             note=str(payload.get("note") or ""),
         )
         return _json_response(200, {"edge": edge.to_dict()})
+    if route == "/api/screen":
+        from lattice.screening import record_screening_decision
+        decision = record_screening_decision(
+            repository,
+            str(payload.get("paper") or payload.get("paper_id") or ""),
+            status=str(payload.get("status") or ""),
+            reason=str(payload.get("reason") or ""),
+            notes=str(payload.get("notes") or ""),
+        )
+        return _json_response(200, {"decision": decision.to_dict()})
     return _json_response(404, {"error": f"route not found: POST {route}"})
 
 
@@ -1049,6 +1067,43 @@ WEB_HTML = """<!DOCTYPE html>
             <button class="btn secondary" onclick="addPaperManual()">Save Paper</button>
           </div>
         </details>
+
+        <div class="card" id="prisma-card">
+          <h2>
+            <span>PRISMA 2020 Screening &amp; Flow</span>
+            <button class="btn secondary sm" onclick="loadPrismaFlow()">Refresh Flow</button>
+          </h2>
+          <div class="form-row">
+            <select id="screen-paper-select" style="flex:2">
+              <option value="">Select paper to screen...</option>
+            </select>
+            <select id="screen-status-select" style="flex:1" onchange="toggleScreenReason()">
+              <option value="included">Include in Synthesis</option>
+              <option value="screened_in">Screen In (Pass Title/Abstract)</option>
+              <option value="screened_out">Screen Out (Title/Abstract)</option>
+              <option value="excluded">Exclude (Full-Text)</option>
+            </select>
+          </div>
+          <div class="form-row" id="screen-reason-row" style="display:none">
+            <select id="screen-reason-select" style="flex:1">
+              <option value="wrong_population">Wrong Population</option>
+              <option value="out_of_scope_design">Out of Scope Design</option>
+              <option value="animal_model">Animal Model</option>
+              <option value="in_vitro_only">In Vitro Only</option>
+              <option value="uncontrolled">Uncontrolled</option>
+              <option value="insufficient_data">Insufficient Data</option>
+              <option value="duplicate">Duplicate</option>
+              <option value="other">Other</option>
+            </select>
+            <input id="screen-notes" placeholder="Reviewer notes (optional)" style="flex:1.5">
+          </div>
+          <div class="form-row">
+            <button class="btn" onclick="submitScreening()">Record Decision</button>
+            <button class="btn secondary" onclick="downloadPrismaSvg()">Download Flow SVG</button>
+          </div>
+          <div id="prisma-stats-bar" style="font-size:0.8rem;color:var(--muted);margin-top:8px"></div>
+          <div id="prisma-diagram-container" style="margin-top:10px;overflow-x:auto;max-height:280px;display:none;background:#0f172a;border-radius:6px;padding:8px"></div>
+        </div>
       </div>
 
       <div>
@@ -1359,6 +1414,7 @@ async function refreshOverview() {
     renderPapers(data.papers, data.papers.length);
   }
   renderClaims(data.claims);
+  loadPrismaFlow();
 }
 
 function renderQuestions(questions) {
@@ -1397,6 +1453,13 @@ function renderQuestions(questions) {
 function renderPaperOptions(papers) {
   const sel = document.getElementById('claim-paper');
   sel.innerHTML = papers.map(p => `<option value="${esc(p.id)}">[${esc(p.id)}] ${esc(p.title)} (${esc(p.year || 'n.d.')})</option>`).join('');
+  const screenSel = document.getElementById('screen-paper-select');
+  if (screenSel) {
+    const cur = screenSel.value;
+    screenSel.innerHTML = '<option value="">Select paper to screen...</option>' +
+      papers.map(p => `<option value="${esc(p.id)}">[${esc(p.id)}] ${esc(p.title)}</option>`).join('');
+    if (cur) screenSel.value = cur;
+  }
 }
 
 function renderStudyTypeOptions(studyTypes) {
@@ -1826,6 +1889,67 @@ function downloadSvg() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   notify('SVG graph exported successfully');
+}
+
+async function loadPrismaFlow() {
+  try {
+    const data = await api('GET', '/api/prisma');
+    const flow = data.flow || {};
+    const bar = document.getElementById('prisma-stats-bar');
+    if (bar) {
+      bar.innerHTML = `<strong>PRISMA Flow:</strong> Identified: ${flow.identified || 0} &bull; Screened: ${flow.screened || 0} &bull; Screened Out: ${flow.screened_out || 0} &bull; Assessed: ${flow.assessed_for_eligibility || 0} &bull; Excluded: ${flow.excluded || 0} &bull; Included: <span style="color:#86efac;font-weight:600">${flow.included || 0}</span>`;
+    }
+    const container = document.getElementById('prisma-diagram-container');
+    if (container && data.svg) {
+      container.innerHTML = data.svg;
+      container.style.display = 'block';
+    }
+  } catch (err) {}
+}
+
+function toggleScreenReason() {
+  const status = document.getElementById('screen-status-select').value;
+  const row = document.getElementById('screen-reason-row');
+  if (row) {
+    row.style.display = (status === 'screened_out' || status === 'excluded') ? 'flex' : 'none';
+  }
+}
+
+async function submitScreening() {
+  const paperId = document.getElementById('screen-paper-select').value;
+  if (!paperId) {
+    notify('Select a paper to screen', true);
+    return;
+  }
+  const status = document.getElementById('screen-status-select').value;
+  const reason = document.getElementById('screen-reason-select').value;
+  const notes = document.getElementById('screen-notes').value.trim();
+  try {
+    await api('POST', '/api/screen', { paper_id: paperId, status, reason, notes });
+    notify(`Paper ${paperId} recorded as ${status}`);
+    await loadPrismaFlow();
+  } catch (err) {
+    notify(err.message, true);
+  }
+}
+
+async function downloadPrismaSvg() {
+  try {
+    const data = await api('GET', '/api/prisma');
+    if (!data.svg) throw new Error('No PRISMA SVG available');
+    const blob = new Blob([data.svg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'prisma_2020_flow.svg';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    notify('PRISMA 2020 SVG exported');
+  } catch (err) {
+    notify(err.message, true);
+  }
 }
 
 function renderSvgGraph(data) {

@@ -9,8 +9,8 @@
 - **Total Python Modules**: `47`
 - **Total Classes**: `61`
 - **Total Top-Level Functions**: `234`
-- **Total Class Methods**: `386`
-- **Total Source Lines**: `14159`
+- **Total Class Methods**: `387`
+- **Total Source Lines**: `14306`
 
 ---
 
@@ -561,7 +561,7 @@
 ### [`lattice/web.py`](lattice/web.py)
 > *Zero-dependency web server and human-friendly Research Studio UI for Lattice.*
 
-**Size**: `2293` lines (`93781` bytes)
+**Size**: `2417` lines (`99473` bytes)
 
 **Classes:**
 - `class WebResponse` - *Immutable HTTP response returned by `dispatch_web_request`.*
@@ -1063,7 +1063,7 @@
 ### [`tests/test_web.py`](tests/test_web.py)
 > *Tests for the web-based human UI and JSON API dispatcher (zero sockets).*
 
-**Size**: `327` lines (`14637` bytes)
+**Size**: `350` lines (`15640` bytes)
 
 **Classes:**
 - `class WebInterfaceTests` - *Verify HTML rendering and REST API handlers via pure request dispatch.*
@@ -1085,6 +1085,7 @@
   - Method `.test_api_path_endpoint()`
   - Method `.test_api_hypothesize_endpoint()`
   - Method `.test_csl_json_ingest_and_visual_controls()`
+  - Method `.test_api_prisma_and_screen_endpoints()`
 
 ---
 
