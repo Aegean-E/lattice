@@ -35,6 +35,9 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("copySynthesisMarkdown", resp.body)
         self.assertIn("copySynthesisBibtex", resp.body)
         self.assertIn("outline-drawer", resp.body)
+        self.assertIn('id="st-gaps"', resp.body)
+        self.assertIn('id="st-contested"', resp.body)
+        self.assertIn('id="graph-node-detail"', resp.body)
 
     def test_index_has_guided_cold_start_and_compact_actions(self) -> None:
         resp = dispatch_web_request(self.repository, "GET", "/")

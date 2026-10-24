@@ -10,7 +10,7 @@
 - **Total Classes**: `57`
 - **Total Top-Level Functions**: `212`
 - **Total Class Methods**: `343`
-- **Total Source Lines**: `11728`
+- **Total Source Lines**: `11815`
 
 ---
 
@@ -519,7 +519,7 @@
 ### [`lattice/web.py`](lattice/web.py)
 > *Zero-dependency web server and human-friendly Research Studio UI for Lattice.*
 
-**Size**: `1979` lines (`78328` bytes)
+**Size**: `2060` lines (`82678` bytes)
 
 **Classes:**
 - `class WebResponse` - *Immutable HTTP response returned by `dispatch_web_request`.*
@@ -967,7 +967,7 @@
 ### [`tests/test_ui_inventory.py`](tests/test_ui_inventory.py)
 > *The UI inventory proof covers the studio's controls, handlers, routes and theme tokens.*
 
-**Size**: `35` lines (`1319` bytes)
+**Size**: `38` lines (`1502` bytes)
 
 **Classes:**
 - `class InventoryTest`
@@ -979,7 +979,7 @@
 ### [`tests/test_web.py`](tests/test_web.py)
 > *Tests for the web-based human UI and JSON API dispatcher (zero sockets).*
 
-**Size**: `266` lines (`11627` bytes)
+**Size**: `269` lines (`11789` bytes)
 
 **Classes:**
 - `class WebInterfaceTests` - *Verify HTML rendering and REST API handlers via pure request dispatch.*

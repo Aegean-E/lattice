@@ -1,49 +1,14 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "lattice-validation-v1",
+    "task_id": "lattice-studio-evidence-v1",
     "last_phase": "phase 4",
     "active_phase": 5,
     "status": "completed",
-    "updated_at": 1792778789.658172,
-    "completed_at": 1792830895.3049755
+    "updated_at": 1792831713.724417,
+    "completed_at": 1792831717.5227594
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-client-safety-v1",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[2/4]-[4/4] Delivered read-only LatticeClient policy: 12-tool schema filter with auto_link removed, call_tool rejects writes/network/snapshot tools and auto_link, repository hidden; db_path validation; public mcp.read_resource/get_prompt plus client resource/prompt schemas and readers; ADR-017, README and map updated. checklists: passed; 164/164 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792665890.8014514,
-      "timestamp_str": "2026-10-22 13:44:50"
-    },
-    {
-      "task_id": "lattice-client-safety-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-client-safety-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792665899.1339164,
-      "timestamp_str": "2026-10-22 13:44:59"
-    },
-    {
-      "task_id": "lattice-readonly-db-v1",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/3] Hybrid tests: read-only open must not create a missing file, must enforce query_only, must refuse a v1 migration, must work for :memory:; client read-only must require an existing DB; malformed prompt tokens/arguments must return -32602. [2/3] Add open_database(read_only), close-on-failure, SQLite mode=ro/query_only and schema verification; harden get_prompt arguments. [3/3] Update ADR-017, README, map and run gates.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792673575.9344983,
-      "timestamp_str": "2026-10-22 15:52:55",
-      "impact_assessment": {
-        "why": "Verification showed a read-only client still created/migrated the database and the MCP prompt endpoint leaked ValueError instead of a JSON-RPC error; the async repository error also disagreed with the sync client.",
-        "benefits": "Read-only is now a file-level guarantee as well as a tool-surface policy, malformed prompts fail safely at the protocol boundary, and both client facades raise the same LatticeError for repository access.",
-        "risks": "contract: open_database gains a backward-compatible read_only keyword and refuses missing/v1 files in that mode; dependency: standard library sqlite3/pathlib only; concurrency: unchanged; state: read-only paths do not write or migrate.",
-        "mitigation": "Open existing read-only files with mode=ro and query_only, verify the schema without migrating, close connections on every failure path, validate prompt arguments before synthesis, and pin each behavior with database, client and MCP tests."
-      }
-    },
     {
       "task_id": "lattice-readonly-db-v1",
       "phase": "phase 4",
@@ -237,6 +202,41 @@
       "status": "completed",
       "timestamp": 1792830895.3049781,
       "timestamp_str": "2026-10-24 11:34:55"
+    },
+    {
+      "task_id": "lattice-studio-evidence-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/3] Plan: Research Studio Evidence Health and Graph Inspector integration - (1) add Evidence Health metrics in header stats bar and outline drawer, (2) add Graph Node Inspector card displaying full quote/provenance on node selection, (3) verify with AIKit UI guard and Phase 4 gates",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792831286.4514558,
+      "timestamp_str": "2026-10-24 11:41:26",
+      "impact_assessment": {
+        "why": "the Research Studio lacked live visual feedback for the evidence health block (gaps and contested counts) added in ADR-021, and clicking graph nodes lacked an immediate detailed provenance inspector card",
+        "benefits": "researchers see evidence health and coverage gaps in real time across the stats bar and corpus outline drawer, and clicking any graph node instantly reveals its assertion, quote, and locator without leaving the graph tab",
+        "risks": "contract: surface bounded to lattice/web.py within 400 lines budget; dependency: none, stdlib only; concurrency: client-side DOM updates; state: no schema changes",
+        "mitigation": "re-run python aikit.py ui verify lattice, dogfood and all unittests; keep existing 116 inventory entries intact so no removals occur"
+      }
+    },
+    {
+      "task_id": "lattice-studio-evidence-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[3/3] Delivered Research Studio Evidence Health and Graph Inspector: (1) added Gaps and Contested pills to header stats bar, (2) embedded Evidence Health metrics breakdown in Corpus Outline drawer, (3) added #graph-node-detail card under #svg-container with instant provenance inspection on node click, (4) verified through AIKit UI guard contract (0 strikes, 0 lost inventory entries), passing all 195 unit tests and 25/25 dogfood steps; ADR-022 recorded. checklists: passed.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792831713.724417,
+      "timestamp_str": "2026-10-24 11:48:33"
+    },
+    {
+      "task_id": "lattice-studio-evidence-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-studio-evidence-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792831717.5227606,
+      "timestamp_str": "2026-10-24 11:48:37"
     }
   ]
 }

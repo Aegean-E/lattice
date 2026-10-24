@@ -821,6 +821,8 @@ WEB_HTML = """<!DOCTYPE html>
     <div class="pill">Claims <strong id="st-claims">0</strong></div>
     <div class="pill">Questions <strong id="st-questions">0</strong></div>
     <div class="pill">Edges <strong id="st-edges">0</strong></div>
+    <div class="pill" title="Research questions lacking supporting or opposing evidence">Gaps <strong id="st-gaps">0</strong></div>
+    <div class="pill" title="Research questions with both supporting and opposing claims">Contested <strong id="st-contested">0</strong></div>
     <div class="pill ok" id="st-gate">Gate: PASS</div>
     <button class="btn sm" onclick="loadDemo()">Load Demo Corpus</button>
     <details class="more-actions">
@@ -1160,6 +1162,16 @@ WEB_HTML = """<!DOCTYPE html>
           <div id="svg-container" style="background:#090e1a;border:1px solid var(--border);border-radius:10px;min-height:420px;display:flex;align-items:center;justify-content:center;overflow:hidden">
             <span style="color:var(--muted);font-size:0.88rem">Select an entity to visualize its connected claims, papers, and questions.</span>
           </div>
+          <div id="graph-node-detail" style="margin-top:12px;display:none" class="item">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <div>
+                <span id="gnd-type" class="badge"></span>
+                <strong id="gnd-ref" style="margin-left:6px"></strong>
+              </div>
+              <button class="btn sm secondary" onclick="loadSubgraph()">Recenter on this node</button>
+            </div>
+            <div id="gnd-body" style="font-size:0.85rem"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1252,6 +1264,11 @@ async function refreshOverview() {
   document.getElementById('st-claims').textContent = data.stats.claims;
   document.getElementById('st-questions').textContent = data.stats.questions;
   document.getElementById('st-edges').textContent = data.stats.edges;
+  const ev = (data.stats && data.stats.evidence) || {};
+  const gapsEl = document.getElementById('st-gaps');
+  if (gapsEl) gapsEl.textContent = ev.coverage_gaps !== undefined ? ev.coverage_gaps : 0;
+  const contEl = document.getElementById('st-contested');
+  if (contEl) contEl.textContent = ev.contested_questions !== undefined ? ev.contested_questions : 0;
   const gate = document.getElementById('st-gate');
   gate.textContent = data.check.passed ? 'Gate: PASS' : ('Gate: ' + data.check.errors.length + ' ERR');
   gate.className = 'pill ' + (data.check.passed ? 'ok' : 'fail');
@@ -1601,9 +1618,66 @@ async function createClaim() {
   }
 }
 
+let CURRENT_SUBGRAPH = null;
+
+function showNodeDetail(ref, nodes) {
+  const box = document.getElementById('graph-node-detail');
+  if (!box) return;
+  const list = nodes || (CURRENT_SUBGRAPH && CURRENT_SUBGRAPH.nodes) || [];
+  const node = list.find(n => n.ref === ref || n.id === ref);
+  if (!node) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'block';
+  const typeEl = document.getElementById('gnd-type');
+  const refEl = document.getElementById('gnd-ref');
+  const bodyEl = document.getElementById('gnd-body');
+  const type = node.type || (ref.startsWith('p_') ? 'paper' : ref.startsWith('q_') ? 'question' : 'claim');
+  typeEl.textContent = type.toUpperCase();
+  typeEl.className = 'badge ' + (type === 'question' ? 'purple' : type === 'claim' ? 'study' : '');
+  refEl.textContent = node.ref || node.id || ref;
+
+  let body = '';
+  if (type === 'paper') {
+    body = `
+      <div style="font-weight:600;margin-bottom:4px">${esc(node.title || '')}</div>
+      <div style="color:var(--muted);font-size:0.8rem;margin-bottom:4px">
+        ${esc(node.authors || 'Unknown')} (${esc(node.year || 'n.d.')})
+        ${node.venue ? '&middot; ' + esc(node.venue) : ''}
+        ${node.study_type ? '&middot; <span class="badge study">' + esc(node.study_type) + '</span>' : ''}
+      </div>
+      ${node.abstract ? '<div style="color:var(--muted);font-size:0.78rem;line-height:1.4">' + esc(node.abstract.slice(0, 300)) + (node.abstract.length > 300 ? '...' : '') + '</div>' : ''}
+    `;
+  } else if (type === 'claim') {
+    body = `
+      <div style="font-weight:600;margin-bottom:4px">${esc(node.assertion || node.text || '')}</div>
+      ${node.quote ? '<div style="color:var(--muted);font-style:italic;font-size:0.8rem;margin-bottom:4px;border-left:2px solid var(--border);padding-left:8px">"${esc(node.quote)}"</div>' : ''}
+      <div style="color:var(--muted);font-size:0.75rem">
+        ${node.locator ? 'Locator: ' + esc(node.locator) + ' &middot; ' : ''}
+        Confidence: ${node.confidence !== undefined ? node.confidence : 1.0}
+        ${node.paper_id ? ' &middot; Paper: ' + esc(node.paper_id) : ''}
+      </div>
+    `;
+  } else if (type === 'question') {
+    body = `
+      <div style="font-weight:600;margin-bottom:4px">${esc(node.text || node.prompt || '')}</div>
+      <div style="color:var(--muted);font-size:0.75rem">Status: <span class="badge">${esc(node.status || 'open')}</span></div>
+    `;
+  }
+  bodyEl.innerHTML = body;
+}
+
 function inspectGraph(ref) {
   document.getElementById('graph-ref').value = ref;
   openTab('graph');
+  if (CURRENT_SUBGRAPH && CURRENT_SUBGRAPH.nodes) {
+    const existing = CURRENT_SUBGRAPH.nodes.find(n => n.ref === ref || n.id === ref);
+    if (existing) {
+      showNodeDetail(ref, CURRENT_SUBGRAPH.nodes);
+      return;
+    }
+  }
   loadSubgraph();
 }
 
@@ -1623,9 +1697,11 @@ async function loadSubgraph() {
 }
 
 function renderSvgGraph(data) {
+  CURRENT_SUBGRAPH = data;
   const container = document.getElementById('svg-container');
   const nodes = data.nodes || [];
   const edges = data.edges || [];
+  showNodeDetail(data.root, nodes);
   if (!nodes.length) {
     container.innerHTML = '<span style="color:var(--muted)">No nodes found.</span>';
     return;
@@ -1924,12 +2000,17 @@ async function openOutlineDrawer() {
         Estimated orientation footprint: ~${res.used_tokens} tokens
       </div>
       <div class="card" style="margin-bottom:12px">
-        <h3 style="margin:0 0 8px;font-size:0.95rem">Corpus Entities</h3>
-        <div class="stats-bar" style="margin:0">
+        <h3 style="margin:0 0 8px;font-size:0.95rem">Corpus Entities & Evidence Health</h3>
+        <div class="stats-bar" style="margin:0;flex-wrap:wrap">
           <div class="pill">Papers <strong>${res.counts.papers}</strong></div>
           <div class="pill">Claims <strong>${res.counts.claims}</strong></div>
           <div class="pill">Questions <strong>${res.counts.questions}</strong></div>
           <div class="pill">Edges <strong>${res.counts.edges}</strong></div>
+          ${res.counts.evidence ? `
+          <div class="pill">Claims/Paper <strong>${res.counts.evidence.claims_per_paper}</strong></div>
+          <div class="pill">Gaps <strong>${res.counts.evidence.coverage_gaps}</strong></div>
+          <div class="pill">Contested <strong>${res.counts.evidence.contested_questions}</strong></div>
+          ` : ''}
         </div>
       </div>
       <div class="card" style="margin-bottom:12px">

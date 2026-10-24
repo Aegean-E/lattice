@@ -479,3 +479,15 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   and graph health is measurable from any database. The dogfood found two harness bugs during
   adoption (wrong search parameter name, comparing an import against a since-evolved database)
   and now guards both. `stats` grows additive keys only; no schema change.
+
+## ADR-022: Research Studio Evidence Health and Graph Inspector (2026-10-24)
+
+- **Status**: Accepted
+- **Context**: The Web Research Studio lacked visual feedback for the evidence health block (gaps and contested counts) introduced in ADR-021, and clicking nodes in the interactive SVG diagram immediately re-centered and reloaded the whole graph without offering an on-page provenance inspection card for the selected entity.
+- **Decision**:
+  1. Add `Gaps` and `Contested` pills to the header stats bar (`st-gaps`, `st-contested`) and populate them from `/api/overview`'s `data.stats.evidence`.
+  2. Embed the Evidence Health metrics breakdown (`Claims/Paper`, `Gaps`, `Contested`) in the Corpus Outline drawer.
+  3. Add an interactive `#graph-node-detail` inspector card directly under `#svg-container`. When any node in the SVG diagram is clicked, display its entity type badge, reference id, full title or assertion text, verbatim quote (for claims), locator, confidence, and source paper metadata without forcing an immediate subgraph re-query. Provide a dedicated "Recenter on this node" action for multi-hop drilling.
+  4. Bound all UI additions within the AIKit UI guard contract (`.aikit/ui.json`, `studio` surface in `lattice/web.py`), passing `aikit ui verify` with 0 strikes and preserving all 116 baseline inventory entries.
+- **Consequences**: Researchers immediately see coverage gaps and contested findings in the header and outline drawer, and provenance inspection during multi-hop graph exploration becomes seamless without visual re-layout disruption. All 195 tests, dogfood (25/25), and UI inventory proofs pass. No schema change.
+

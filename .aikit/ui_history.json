@@ -1,0 +1,16 @@
+[
+  {
+    "schema": 1,
+    "surface": "studio",
+    "baseline_commit": "78b81d7e74819a944f6fb1ba81dab869e6ece701",
+    "contract_hash": "b4c1f390fe70659340264ecbcdfae76132b191b06df7c407b85c8e77316ab763",
+    "started_at": 1792831257.5274873,
+    "finished_at": 1792831596.6089861,
+    "strikes": 0,
+    "reviewer": "",
+    "allowed_removals": [],
+    "final_snapshot_digest": "c3ecbc5070f6e2834ff8a49fccf1b439da207e0bf01f1c55f7228f9f37956f25",
+    "final_snapshot_entries": 122,
+    "surface_digest": "07755ace768407408a437cb171f899b58f4d062c0cc551b9cbfa258968692d89"
+  }
+]
