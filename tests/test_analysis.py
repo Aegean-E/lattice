@@ -10,6 +10,7 @@ from lattice.analysis import (
     find_path,
     find_related_findings,
     link_related_findings,
+    propose_hypotheses,
     rank_influential_entities,
     related_findings,
 )
@@ -358,6 +359,41 @@ class TestAnalysis(unittest.TestCase):
             find_path(self.repo, "not_an_entity", seeded["q1"].id)
         with self.assertRaises(LatticeError):
             find_path(self.repo, seeded["c1"].id, "question:q_999999")
+
+    def test_propose_hypotheses_contested_question(self) -> None:
+        seeded = self._seed_conflicting_graph()
+        # q1 is contested (c1 supports, c2 contradicts)
+        hyps = propose_hypotheses(self.repo, question_ref=seeded["q1"].id)
+        self.assertGreaterEqual(len(hyps), 1)
+        h0 = hyps[0]
+        self.assertEqual(h0["question_id"], seeded["q1"].id)
+        self.assertEqual(h0["kind"], "reconciliation")
+        self.assertIn("statement", h0)
+        self.assertIn("independent_variable", h0)
+        self.assertIn("dependent_variable", h0)
+        self.assertIn("predicted_effect", h0)
+        self.assertIn("recommended_study_type", h0)
+        self.assertIn(seeded["c1"].id, h0["evidence"]["supporting_claims"])
+        self.assertIn(seeded["c2"].id, h0["evidence"]["contradicting_claims"])
+
+    def test_propose_hypotheses_coverage_gap(self) -> None:
+        seeded = self._seed_conflicting_graph()
+        # q2 has no linked claims (gap)
+        hyps = propose_hypotheses(self.repo, question_ref=seeded["q2"].id)
+        self.assertGreaterEqual(len(hyps), 1)
+        h0 = hyps[0]
+        self.assertEqual(h0["question_id"], seeded["q2"].id)
+        self.assertEqual(h0["kind"], "gap_fill")
+        self.assertIn("statement", h0)
+        self.assertEqual(h0["evidence"]["supporting_claims"], [])
+        self.assertEqual(h0["evidence"]["contradicting_claims"], [])
+
+    def test_propose_hypotheses_all_and_limits(self) -> None:
+        self._seed_conflicting_graph()
+        all_hyps = propose_hypotheses(self.repo, limit=10)
+        self.assertGreaterEqual(len(all_hyps), 2)
+        limited = propose_hypotheses(self.repo, limit=1)
+        self.assertEqual(len(limited), 1)
 
 
 if __name__ == "__main__":

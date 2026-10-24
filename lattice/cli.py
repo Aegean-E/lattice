@@ -12,6 +12,7 @@ from lattice.analysis import (
     find_path,
     find_related_findings,
     link_related_findings,
+    propose_hypotheses,
     rank_influential_entities,
     related_findings,
 )
@@ -217,6 +218,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="maximum keystone papers and claims to rank (default: 10)",
     )
     analyze.set_defaults(handler=_run_analyze)
+
+    hypo_cmd = commands.add_parser("hypothesize", help="formulate testable hypotheses from evidence gaps and contradictions")
+    hypo_cmd.add_argument("target", nargs="?", default=None, help="optional question reference or id")
+    hypo_cmd.add_argument("--limit", type=int, default=5, help="maximum hypotheses to propose (default: 5)")
+    hypo_cmd.set_defaults(handler=_run_hypothesize)
     return parser
 
 
@@ -695,5 +701,20 @@ def _run_analyze(args: argparse.Namespace, repository: Repository) -> int:
             f"  [KEYSTONE {paper['score']}] {paper['id']}  {paper['title']}"
         )
     _emit(payload, lines, args.json)
+    return 0
+
+
+def _run_hypothesize(args: argparse.Namespace, repository: Repository) -> int:
+    """Propose testable research hypotheses based on contradictions and coverage gaps."""
+    results = propose_hypotheses(repository, question_ref=args.target, limit=args.limit)
+    lines = [f"Proposed Hypotheses ({len(results)}):"]
+    for i, h in enumerate(results, 1):
+        lines.append(f"  {i}. [{h['kind']}] {h['statement']}")
+        lines.append(f"     IV: {h['independent_variable']} | DV: {h['dependent_variable']} | Effect: {h['predicted_effect']}")
+        lines.append(f"     Design: {h['recommended_study_type']} | Question: {h['question_id']}")
+        lines.append(f"     Why: {h['rationale']}")
+    if not results:
+        lines.append("  none")
+    _emit(results, lines, args.json)
     return 0
 

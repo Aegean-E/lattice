@@ -28,7 +28,7 @@ DEFAULT_DB = "lattice.db"
 _READ_ONLY_TOOLS = frozenset({
     "search", "get_entity", "neighbors", "subgraph", "related_findings", "outline",
     "brief", "review", "synthesize", "stats", "analyze_graph", "detect_contradictions",
-    "diff_snapshot", "find_path",
+    "diff_snapshot", "find_path", "propose_hypotheses",
 })
 
 
@@ -260,6 +260,14 @@ class LatticeClient:
             "src": src, "dst": dst, "max_depth": max_depth,
             "directed": directed, "edge_kinds": edge_kinds,
         })
+
+    def propose_hypotheses(self, question: Optional[str] = None,
+                           limit: int = 5) -> List[Dict[str, Any]]:
+        """Formulate testable hypotheses from evidence gaps and contradiction clusters."""
+        arguments: Dict[str, Any] = {"limit": limit}
+        if question:
+            arguments["question"] = question
+        return self.call_tool("propose_hypotheses", arguments)
 
     def stats(self) -> Dict[str, Any]:
         return self.call_tool("stats", {})

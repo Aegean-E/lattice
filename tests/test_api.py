@@ -29,6 +29,7 @@ EXPECTED_EXPORTS = {
     "find_path",
     "find_related_findings",
     "link_related_findings",
+    "propose_hypotheses",
     "related_findings",
     "rank_influential_entities",
     "build_evidence_matrix",

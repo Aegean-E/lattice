@@ -72,7 +72,7 @@ class LatticeClientTests(unittest.TestCase):
         schemas = self.client.tool_schemas()
         self.assertEqual([item["name"] for item in schemas],
                          [item["name"] for item in TOOLS])
-        self.assertEqual(len(schemas), 23)
+        self.assertEqual(len(schemas), 24)
         schemas[0]["name"] = "mutated"
         self.assertEqual(TOOLS[0]["name"], "search")
 
@@ -126,7 +126,7 @@ class AsyncLatticeClientTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_async_schemas_and_call_tool(self) -> None:
         schemas = await self.client.tool_schemas()
-        self.assertEqual(len(schemas), 23)
+        self.assertEqual(len(schemas), 24)
         stats = await self.client.call_tool("stats", {})
         self.assertEqual(stats["questions"], 0)
 
@@ -176,7 +176,7 @@ class ClientSafetyTests(unittest.TestCase):
         allowed = {
             "search", "get_entity", "neighbors", "subgraph", "related_findings", "outline",
             "brief", "review", "synthesize", "stats", "analyze_graph", "detect_contradictions",
-            "diff_snapshot", "find_path",
+            "diff_snapshot", "find_path", "propose_hypotheses",
         }
         blocked = (
             ("add_paper", {"title": "x"}), ("add_claim", {"paper": "p_x"}),
@@ -299,9 +299,12 @@ class ClientSafetyTests(unittest.TestCase):
             path = client.find_path(c["id"], q["id"])
             self.assertTrue(path["found"])
             self.assertEqual(path["length"], 1)
-            # Verify read_only client allows find_path
+            # Verify read_only client allows find_path and propose_hypotheses
             schemas = [t["name"] for t in client.tool_schemas()]
             self.assertIn("find_path", schemas)
+            self.assertIn("propose_hypotheses", schemas)
+            hyps = client.propose_hypotheses(q["id"])
+            self.assertGreaterEqual(len(hyps), 0)
 
 
 class AsyncClientSafetyTests(unittest.IsolatedAsyncioTestCase):

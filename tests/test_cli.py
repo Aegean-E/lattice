@@ -284,6 +284,18 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("Path found", text_out)
 
+    def test_cli_hypothesize_command(self):
+        self.run_cli("web", "--demo", "--dump-html")
+        code, out, _ = self.run_cli("--json", "hypothesize")
+        self.assertEqual(code, 0)
+        payload = json.loads(out)
+        self.assertIsInstance(payload, list)
+        self.assertGreaterEqual(len(payload), 1)
+
+        code, text_out, _ = self.run_cli("hypothesize")
+        self.assertEqual(code, 0)
+        self.assertIn("Proposed Hypotheses", text_out)
+
 
 if __name__ == "__main__":
     unittest.main()

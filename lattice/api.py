@@ -22,6 +22,7 @@ from lattice.analysis import (
     find_path,
     find_related_findings,
     link_related_findings,
+    propose_hypotheses,
     rank_influential_entities,
     related_findings,
 )
@@ -290,6 +291,7 @@ __all__ = sorted([
     "parse_paths",
     "parse_ris",
     "parse_text",
+    "propose_hypotheses",
     "rank_influential_entities",
     "read_resource",
     "read_snapshot_records",

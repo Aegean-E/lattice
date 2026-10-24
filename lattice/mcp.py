@@ -12,6 +12,7 @@ from lattice.analysis import (
     find_path,
     find_related_findings,
     link_related_findings,
+    propose_hypotheses,
     rank_influential_entities,
     related_findings,
 )
@@ -111,6 +112,9 @@ TOOLS: List[Dict[str, Any]] = [
            "directed": {"type": "boolean", "default": False},
            "edge_kinds": {"type": "array", "items": {"type": "string"}}},
           ["src", "dst"]),
+    _tool("propose_hypotheses", "Formulate structured testable hypotheses from evidence matrix gaps and contradiction clusters.",
+          {"question": {"type": "string"}, "limit": {"type": "integer", "default": 5}},
+          []),
     _tool("stats", "Entity and edge counts.", {}, []),
 ]
 
@@ -405,6 +409,10 @@ def dispatch_tool(repository: Repository, name: str, arguments: Dict[str, Any]) 
             directed=bool(arguments.get("directed", False)),
             edge_kinds=edge_kinds,
         )
+    if name == "propose_hypotheses":
+        q_ref = arguments.get("question") or arguments.get("target")
+        limit = int(arguments.get("limit", 5))
+        return propose_hypotheses(repository, question_ref=q_ref, limit=limit)
     if name == "stats":
         return repository.stats()
     raise LatticeError(f"unknown tool '{name}'", "the server advertises its tools in tools/list",

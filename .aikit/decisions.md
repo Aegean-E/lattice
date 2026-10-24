@@ -514,4 +514,15 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   4. Expose `find_path` across all access surfaces: `lattice path SRC DST` CLI command (with `--depth`, `--directed`, `--kinds`, and `--json`), `find_path` in `lattice.api`, `client.find_path()` on `LatticeClient` and `AsyncLatticeClient`, and the `find_path` MCP tool (added to `_READ_ONLY_TOOLS` allowlist).
 - **Consequences**: Agents and humans can query the exact chain of evidentiary backing between any two findings without heuristics or third-party graph dependencies. The algorithm guarantees the shortest path in $O(V + E)$ time and memory bounded by `max_depth`. All 208 unit tests pass and import cycles are strictly avoided. No database schema changes.
 
+## ADR-025: Automated Hypothesis Formulation and Research Gap Generation (2026-10-24)
+
+- **Status**: Accepted
+- **Context**: While Lattice effectively detects contradictions and coverage gaps in the evidence matrix, researchers and autonomous AI agents needed an automated, structured formulation mechanism to propose testable next hypotheses (with explicit independent and dependent variables, predicted interaction directions, and recommended study designs) to resolve scientific tension or investigate unbacked questions.
+- **Decision**:
+  1. Implement `propose_hypotheses` in `lattice.analysis`, classifying targets into reconciliation hypotheses (for contested questions with opposing supporting and contradicting claims) and gap-filling hypotheses (for questions with zero linked claims).
+  2. Deterministically extract candidate independent and dependent variables from question prompts using verbal/clausal splitters (`improve`, `enhance`, `increase`, `affect`, `consolidate`, `in`) and domain keyword extraction.
+  3. Formulate structured dictionaries containing `id`, `question_id`, `kind` (`reconciliation` | `gap_fill`), `statement`, `independent_variable`, `dependent_variable`, `predicted_effect` (`interaction` | `positive`), `recommended_study_type`, `rationale`, and supporting/contradicting claim IDs.
+  4. Expose `propose_hypotheses` across all interfaces: `lattice hypothesize [TARGET]` CLI command, `propose_hypotheses` in `lattice.api`, `client.propose_hypotheses()` on `LatticeClient` and `AsyncLatticeClient`, and the `propose_hypotheses` MCP tool (added to `_READ_ONLY_TOOLS`).
+- **Consequences**: Autonomous agents and scientists can programmatically generate principled, testable experimental hypotheses grounded directly in the graph's empirical gaps and conflicts. 213 unit tests pass, and zero third-party dependencies are required. No database schema changes.
+
 

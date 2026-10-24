@@ -739,3 +739,148 @@ def find_path(repo: Repository,
         "nodes": nodes,
         "narrative": narrative,
     }
+
+
+def _extract_variables_from_question(question: str) -> Tuple[str, str]:
+    """Extract candidate independent and dependent variables from a question prompt."""
+    clean = question.rstrip("?").strip()
+    lower = clean.lower()
+    for prefix in ("does ", "do ", "can ", "is ", "are ", "will "):
+        if lower.startswith(prefix):
+            clean = clean[len(prefix):].strip()
+            lower = clean.lower()
+            break
+    for complex_prefix in ("what is the role of ", "how does "):
+        if lower.startswith(complex_prefix):
+            remainder = clean[len(complex_prefix):].strip()
+            if " in " in remainder.lower():
+                parts = remainder.split(" in ", 1)
+                return parts[0].strip(), parts[1].strip()
+            clean = remainder
+            lower = clean.lower()
+            break
+
+    splitters = [" improve ", " enhance ", " increase ", " decrease ", " affect ", " influence ",
+                 " cause ", " lead to ", " consolidate ", " coordinate ", " organize ", " modulate "]
+    for split in splitters:
+        if split in lower:
+            idx = lower.index(split)
+            iv = clean[:idx].strip()
+            dv = clean[idx + len(split):].strip()
+            if iv and dv:
+                return iv, dv
+
+    keywords = sorted(_domain_keywords(clean))
+    if len(keywords) >= 2:
+        return keywords[0], keywords[1]
+    if keywords:
+        return keywords[0], "observed outcome"
+    return "experimental intervention", "observed outcome"
+
+
+def propose_hypotheses(repo: Repository,
+                       question_ref: Optional[str] = None,
+                       limit: int = 5) -> List[Dict[str, Any]]:
+    """Synthesize evidence matrix gaps and contradiction clusters into testable hypotheses.
+
+    For contested questions (opposing supporting and contradicting claims exist):
+      Formulates reconciliation hypotheses identifying boundary conditions or interactions.
+    For coverage gaps (questions with zero empirical backing):
+      Formulates exploratory gap-filling hypotheses with testable variables and designs.
+    """
+    if not isinstance(limit, int) or limit < 1:
+        fail("limit must be a positive integer", f"received {limit}", "pass limit 1 or more")
+
+    target_qid = None
+    if question_ref:
+        resolved = repo._resolve(question_ref)
+        if entity_type(resolved) != "question":
+            fail(f"'{question_ref}' is not a question reference",
+                 "hypotheses are formulated around research questions",
+                 "pass a question:q_xxx reference")
+        target_qid = bare_id(resolved)
+
+    matrix = build_evidence_matrix(repo)
+    questions = matrix.get("questions", [])
+    if target_qid:
+        questions = [q for q in questions if q["id"] == target_qid]
+        if not questions:
+            q_obj = repo.get_question(target_qid)
+            ev = repo.evidence(f"question:{target_qid}")
+            sup_count = len(ev.get("supports", []))
+            con_count = len(ev.get("contradicts", []))
+            questions = [{
+                "id": target_qid,
+                "prompt": q_obj.text,
+                "supporting_count": sup_count,
+                "contradicting_count": con_count,
+                "coverage_gap": (sup_count == 0 and con_count == 0),
+            }]
+
+    contested_hyps: List[Dict[str, Any]] = []
+    gap_hyps: List[Dict[str, Any]] = []
+
+    for q in questions:
+        qid = q["id"]
+        q_text = q["prompt"]
+        sup_cnt = q.get("supporting_count", 0)
+        con_cnt = q.get("contradicting_count", 0)
+        has_gap = q.get("coverage_gap", False) or (sup_cnt == 0 and con_cnt == 0)
+
+        iv, dv = _extract_variables_from_question(q_text)
+
+        ev = repo.evidence(f"question:{qid}")
+        sup_claims = []
+        con_claims = []
+        for bucket in ("supports", "contradicts", "answers", "other"):
+            for item in ev.get(bucket, []):
+                cid = item["claim"]["id"]
+                link_kind = item.get("link")
+                c_stance = item["claim"].get("stance")
+                if link_kind == "supports" or c_stance == "supports":
+                    if cid not in sup_claims:
+                        sup_claims.append(cid)
+                elif link_kind == "contradicts" or c_stance == "contradicts":
+                    if cid not in con_claims:
+                        con_claims.append(cid)
+
+        if sup_cnt > 0 and con_cnt > 0:
+            statement = (f"{iv.capitalize()} modulates {dv} conditionally depending on "
+                         f"experimental protocol and subject parameters, reconciling opposing findings.")
+            contested_hyps.append({
+                "id": f"hyp_{qid}_rec",
+                "question_id": qid,
+                "question_text": q_text,
+                "kind": "reconciliation",
+                "statement": statement,
+                "independent_variable": iv,
+                "dependent_variable": dv,
+                "predicted_effect": "interaction",
+                "recommended_study_type": "Replication Study",
+                "rationale": f"Opposing evidence detected ({sup_cnt} supporting vs {con_cnt} contradicting claims).",
+                "evidence": {
+                    "supporting_claims": sup_claims,
+                    "contradicting_claims": con_claims,
+                },
+            })
+        elif has_gap:
+            statement = f"{iv.capitalize()} significantly influences {dv} under controlled conditions."
+            gap_hyps.append({
+                "id": f"hyp_{qid}_gap",
+                "question_id": qid,
+                "question_text": q_text,
+                "kind": "gap_fill",
+                "statement": statement,
+                "independent_variable": iv,
+                "dependent_variable": dv,
+                "predicted_effect": "positive",
+                "recommended_study_type": "Randomized Controlled Trial",
+                "rationale": "Zero empirical claims currently link evidence to this research question.",
+                "evidence": {
+                    "supporting_claims": [],
+                    "contradicting_claims": [],
+                },
+            })
+
+    results = contested_hyps + gap_hyps
+    return results[:limit]
