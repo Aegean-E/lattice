@@ -129,6 +129,13 @@ TOOLS: List[Dict[str, Any]] = [
            "max_tokens": {"type": "integer", "default": 2000, "description": "Maximum token budget (default: 2000)"},
            "format": {"type": "string", "enum": ["markdown", "json"], "default": "markdown"}},
           []),
+    _tool("compute_meta_analysis", "Calculate pooled effect sizes, Cochran's Q, I-squared, and ASCII/SVG forest plots.",
+          {"studies": {"type": "array", "description": "List of study objects with effect_size and se or ci bounds, or two-group parameters",
+                       "items": {"type": "object"}},
+           "question": {"type": "string", "description": "Optional question reference to auto-extract linked claims as studies"},
+           "model": {"type": "string", "enum": ["random", "fixed"], "default": "random"},
+           "format": {"type": "string", "enum": ["json", "ascii", "svg"], "default": "json"}},
+          []),
     _tool("stats", "Entity and edge counts.", {}, []),
 ]
 
@@ -456,6 +463,26 @@ def dispatch_tool(repository: Repository, name: str, arguments: Dict[str, Any]) 
         fmt = str(arguments.get("format", "markdown"))
         pack = build_context_pack(repository, targets=targets, max_tokens=tokens, format=fmt)
         return pack.to_dict()
+    if name == "compute_meta_analysis":
+        from lattice.meta import (
+            compute_meta_analysis,
+            meta_analyze_question,
+            render_forest_ascii,
+            render_forest_svg,
+        )
+        model = str(arguments.get("model", "random"))
+        fmt = str(arguments.get("format", "json")).lower()
+        if arguments.get("question"):
+            res = meta_analyze_question(repository, str(arguments["question"]), model=model)
+        else:
+            studies = arguments.get("studies") or []
+            res = compute_meta_analysis(studies, model=model)
+        out = {"result": res.to_dict()}
+        if fmt == "ascii":
+            out["ascii"] = render_forest_ascii(res)
+        elif fmt == "svg":
+            out["svg"] = render_forest_svg(res)
+        return out
     if name == "stats":
         return repository.stats()
     raise LatticeError(f"unknown tool '{name}'", "the server advertises its tools in tools/list",

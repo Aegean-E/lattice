@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `47`
-- **Total Classes**: `62`
-- **Total Top-Level Functions**: `238`
-- **Total Class Methods**: `393`
-- **Total Source Lines**: `14797`
+- **Total Python Modules**: `49`
+- **Total Classes**: `65`
+- **Total Top-Level Functions**: `247`
+- **Total Class Methods**: `404`
+- **Total Source Lines**: `15585`
 
 ---
 
@@ -62,7 +62,7 @@
 ### [`lattice/api.py`](lattice/api.py)
 > *Stable public Python surface for host integrations such as neurocore.*
 
-**Size**: `341` lines (`9075` bytes)
+**Size**: `359` lines (`9528` bytes)
 
 **Functions:**
 - `def _question_key(value)` - *Normalize `question:q_000001` or `q_000001` to the bare identifier.*
@@ -103,7 +103,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `824` lines (`37081` bytes)
+**Size**: `863` lines (`38956` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -138,13 +138,14 @@
 - `def _run_screen(args, repository)` - *Record or query a screening decision for a paper.*
 - `def _run_prisma(args, repository)` - *Generate PRISMA 2020 flow statistics and diagram.*
 - `def _run_pack(args, repository)` - *Generate a token-bounded GraphRAG context pack for LLM agents.*
+- `def _run_meta(args, repository)` - *Execute quantitative meta-analysis and render forest plot.*
 
 ---
 
 ### [`lattice/client.py`](lattice/client.py)
 > *Turnkey client facade for AI hosts: own one connection, call MCP-parity tools.*
 
-**Size**: `385` lines (`17640` bytes)
+**Size**: `400` lines (`18366` bytes)
 
 **Classes:**
 - `class LatticeClient` - *A synchronous, context-managed graph client with MCP tool parity.*
@@ -190,6 +191,7 @@
   - Method `.screen_paper(paper_id, status, reason, notes)` - *Record an auditable PRISMA 2020 screening decision for a paper.*
   - Method `.get_prisma_flow(format)` - *Get PRISMA 2020 review attrition metrics and flow diagram.*
   - Method `.get_context_pack(targets, max_tokens, format)` - *Generate a token-bounded GraphRAG context pack for LLM reasoning.*
+  - Method `.compute_meta_analysis(studies, question, model, format)` - *Execute quantitative meta-analysis and generate forest plot.*
   - Method `.stats()`
 - `class AsyncLatticeClient` - *An asyncio facade that serializes the sync client on one dedicated thread.*
   - Method `.__init__(db_path, read_only)`
@@ -399,7 +401,7 @@
 ### [`lattice/mcp.py`](lattice/mcp.py)
 > *A dependency-free MCP stdio server exposing the graph as JSON-RPC tools.*
 
-**Size**: `500` lines (`25106` bytes)
+**Size**: `527` lines (`26557` bytes)
 
 **Functions:**
 - `def _tool(name, description, properties, required)` - *An MCP tool declaration with a JSON Schema for its arguments.*
@@ -414,6 +416,29 @@
 - `def _result(request_id, result)` - *A JSON-RPC success response.*
 - `def _error(request_id, code, message)` - *A JSON-RPC error response.*
 - `def serve(repository, stdin, stdout)` - *Serve newline-delimited JSON-RPC until the input stream closes.*
+
+---
+
+### [`lattice/meta.py`](lattice/meta.py)
+> *Quantitative meta-analysis engine: fixed/random effects pooling, Cochran's Q, I-squared, and Forest Plots.*
+
+**Size**: `523` lines (`19748` bytes)
+
+**Classes:**
+- `class MetaStudy` - *An individual study effect size and standard error for quantitative pooling.*
+  - Method `.to_dict()` - *JSON-ready representation.*
+- `class MetaAnalysisResult` - *Consolidated quantitative meta-analysis statistical report.*
+  - Method `.to_dict()` - *JSON-ready representation.*
+
+**Functions:**
+- `def _chi2_sf(x, df)` - *Survival function (p-value, 1 - CDF) for chi-square distribution with df degrees of freedom.*
+- `def study_from_confidence_interval(id, label, effect_size, ci_lower, ci_upper, study_type)` - *Construct a MetaStudy from a point estimate and 95% confidence interval.*
+- `def study_from_two_groups(id, label, n1, m1, sd1, n2, m2, sd2, study_type)` - *Compute Hedges' g standardized mean difference from two-arm trial statistics.*
+- `def _coerce_study(item)` - *Convert a dictionary or MetaStudy instance into a normalized MetaStudy.*
+- `def compute_meta_analysis(studies, model)` - *Execute fixed or DerSimonian-Laird random effects quantitative meta-analysis.*
+- `def render_forest_ascii(result, width)` - *Format quantitative meta-analysis results as an aligned ASCII forest plot.*
+- `def render_forest_svg(result, title)` - *Generate a publication-grade, self-contained SVG forest plot.*
+- `def meta_analyze_question(repository, question_ref, model)` - *Execute quantitative meta-analysis on evidentiary claims connected to a question.*
 
 ---
 
@@ -647,7 +672,7 @@
 ### [`tests/test_api.py`](tests/test_api.py)
 > *Unit tests for the public `lattice.api` integration surface.*
 
-**Size**: `357` lines (`13746` bytes)
+**Size**: `367` lines (`14102` bytes)
 
 **Classes:**
 - `class PublicApiTests` - *Verify the facade stays complete, inert at import time and faithful.*
@@ -693,7 +718,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `355` lines (`15446` bytes)
+**Size**: `382` lines (`16687` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
@@ -718,13 +743,14 @@
   - Method `.test_cli_hypothesize_command()`
   - Method `.test_cli_screen_and_prisma_commands()`
   - Method `.test_cli_pack_command()`
+  - Method `.test_cli_meta_command()`
 
 ---
 
 ### [`tests/test_client.py`](tests/test_client.py)
 > *Tests for the turnkey client facade used by AI hosts.*
 
-**Size**: `342` lines (`16926` bytes)
+**Size**: `354` lines (`17528` bytes)
 
 **Classes:**
 - `class LatticeClientTests` - *Verify lifecycle, tool parity, convenience methods and failure modes.*
@@ -953,6 +979,23 @@
   - Method `.test_dispatch_tool_rejects_non_string_names()`
   - Method `.test_non_object_params_are_rejected()`
   - Method `.test_analyze_and_contradictions_tools_and_matrix_resource()`
+
+---
+
+### [`tests/test_meta.py`](tests/test_meta.py)
+> *Unit tests for quantitative meta-analysis, effect sizes and forest plots.*
+
+**Size**: `117` lines (`4969` bytes)
+
+**Classes:**
+- `class MetaAnalysisTests` - *Verify statistical pooling, heterogeneity metrics and forest plot renderers.*
+  - Method `.test_fixed_effect_pooling_and_heterogeneity()`
+  - Method `.test_random_effects_pooling()`
+  - Method `.test_study_from_confidence_interval()`
+  - Method `.test_study_from_two_groups()`
+  - Method `.test_render_forest_ascii()`
+  - Method `.test_render_forest_svg()`
+  - Method `.test_meta_analyze_question()`
 
 ---
 

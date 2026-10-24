@@ -170,7 +170,7 @@ The neurocore design names `synthesize_question` and `extract_claims_for_paper` 
 
 ### AI Client
 
-For an AI host, `LatticeClient` owns the connection and exposes the same 27 tools (17 in
+For an AI host, `LatticeClient` owns the connection and exposes the same 28 tools (18 in
 read-only mode) as the MCP server, so the tool declarations and the dispatch path come from one
 implementation:
 
@@ -217,8 +217,8 @@ launches the MCP server over stdio:
 }
 ```
 
-`python -m lattice mcp` speaks newline-delimited JSON-RPC on stdio and advertises 27 tools
-(17 read-only), 3 resources and the `literature-synthesis` prompt. The agent-facing flow is
+`python -m lattice mcp` speaks newline-delimited JSON-RPC on stdio and advertises 28 tools
+(18 read-only), 3 resources and the `literature-synthesis` prompt. The agent-facing flow is
 budgeted end to end:
 
 1. `outline` — cheap orientation: counts, edge kinds, study-type mix and evidenced question refs.
@@ -287,6 +287,7 @@ lattice/
 │   ├── ingest.py             <- BibTeX, RIS, CSV, CSL-JSON, Markdown and text parsers
 │   ├── inquiry.py            <- ask, token-budgeted brief and review outline
 │   ├── mcp.py                <- MCP stdio server and tool dispatch
+│   ├── meta.py               <- quantitative meta-analysis, effect sizes and forest plots
 │   ├── models.py             <- value objects, identifiers and validators
 │   ├── repository.py         <- graph writes, dedupe, search and evidence queries
 │   ├── screening.py          <- PRISMA 2020 systematic review screening and flow diagrams
@@ -312,6 +313,7 @@ lattice/
     ├── test_ingest.py
     ├── test_inquiry.py
     ├── test_mcp.py
+    ├── test_meta.py
     ├── test_models.py
     ├── test_repository.py
     ├── test_screening.py

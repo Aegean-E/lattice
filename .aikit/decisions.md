@@ -574,6 +574,18 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   5. Expose context packs across all access layers: `lattice pack [TARGET...]` CLI command, `lattice.api` public re-exports, `get_context_pack` MCP tool (added to `_READ_ONLY_TOOLS`), and `client.get_context_pack()` on `LatticeClient` and `AsyncLatticeClient`.
 - **Consequences**: Autonomous reasoning agents can retrieve self-contained, citation-anchored GraphRAG context packs strictly bounded by token budgets without losing quote provenance or scientific tension. 233 unit tests pass with zero third-party dependencies.
 
+## ADR-030: Quantitative Effect Sizes and Forest Plot Generation (2026-10-25)
+
+- **Status**: Accepted
+- **Context**: Systematic literature reviews require quantitative meta-analytic pooling to synthesize empirical effect sizes across heterogeneous studies. Prior to this decision, Lattice provided qualitative consensus scoring and contradiction detection, but lacked statistical pooling models (inverse-variance fixed effects and DerSimonian-Laird random effects), heterogeneity quantification (Cochran's Q, Higgins' I², and τ²), or visual Forest Plot generators.
+- **Decision**:
+  1. Implement `lattice.meta` providing `MetaStudy` and `MetaAnalysisResult` data structures, along with `compute_meta_analysis`, `meta_analyze_question`, `study_from_confidence_interval`, and `study_from_two_groups`.
+  2. Implement fixed-effect inverse-variance pooling and DerSimonian-Laird random-effects pooling (τ², Q, df, I²) with chi-square p-value calculation using pure Python standard library `math` and incomplete gamma series expansion (zero external dependencies).
+  3. Render aligned terminal-friendly **ASCII Forest Plots** (`render_forest_ascii`) and publication-grade, self-contained vector **SVG Forest Plots** (`render_forest_svg`) with weighted study effect squares, confidence interval whiskers, zero reference lines, and summary diamonds.
+  4. Expose meta-analysis across all interfaces: `lattice meta [TARGET]` CLI command (supporting both question references and JSON study files), `lattice.api` public re-exports, `compute_meta_analysis` MCP tool (added to `_READ_ONLY_TOOLS`), and convenience methods on `LatticeClient` and `AsyncLatticeClient`.
+- **Consequences**: Researchers and autonomous systematic review agents can quantitatively pool effect sizes, evaluate between-study heterogeneity, and generate publication-ready forest plots directly from the graph with zero dependencies. 241 unit tests pass and gate hygiene invariant is maintained.
+
+
 
 
 

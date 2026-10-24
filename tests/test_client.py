@@ -72,7 +72,7 @@ class LatticeClientTests(unittest.TestCase):
         schemas = self.client.tool_schemas()
         self.assertEqual([item["name"] for item in schemas],
                          [item["name"] for item in TOOLS])
-        self.assertEqual(len(schemas), 27)
+        self.assertEqual(len(schemas), 28)
         schemas[0]["name"] = "mutated"
         self.assertEqual(TOOLS[0]["name"], "search")
 
@@ -126,7 +126,7 @@ class AsyncLatticeClientTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_async_schemas_and_call_tool(self) -> None:
         schemas = await self.client.tool_schemas()
-        self.assertEqual(len(schemas), 27)
+        self.assertEqual(len(schemas), 28)
         stats = await self.client.call_tool("stats", {})
         self.assertEqual(stats["questions"], 0)
 
@@ -177,6 +177,7 @@ class ClientSafetyTests(unittest.TestCase):
             "search", "get_entity", "neighbors", "subgraph", "related_findings", "outline",
             "brief", "review", "synthesize", "stats", "analyze_graph", "detect_contradictions",
             "diff_snapshot", "find_path", "propose_hypotheses", "get_prisma_flow", "get_context_pack",
+            "compute_meta_analysis",
         }
         blocked = (
             ("add_paper", {"title": "x"}), ("add_claim", {"paper": "p_x"}),
@@ -255,6 +256,7 @@ class ClientSafetyTests(unittest.TestCase):
                     "screen_paper": {"paper_id": paper["id"], "status": "included"},
                     "get_prisma_flow": {},
                     "get_context_pack": {"max_tokens": 1000},
+                    "compute_meta_analysis": {"studies": [{"label": "S1", "effect_size": 0.5, "se": 0.1}]},
                     "stats": {},
                 }
                 for name, arguments in calls.items():
@@ -321,6 +323,16 @@ class ClientSafetyTests(unittest.TestCase):
             self.assertIn("GraphRAG Evidence Pack", pack_res["content"])
             self.assertIn(q["id"], pack_res["content"])
             self.assertLessEqual(pack_res["estimated_tokens"], 1500)
+
+            # Test compute_meta_analysis
+            meta_res = client.compute_meta_analysis(
+                studies=[{"label": "Trial 1", "effect_size": 0.45, "se": 0.12},
+                         {"label": "Trial 2", "effect_size": 0.60, "se": 0.15}],
+                format="ascii",
+            )
+            self.assertIn("result", meta_res)
+            self.assertIn("ascii", meta_res)
+            self.assertIn("Pooled (Random)", meta_res["ascii"])
 
 
 class AsyncClientSafetyTests(unittest.IsolatedAsyncioTestCase):

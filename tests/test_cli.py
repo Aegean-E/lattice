@@ -349,6 +349,33 @@ class CliTests(unittest.TestCase):
         self.assertEqual(pack_json["counts"]["questions"], 1)
         self.assertEqual(pack_json["counts"]["claims"], 1)
 
+    def test_cli_meta_command(self):
+        fixture = self.ingest_fixture()
+        self.run_cli("ingest", str(fixture))
+        code, out, _ = self.run_cli("question", "Does sleep consolidate memory?")
+        self.assertEqual(code, 0)
+        connection = open_database(self.db)
+        paper = Repository(connection).search("Sleep")["papers"][0]
+        connection.close()
+        self.run_cli("claim", "--paper", paper["id"], "--text", "Sleep improves recall",
+                     "--quote", "Sleep improves recall by 25%.", "--stance", "supports")
+        self.run_cli("link", "claim:c_000001", "question:q_000001", "--type", "supports")
+
+        code, out, err = self.run_cli("meta", "q_000001")
+        self.assertEqual(code, 0, err)
+        self.assertIn("Pooled (Random)", out)
+        self.assertIn("Heterogeneity:", out)
+
+        code, out, err = self.run_cli("--json", "meta", "q_000001")
+        self.assertEqual(code, 0, err)
+        meta_json = json.loads(out)
+        self.assertEqual(meta_json["model"], "random")
+        self.assertEqual(len(meta_json["studies"]), 1)
+
+        code, out, err = self.run_cli("meta", "q_000001", "--format", "svg")
+        self.assertEqual(code, 0, err)
+        self.assertIn("<svg", out)
+
 
 if __name__ == "__main__":
     unittest.main()

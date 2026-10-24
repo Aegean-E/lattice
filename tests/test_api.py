@@ -138,6 +138,14 @@ EXPECTED_EXPORTS = {
     "utc_now",
     "open_database",
     "schema_version",
+    "MetaStudy",
+    "MetaAnalysisResult",
+    "compute_meta_analysis",
+    "meta_analyze_question",
+    "render_forest_ascii",
+    "render_forest_svg",
+    "study_from_confidence_interval",
+    "study_from_two_groups",
     "PAPER_FIELDS",
     "SEED_CORPUS",
     "Record",
@@ -209,13 +217,15 @@ class PublicApiTests(unittest.TestCase):
         self.assertEqual(missing, {})
 
     def test_reexports_are_the_original_objects(self) -> None:
-        from lattice import analysis, context, models, repository
+        from lattice import analysis, context, meta, models, repository
         self.assertIs(api.Repository, repository.Repository)
         self.assertIs(api.Paper, models.Paper)
         self.assertIs(api.detect_contradictions, analysis.detect_contradictions)
         self.assertIs(api.compact_search, context.compact_search)
         self.assertIs(api.build_context_pack, context.build_context_pack)
         self.assertIs(api.ContextPack, context.ContextPack)
+        self.assertIs(api.compute_meta_analysis, meta.compute_meta_analysis)
+        self.assertIs(api.MetaStudy, meta.MetaStudy)
 
     def test_design_aliases_resolve_to_canonical_functions(self) -> None:
         from lattice.extraction import extract_from_paper

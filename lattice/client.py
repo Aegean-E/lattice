@@ -29,6 +29,7 @@ _READ_ONLY_TOOLS = frozenset({
     "search", "get_entity", "neighbors", "subgraph", "related_findings", "outline",
     "brief", "review", "synthesize", "stats", "analyze_graph", "detect_contradictions",
     "diff_snapshot", "find_path", "propose_hypotheses", "get_prisma_flow", "get_context_pack",
+    "compute_meta_analysis",
 })
 
 
@@ -286,6 +287,18 @@ class LatticeClient:
             arguments["targets"] = [targets] if isinstance(targets, str) else list(targets)
         return self.call_tool("get_context_pack", arguments)
 
+    def compute_meta_analysis(self, studies: Optional[Sequence[Dict[str, Any]]] = None,
+                              question: Optional[str] = None,
+                              model: str = "random",
+                              format: str = "json") -> Dict[str, Any]:
+        """Execute quantitative meta-analysis and generate forest plot."""
+        arguments: Dict[str, Any] = {"model": model, "format": format}
+        if studies:
+            arguments["studies"] = list(studies)
+        if question:
+            arguments["question"] = question
+        return self.call_tool("compute_meta_analysis", arguments)
+
     def stats(self) -> Dict[str, Any]:
         return self.call_tool("stats", {})
 
@@ -297,6 +310,8 @@ class LatticeClient:
     contradictions = detect_contradictions
     pack = get_context_pack
     context_pack = get_context_pack
+    meta = compute_meta_analysis
+    meta_analysis = compute_meta_analysis
 
 
 class AsyncLatticeClient:

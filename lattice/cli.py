@@ -257,6 +257,13 @@ def build_parser() -> argparse.ArgumentParser:
     pack_cmd.add_argument("--format", choices=["markdown", "json"], default="markdown", help="output format (default: markdown)")
     pack_cmd.add_argument("--out", default=None, help="write context pack to this file")
     pack_cmd.set_defaults(handler=_run_pack)
+
+    meta_cmd = commands.add_parser("meta", help="run quantitative meta-analysis and generate ASCII/SVG forest plots")
+    meta_cmd.add_argument("target", help="question reference or JSON file containing studies")
+    meta_cmd.add_argument("--model", choices=["random", "fixed"], default="random", help="meta-analysis model (default: random)")
+    meta_cmd.add_argument("--format", choices=["ascii", "svg", "json"], default="ascii", help="output format (default: ascii)")
+    meta_cmd.add_argument("--out", default=None, help="write forest plot or JSON to this file")
+    meta_cmd.set_defaults(handler=_run_meta)
     return parser
 
 
@@ -820,5 +827,37 @@ def _run_pack(args: argparse.Namespace, repository: Repository) -> int:
         _emit({"out": args.out, "format": pack.format, "tokens": pack.estimated_tokens, "pack": pack.data}, lines, args.json)
     else:
         print(pack.content)
+    return 0
+
+
+def _run_meta(args: argparse.Namespace, repository: Repository) -> int:
+    """Execute quantitative meta-analysis and render forest plot."""
+    from lattice.meta import (
+        compute_meta_analysis,
+        meta_analyze_question,
+        render_forest_ascii,
+        render_forest_svg,
+    )
+    target = args.target.strip()
+    if Path(target).is_file():
+        data = json.loads(Path(target).read_text(encoding="utf-8"))
+        studies = data if isinstance(data, list) else data.get("studies", [])
+        result = compute_meta_analysis(studies, model=args.model)
+    else:
+        result = meta_analyze_question(repository, target, model=args.model)
+
+    if args.json or args.format == "json":
+        output = json.dumps(result.to_dict(), indent=2, sort_keys=True)
+    elif args.format == "svg":
+        output = render_forest_svg(result, title=f"Meta-Analysis Forest Plot: {target}")
+    else:
+        output = render_forest_ascii(result)
+
+    if args.out:
+        Path(args.out).write_text(output, encoding="utf-8")
+        lines = [f"Meta-analysis forest plot ({args.format}) written to {args.out}"]
+        _emit({"out": args.out, "format": args.format, "result": result.to_dict()}, lines, args.json)
+    else:
+        print(output)
     return 0
 
