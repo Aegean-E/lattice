@@ -35,6 +35,7 @@
     "lattice/mcp.py",
     "lattice/models.py",
     "lattice/repository.py",
+    "lattice/screening.py",
     "lattice/snapshots.py",
     "lattice/synthesis.py"
   ],
