@@ -108,6 +108,23 @@ def dispatch_web_request(repository: Repository, method: str, path: str,
                 "svg": render_prisma_svg(flow),
                 "markdown": render_prisma_markdown(flow),
             })
+        if verb == "GET" and route == "/api/meta":
+            from lattice.meta import meta_analyze_question, render_forest_ascii, render_forest_svg
+            target = _first(query, "target") or _first(query, "question") or ""
+            model = _first(query, "model") or "random"
+            res = meta_analyze_question(repository, target, model=model)
+            return _json_response(200, {
+                "result": res.to_dict(),
+                "svg": render_forest_svg(res, title=f"Meta-Analysis: {target}"),
+                "ascii": render_forest_ascii(res),
+            })
+        if verb == "GET" and route == "/api/pack":
+            from lattice.context import build_context_pack
+            targets = query.get("target") or query.get("targets")
+            tokens = int(_first(query, "tokens") or "2000")
+            fmt = _first(query, "format") or "markdown"
+            pack = build_context_pack(repository, targets=targets, max_tokens=tokens, format=fmt)
+            return _json_response(200, pack.to_dict())
         if verb == "POST":
             payload = _parse_json_body(body)
             return _dispatch_post(repository, route, payload)

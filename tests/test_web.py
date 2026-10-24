@@ -344,6 +344,20 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(scr_res["decision"]["status"], "included")
 
+    def test_api_meta_and_pack_endpoints(self) -> None:
+        self.request_json("POST", "/api/demo", {})
+        status, meta_res = self.request_json("GET", "/api/meta?question=q_000001")
+        self.assertEqual(status, 200)
+        self.assertIn("result", meta_res)
+        self.assertIn("svg", meta_res)
+        self.assertIn("ascii", meta_res)
+        self.assertIn("<svg", meta_res["svg"])
+
+        status, pack_res = self.request_json("GET", "/api/pack?target=q_000001&tokens=1000")
+        self.assertEqual(status, 200)
+        self.assertIn("content", pack_res)
+        self.assertIn("GraphRAG Evidence Pack", pack_res["content"])
+
 
 if __name__ == "__main__":
     unittest.main()
