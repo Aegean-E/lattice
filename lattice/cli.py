@@ -547,11 +547,17 @@ def _run_diff(args: argparse.Namespace, repository: Repository) -> int:
 
 
 def _run_stats(args: argparse.Namespace, repository: Repository) -> int:
-    """Print counts."""
+    """Print counts and evidence health."""
     result = repository.stats()
     lines = [f"papers: {result['papers']}", f"claims: {result['claims']}",
              f"questions: {result['questions']}", f"edges: {result['edges']}"]
     lines += [f"  {kind}: {count}" for kind, count in result["edge_kinds"].items()]
+    evidence = result["evidence"]
+    lines.append(
+        f"evidence: {evidence['claims_per_paper']} claims/paper, "
+        f"{evidence['questions_answered']} answered, {evidence['questions_open']} open, "
+        f"{evidence['contested_questions']} contested, "
+        f"{evidence['coverage_gaps']} coverage gaps")
     _emit(result, lines, args.json)
     return 0
 

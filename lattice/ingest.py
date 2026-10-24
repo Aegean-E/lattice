@@ -222,6 +222,11 @@ def parse_text(text: str, source_name: str) -> List[Record]:
 def parse_file(path: Path) -> List[Record]:
     """Detect a file's format by suffix and parse it."""
     suffix = path.suffix.lower()
+    if suffix == ".pdf":
+        fail(f"{path} is a PDF", "lattice reads text bibliographies, and PDFs are binary",
+             "convert it first: `pdftotext paper.pdf paper.txt` (poppler, also on macOS via "
+             "`brew install poppler`), or export BibTeX/RIS from the reference manager, "
+             "then ingest the resulting text file")
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as exc:

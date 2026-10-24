@@ -1,84 +1,14 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "lattice-snapshot-diff-v1",
+    "task_id": "lattice-validation-v1",
     "last_phase": "phase 4",
     "active_phase": 5,
     "status": "completed",
-    "updated_at": 1792772896.9884698,
-    "completed_at": 1792773772.2415805
+    "updated_at": 1792778789.658172,
+    "completed_at": 1792830895.3049755
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-api-hardening-v2",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[2/3]-[3/3] Strict ref regex (q_<id> / question:q_<id>) rejects q_, question:q_ and question:q_1:extra; selection is validated before build and empty selections return without building; inventory derives modules via pkgutil and walks multi-target/augassign/conditional definitions; evidence grouping documented as role-based; ADR-015, README and codebase map updated. checklists: passed; 146/146 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792649454.2428114,
-      "timestamp_str": "2026-10-22 09:10:54"
-    },
-    {
-      "task_id": "lattice-api-hardening-v2",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-api-hardening-v2' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792649454.4372678,
-      "timestamp_str": "2026-10-22 09:10:54"
-    },
-    {
-      "task_id": "lattice-client-adapter-v1",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/4] Failing-first tests for a turnkey LatticeClient: connection lifecycle, MCP-parity call_tool over all 21 tools, tool schemas, convenience methods, closed-client errors, and an async facade on a dedicated thread. [2/4] Publish dispatch_tool in lattice.mcp and add lattice/client.py with LatticeClient/AsyncLatticeClient. [3/4] Export the client from lattice.api, record ADR-016, update README and the codebase map. [4/4] Run every Phase 4 gate, record checklists and complete.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792650005.4574356,
-      "timestamp_str": "2026-10-22 09:20:05",
-      "impact_assessment": {
-        "why": "lattice.api is a stable library surface but not a turnkey AI integration: callers must manage the SQLite connection, map MCP schemas to calls themselves, and async agent hosts have no safe wrapper. The neurocore draft expects an async adapter that does not exist.",
-        "benefits": "An AI host imports one client, enters a context manager, lists 21 JSON tool schemas and calls any tool by name with identical behavior to the MCP server; a dedicated-thread async facade makes the same surface safe for asyncio hosts without changing sqlite thread settings.",
-        "risks": "contract: mcp._dispatch becomes public dispatch_tool and api gains two client classes plus DEFAULT_DB; dependency: standard library copy/concurrent.futures/asyncio only; concurrency: the async facade serializes all work on one dedicated thread; state: the client owns one existing connection and closes it; no schema change.",
-        "mitigation": "Build the sync client as a thin wrapper over the existing MCP dispatch so tool semantics cannot drift, prove parity against TOOLS in tests, run async calls on one executor thread so SQLite keeps its thread affinity, and close idempotently in the context manager."
-      }
-    },
-    {
-      "task_id": "lattice-client-adapter-v1",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[2/4]-[4/4] Delivered lattice/client.py: LatticeClient owns one connection, exposes all 21 MCP tool schemas and call_tool plus convenience methods; AsyncLatticeClient runs the same surface on one dedicated thread with async context management. Published mcp.dispatch_tool, exported the client from lattice.api, recorded ADR-016, updated README and the map. checklists: passed; 159/159 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792650365.5476286,
-      "timestamp_str": "2026-10-22 09:26:05"
-    },
-    {
-      "task_id": "lattice-client-adapter-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-client-adapter-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792650370.4578178,
-      "timestamp_str": "2026-10-22 09:26:10"
-    },
-    {
-      "task_id": "lattice-client-safety-v1",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/4] Failing-first tests: read-only mode filters schemas and blocks every write/IO tool, db_path rejects empty/None, resource/prompt metadata and reads exist, and all 21 tools execute with JSON-serializable payloads. [2/4] Implement read_only, path validation, public read_resource/get_prompt, and client resource/prompt helpers. [3/4] Record ADR-017, update README and the codebase map. [4/4] Run every Phase 4 gate and complete.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792665128.1326323,
-      "timestamp_str": "2026-10-22 13:32:08",
-      "impact_assessment": {
-        "why": "The analysis found the new client has no read-only/sandboxed mode: an autonomous agent gets every write tool, arbitrary snapshot paths and network discovery. It also accepts an empty or None database path, hides resources/prompts, and only spot-checks tool execution.",
-        "benefits": "A host can hand an agent a read-only client whose schema list contains only safe tools, while resources and prompts gain the same first-class client parity as tools; every tool's payload is frozen by a table-driven test.",
-        "risks": "contract: LatticeClient gains read_only and repository becomes unavailable in that mode; MCP gains public read_resource/get_prompt functions; dependency: standard library only; concurrency: unchanged single-thread serialization; state: no schema change.",
-        "mitigation": "Enforce read-only both in tool_schemas and call_tool, reject auto_link writes, keep the raw repository unavailable in read-only mode, validate the path before opening, refactor MCP resource/prompt helpers into public functions, and pin each tool through the client."
-      }
-    },
     {
       "task_id": "lattice-client-safety-v1",
       "phase": "phase 4",
@@ -237,6 +167,76 @@
       "status": "completed",
       "timestamp": 1792773772.241582,
       "timestamp_str": "2026-10-23 19:42:52"
+    },
+    {
+      "task_id": "lattice-ui-guard-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/3] Plan: integrate the AIKit UI mechanics - a tools/ui_inventory.py snapshot proof over the Research Studio (element ids, click handlers, roles, live regions, theme tokens, dispatcher routes), a committed .aikit/ui.json contract bounding the studio surface to lattice/web.py with protected paths, fast proof and diff limits, failing-first tests, README docs and an ADR",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792774570.4399703,
+      "timestamp_str": "2026-10-23 19:56:10",
+      "impact_assessment": {
+        "why": "lattice serves a large single-file web studio but has no UI contract, so aikit ui begin/verify/finish cannot bound or prove surface edits",
+        "benefits": "studio edits become bounded tasks with inventory, budget and style proofs; a dropped control, route or theme token becomes a verify finding instead of silent regressions",
+        "risks": "contract: new .aikit/ui.json (schema 1) plus tools package; dependency: none, stdlib only, pure parsing with no server start; concurrency: read-only inventory, no writes; state: ui.json must be committed before any ui begin, and an open ui task blocks delivery",
+        "mitigation": "mirror fold's proven inventory-tool and contract pattern, assert real studio entries in failing-first tests, validate the contract through load_contract, and keep the surface a single bounded file"
+      }
+    },
+    {
+      "task_id": "lattice-ui-guard-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[3/3] Integrated the AIKit UI mechanics: committed-ready .aikit/ui.json contract bounding the studio surface to lattice/web.py with 29 protected paths, tools/ui_inventory.py snapshot proof (116 entries: element ids, click handlers, roles, live regions, GET/POST routes, theme tokens; pure parsing, imports the exact served WEB_HTML), tests/test_ui_inventory.py, README docs and ADR-020; contract validated through load_contract; 4/4 gates pass (test 191, hygiene, guidelines, secrets); checklists: passed; the contract itself still needs a commit before ui begin can open a task",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792774877.7392054,
+      "timestamp_str": "2026-10-23 20:01:17"
+    },
+    {
+      "task_id": "lattice-ui-guard-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-ui-guard-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792776596.853202,
+      "timestamp_str": "2026-10-23 20:29:56"
+    },
+    {
+      "task_id": "lattice-validation-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/5] Plan: validation and adoption pass - (2) a pointed .pdf ingestion guard with documented conversion recipes, (3) a PRINCIPLE-015 dogfood gate driving the real CLI golden path and the live studio server over HTTP plus chaos perturbations, (4) an agent integration guide for the MCP channel, (5) evidence-health metrics (claims per paper, answered questions, contradiction pairs, coverage gaps) in stats",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792776691.4278588,
+      "timestamp_str": "2026-10-23 20:31:31",
+      "impact_assessment": {
+        "why": "the PM diagnosis: engineering quality is high but adoption friction is unmeasured - PDF input is a wall, the golden path is never exercised end-to-end as a gate, the agent channel is undocumented, and success metrics do not exist",
+        "benefits": "lower input friction with a tested recipe path, a repeatable real-usage gate that catches workflow regressions, a documented MCP integration story, and measurable evidence health from any graph",
+        "risks": "contract: parse_file gains a .pdf branch, repository.stats gains an evidence block (machine consumers must tolerate new keys), tools/dogfood.py spawns a supervised server subprocess; dependency: none, stdlib only; concurrency: dogfood uses a temp sandbox db and a free port; state: dogfood writes only .aikit/dogfood_last_run.log and must leave the tracked tree clean",
+        "mitigation": "failing-first tests for the pdf guard and the stats block, fingerprint the tracked tree before and after the dogfood run, supervise every subprocess with full-tree teardown, keep the dogfood report under 15 lines with full log on disk"
+      }
+    },
+    {
+      "task_id": "lattice-validation-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[5/5] Delivered the validation and adoption pass: .pdf ingestion now fails with the pdftotext/BibTeX recipe before reading binary bytes (2 tests), tools/dogfood.py drives the real CLI golden path plus the live studio server over HTTP with a chaos track and tracked-tree fingerprint (25/25 steps, exit 0), README gets the PDF recipes, the dogfood gate entries and the MCP agent integration guide, and stats gains an evidence health block (claims per paper, answered/open/abandoned, linked questions, coverage gaps, contested, links) rendered by the CLI and served by MCP/studio; .aikit/*.log is gitignored; 195 tests pass, 4/4 gates pass, dogfood 25/25; checklists: passed; both this task and the earlier UI-guard task remain uncommitted pending user authorization",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792778789.658172,
+      "timestamp_str": "2026-10-23 21:06:29"
+    },
+    {
+      "task_id": "lattice-validation-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-validation-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792830895.3049781,
+      "timestamp_str": "2026-10-24 11:34:55"
     }
   ]
 }

@@ -3,6 +3,7 @@
 .aikit/*.bak
 .aikit/*.tmp_*
 .aikit/*.corrupt_*
+.aikit/*.log
 # lattice local databases and exports
 *.db
 *.db-wal

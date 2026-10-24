@@ -13,6 +13,14 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
   ```bash
   python -m unittest discover
   ```
+- **UI inventory proof** (the snapshot the AIKit UI guard compares against):
+  ```bash
+  python tools/ui_inventory.py
+  ```
+- **Dogfood gate** (drives the real CLI and the live studio server, then attacks them):
+  ```bash
+  python tools/dogfood.py
+  ```
 - **Try it now** (under 10 seconds, from this folder):
   ```bash
   # Option A: 1-Click interactive Web Research Studio
@@ -34,6 +42,16 @@ Lattice is local-first: one SQLite file, the Python standard library, and no net
 | Phase 4: every gate | `python aikit.py check lattice` |
 | Repair memory and map, then check | `python aikit.py fix lattice` |
 | Resume an interrupted task | `python aikit.py resume lattice` |
+| Open a bounded studio edit | `python aikit.py ui begin lattice --surface studio` |
+| Verify the open studio edit | `python aikit.py ui verify lattice` |
+| Close it after a human review | `python aikit.py ui finish lattice --reviewed` |
+| Real-usage dogfood gate | `python tools/dogfood.py` |
+
+The UI mechanics are declared in `.aikit/ui.json`: the `studio` surface is bounded to
+`lattice/web.py`, every other module is protected, the fast proof is the test suite, and the
+snapshot proof (`python tools/ui_inventory.py`) enumerates the studio's element ids, click
+handlers, dispatcher routes and theme tokens so a dropped control or route becomes a verify
+finding instead of a silent regression.
 
 ## How It Works
 
@@ -178,6 +196,39 @@ MCP resources and the synthesis prompt are available too: `resource_schemas()`, 
 `read_resource("lattice://stats")` and
 `get_prompt("literature-synthesis", {"target": "q_000001"})`.
 
+### Use Lattice From an AI Agent (MCP)
+
+Lattice is built to be an agent's evidence backend: the graph stays local, and every answer the
+agent gives can point at a quote-backed claim whose source and locator are recorded. A host
+launches the MCP server over stdio:
+
+```json
+{
+  "mcpServers": {
+    "lattice": {
+      "command": "python",
+      "args": ["-m", "lattice", "--db", "/absolute/path/to/lattice.db", "mcp"]
+    }
+  }
+}
+```
+
+`python -m lattice mcp` speaks newline-delimited JSON-RPC on stdio and advertises 22 tools
+(13 read-only), 3 resources and the `literature-synthesis` prompt. The agent-facing flow is
+budgeted end to end:
+
+1. `outline` — cheap orientation: counts, edge kinds, study-type mix and evidenced question refs.
+2. `search` / `related_findings` / `subgraph` — compact refs under a `tokens` budget, with every
+   trimmed list reporting its omissions.
+3. `brief` — a token-budgeted evidence pack for one question, or `synthesize` for the full
+   consensus-scored report.
+4. `get_entity` — full drill-down on one ref, only when the agent decides it needs it.
+
+Give an autonomous agent the read-only client: `LatticeClient("lattice.db", read_only=True)`
+advertises only the non-mutating tools, rejects writes and network discovery at `call_tool`,
+opens SQLite in `mode=ro` with `query_only`, and still allows `diff_snapshot` because it only
+reads files and the database.
+
 ### Supported Inputs
 
 | Format | Suffix | Notes |
@@ -188,7 +239,19 @@ MCP resources and the synthesis prompt are available too: `resource_schemas()`, 
 | Markdown | `.md`, `.markdown` | YAML-like front matter (including `tags` and `study_type`), heading or filename title |
 | Plain text | `.txt` | filename becomes the title, body the abstract |
 
-PDF extraction is intentionally out of scope; convert a PDF to text first.
+PDF extraction is intentionally out of scope (zero dependencies is a hard rule); convert the
+PDF to text first. Handing lattice a `.pdf` fails immediately with this recipe instead of a
+binary-decoding error:
+
+```bash
+# poppler's pdftotext (Windows: scoop/choco install poppler; macOS: brew install poppler)
+pdftotext paper.pdf paper.txt
+python -m lattice ingest paper.txt
+
+# best quality: export BibTeX or RIS straight from Zotero/Mendeley/EndNote,
+# then point lattice at the references and paste the abstract text separately
+python -m lattice ingest references.bib
+```
 
 ## What's Inside
 
@@ -224,6 +287,10 @@ lattice/
 │   ├── snapshots.py          <- atomic JSONL graph snapshot export and merge import
 │   ├── synthesis.py          <- consensus scoring, thematic clusters and BibTeX synthesis
 │   └── web.py                <- web-based Research Studio UI and JSON API dispatcher
+├── tools/
+│   ├── __init__.py
+│   ├── dogfood.py            <- real-usage gate: CLI golden path, live studio, chaos
+│   └── ui_inventory.py       <- UI inventory proof for the AIKit UI guard
 └── tests/
     ├── __init__.py
     ├── test_analysis.py
@@ -243,6 +310,7 @@ lattice/
     ├── test_repository.py
     ├── test_snapshots.py
     ├── test_synthesis.py
+    ├── test_ui_inventory.py
     └── test_web.py
 ```
 

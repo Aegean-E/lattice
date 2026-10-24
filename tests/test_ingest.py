@@ -133,6 +133,19 @@ class FileTests(unittest.TestCase):
         with self.assertRaises(LatticeError):
             parse_file(path)
 
+    def test_binary_pdf_gets_the_conversion_recipe(self):
+        path = Path(self.directory.name) / "paper.pdf"
+        path.write_bytes(b"%PDF-1.4 \xff\xfe binary bytes")
+        with self.assertRaises(LatticeError) as raised:
+            parse_file(path)
+        self.assertIn("pdftotext", raised.exception.render())
+
+    def test_text_disguised_as_pdf_also_gets_the_recipe(self):
+        path = self.write("notes.pdf", "plain text wearing a pdf suffix")
+        with self.assertRaises(LatticeError) as raised:
+            parse_file(path)
+        self.assertIn("pdftotext", raised.exception.render())
+
 
 if __name__ == "__main__":
     unittest.main()

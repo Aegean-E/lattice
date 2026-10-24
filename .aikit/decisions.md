@@ -423,3 +423,59 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   one database lineage, so diffs are meaningful for snapshots of an evolving graph; two
   unrelated graphs still compare deterministically by id. Read-only clients gain a new allowed
   tool because diffing only reads files and the database. No schema or persistence change.
+
+## ADR-020: AIKit UI Guard Integration (2026-10-23)
+
+- **Status**: Accepted
+- **Context**: The Research Studio is a large single-file web UI (`lattice/web.py`), but the
+  project had no UI contract, so `aikit ui begin/verify/finish` could not bound or prove a
+  studio edit: a dropped control, API route or theme token would regress silently.
+- **Decision**:
+  1. Commit `.aikit/ui.json` (schema 1): the `studio` surface is exactly `lattice/web.py`;
+     tests, tools, launchers, docs, `.aikit/` and every other lattice module are protected;
+     the fast proof is `python -m unittest discover`; the snapshot proof is
+     `python tools/ui_inventory.py`; the theme lives in `lattice/web.py` itself; the diff
+     budget is 2 files and 400 lines.
+  2. Add `tools/ui_inventory.py`: a pure-parsing inventory that imports the exact served
+     `WEB_HTML` and reads the dispatcher source, printing one stable sorted line per element
+     id, click handler, role, live region, GET/POST route and theme token (116 entries at
+     adoption). It never starts a server or browser.
+  3. Cover it with `tests/test_ui_inventory.py`, asserting real studio entries, and document
+     the `ui begin/verify/finish` flow in the README's AIKit command table.
+- **Consequences**: A studio edit is now a bounded task: verify refuses changes outside
+  `lattice/web.py`, protects every other path, enforces the diff budget, reruns the suite,
+  compares the inventory snapshot (lost entries are findings unless allowed with a reason)
+  and lints hardcoded style literals; finish additionally requires a recorded human review.
+  The contract must stay committed, and an open UI task blocks delivery until finished or
+  aborted. No package, schema or persistence change.
+
+## ADR-021: Validation and Adoption Pass (2026-10-23)
+
+- **Status**: Accepted
+- **Context**: The PM review of lattice concluded that engineering quality is high but
+  adoption is unmeasured: PDFs - where researchers actually keep papers - hit a generic binary
+  error with no recipe, the full user journey was never exercised as a repeatable gate, the
+  agent (MCP) channel had no integration story in the README, and there were no evidence-health
+  metrics to judge whether the core loop works.
+- **Decision**:
+  1. Reject `.pdf` before reading it and fail with the documented conversion recipe
+     (`pdftotext paper.pdf paper.txt`, or a BibTeX/RIS export from the reference manager), so the
+     error names the fix instead of a decoding failure. Document the same recipes in the README.
+  2. Add `tools/dogfood.py` (PRINCIPLE-015): the real CLI golden path on a temporary database
+     (init, question, offline discovery, extraction, synthesis, export, diff, re-export and
+     idempotent import) plus the live Research Studio server on a free port driven over HTTP
+     (page, demo seeding, overview, search, matrix, question), then chaos (malformed JSON,
+     unknown route, missing entity, empty payload, PDF ingestion), a liveness check after
+     chaos, and a before/after fingerprint of the tracked tree. 25 steps, errors/Why/Fix, exit
+     0/1/2, full log in `.aikit/dogfood_last_run.log`.
+  3. Document the agent channel in the README: the MCP host configuration, the 22 advertised
+     tools (13 read-only), the budgeted outline -> compact views -> brief -> get_entity flow, and
+     the read-only client policy.
+  4. Add an `evidence` health block to `stats` (claims per paper, questions answered/open/
+     abandoned, linked questions, coverage gaps, contested questions, claim-question links),
+     rendered as one line by the CLI and returned unchanged by MCP and the studio overview.
+- **Consequences**: Input friction is explained at the failure point, the whole research loop is
+  a one-command gate that leaves the tree untouched, agents have a documented onboarding path,
+  and graph health is measurable from any database. The dogfood found two harness bugs during
+  adoption (wrong search parameter name, comparing an import against a since-evolved database)
+  and now guards both. `stats` grows additive keys only; no schema change.

@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "surfaces": {
+    "studio": {
+      "paths": [
+        "lattice/web.py"
+      ]
+    }
+  },
+  "protected": [
+    "tests/**",
+    "tools/**",
+    ".aikit/**",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+    "start.py",
+    "start.bat",
+    "start.sh",
+    "lattice/__init__.py",
+    "lattice/__main__.py",
+    "lattice/analysis.py",
+    "lattice/api.py",
+    "lattice/checks.py",
+    "lattice/cli.py",
+    "lattice/client.py",
+    "lattice/context.py",
+    "lattice/database.py",
+    "lattice/diff.py",
+    "lattice/discovery.py",
+    "lattice/errors.py",
+    "lattice/extraction.py",
+    "lattice/ingest.py",
+    "lattice/inquiry.py",
+    "lattice/mcp.py",
+    "lattice/models.py",
+    "lattice/repository.py",
+    "lattice/snapshots.py",
+    "lattice/synthesis.py"
+  ],
+  "commands": {
+    "fast": "python -m unittest discover",
+    "snapshot": "python tools/ui_inventory.py"
+  },
+  "style": {
+    "theme_paths": [
+      "lattice/web.py"
+    ]
+  },
+  "limits": {
+    "max_files": 2,
+    "max_lines": 400
+  }
+}

@@ -156,6 +156,33 @@ class RepositoryTests(unittest.TestCase):
         events = self.connection.execute("SELECT action FROM events ORDER BY id").fetchall()
         self.assertIn("paper.add", [row["action"] for row in events])
 
+    def test_stats_reports_evidence_health(self):
+        paper = self.paper()
+        question = self.repository.add_question("Does sleep consolidate memory?")
+        support = self.repository.add_claim(paper.id, "Sleep helps.", "Sleep helps.",
+                                            stance="supports", confidence=0.8)
+        contradict = self.repository.add_claim(paper.id, "Sleep does not help.",
+                                               "No effect was found.", stance="contradicts")
+        self.repository.add_edge(f"claim:{support.id}", f"question:{question.id}", "supports")
+        self.repository.add_edge(f"claim:{contradict.id}", f"question:{question.id}",
+                                 "contradicts")
+        self.repository.add_question("Is caffeine inert?")
+        health = self.repository.stats()["evidence"]
+        self.assertEqual(health["claims_per_paper"], 2.0)
+        self.assertEqual(health["questions_open"], 2)
+        self.assertEqual(health["questions_answered"], 0)
+        self.assertEqual(health["evidence_links"], 2)
+        self.assertEqual(health["linked_questions"], 1)
+        self.assertEqual(health["coverage_gaps"], 1)
+        self.assertEqual(health["contested_questions"], 1)
+
+    def test_stats_on_an_empty_graph_report_zero_health(self):
+        health = self.repository.stats()["evidence"]
+        self.assertEqual(health["claims_per_paper"], 0.0)
+        self.assertEqual(health["coverage_gaps"], 0)
+        self.assertEqual(health["contested_questions"], 0)
+        self.assertEqual(health["evidence_links"], 0)
+
     def test_neighbors_filter_by_kind(self):
         paper = self.paper()
         claim = self.repository.add_claim(paper.id, "One", "quote")

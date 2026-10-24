@@ -2,7 +2,7 @@
 
 import json
 import sqlite3
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from lattice.database import utc_now
 from lattice.errors import fail
@@ -390,7 +390,7 @@ class Repository:
                 "evidence_count": total, "gaps": gaps}
 
     def stats(self) -> Dict[str, Any]:
-        """Entity and edge counts for a quick orientation report."""
+        """Entity and edge counts plus evidence health for a quick orientation report."""
         counts = {}
         for table in ("papers", "claims", "questions", "edges"):
             row = self.connection.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()
@@ -398,7 +398,41 @@ class Repository:
         kinds = {row["kind"]: int(row["n"]) for row in self.connection.execute(
             "SELECT kind, COUNT(*) AS n FROM edges GROUP BY kind ORDER BY kind").fetchall()}
         counts["edge_kinds"] = kinds
+        counts["evidence"] = self._evidence_health(int(counts["papers"]), int(counts["claims"]))
         return counts
+
+    def _evidence_health(self, papers: int, claims: int) -> Dict[str, Any]:
+        """Adoption metrics: claim density, question status mix, linkage, gaps and contest."""
+        status_rows = self.connection.execute(
+            "SELECT status, COUNT(*) AS n FROM questions GROUP BY status").fetchall()
+        by_status = {str(row["status"]): int(row["n"]) for row in status_rows}
+        linked: Dict[str, Set[str]] = {}
+        stances: Dict[str, Set[str]] = {}
+        for row in self.connection.execute(
+                "SELECT src, dst, kind FROM edges"
+                " WHERE kind IN ('supports', 'contradicts', 'answers')").fetchall():
+            src, dst, kind = str(row["src"]), str(row["dst"]), str(row["kind"])
+            if src.startswith("claim:") and dst.startswith("question:"):
+                claim_ref, question = src, dst.split(":", 1)[1]
+            elif dst.startswith("claim:") and src.startswith("question:"):
+                claim_ref, question = dst, src.split(":", 1)[1]
+            else:
+                continue
+            linked.setdefault(question, set()).add(claim_ref)
+            if kind in ("supports", "contradicts"):
+                stances.setdefault(question, set()).add(kind)
+        total_questions = sum(by_status.values())
+        return {
+            "claims_per_paper": round(claims / papers, 2) if papers else 0.0,
+            "questions_answered": by_status.get("answered", 0),
+            "questions_open": by_status.get("open", 0),
+            "questions_abandoned": by_status.get("abandoned", 0),
+            "linked_questions": len(linked),
+            "coverage_gaps": total_questions - len(linked),
+            "contested_questions": sum(1 for kinds in stances.values()
+                                       if "supports" in kinds and "contradicts" in kinds),
+            "evidence_links": sum(len(refs) for refs in linked.values()),
+        }
 
     def _resolve(self, value: str) -> str:
         """Accept a full reference or a bare id and return the validated reference."""

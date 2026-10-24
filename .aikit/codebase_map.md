@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `41`
-- **Total Classes**: `54`
-- **Total Top-Level Functions**: `193`
-- **Total Class Methods**: `332`
-- **Total Source Lines**: `11191`
+- **Total Python Modules**: `45`
+- **Total Classes**: `57`
+- **Total Top-Level Functions**: `212`
+- **Total Class Methods**: `343`
+- **Total Source Lines**: `11728`
 
 ---
 
@@ -100,7 +100,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `625` lines (`28351` bytes)
+**Size**: `631` lines (`28691` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -125,7 +125,7 @@
 - `def _run_export(args, repository)` - *Export the graph to an atomic JSONL snapshot or BibTeX bibliography.*
 - `def _run_import(args, repository)` - *Import a JSONL snapshot idempotently.*
 - `def _run_diff(args, repository)` - *Diff snapshots, or a snapshot against the live graph; exit 1 when they differ.*
-- `def _run_stats(args, repository)` - *Print counts.*
+- `def _run_stats(args, repository)` - *Print counts and evidence health.*
 - `def _run_check(args, repository)` - *Run the integrity gate and return 1 on any error.*
 - `def _run_mcp(args, repository)` - *Serve MCP on stdio; stdout carries protocol messages only.*
 - `def _run_web(args, repository)` - *Launch the Research Studio web UI, optionally seeding demo data or dumping HTML.*
@@ -327,7 +327,7 @@
 ### [`lattice/ingest.py`](lattice/ingest.py)
 > *Parsers for the text bibliography formats lattice accepts, with no third-party dependencies.*
 
-**Size**: `253` lines (`9238` bytes)
+**Size**: `258` lines (`9590` bytes)
 
 **Functions:**
 - `def empty_record()` - *A record with every supported metadata field present.*
@@ -428,7 +428,7 @@
 ### [`lattice/repository.py`](lattice/repository.py)
 > *The knowledge graph API: papers, claims, questions, typed edges and evidence queries.*
 
-**Size**: `607` lines (`29183` bytes)
+**Size**: `641` lines (`31210` bytes)
 
 **Classes:**
 - `class Repository` - *One connection's view of the graph; every write is committed before it returns.*
@@ -448,7 +448,8 @@
   - Method `.subgraph(ref, depth)` - *Return the multi-hop neighborhood of nodes and edges around `ref`.*
   - Method `.neighbors(ref, kind)` - *Every edge touching `ref`, optionally narrowed to one kind.*
   - Method `.evidence(question)` - *Claims linked to a question, grouped by the stance of the link.*
-  - Method `.stats()` - *Entity and edge counts for a quick orientation report.*
+  - Method `.stats()` - *Entity and edge counts plus evidence health for a quick orientation report.*
+  - Method `._evidence_health(papers, claims)` - *Adoption metrics: claim density, question status mix, linkage, gaps and contest.*
   - Method `._resolve(value)` - *Accept a full reference or a bare id and return the validated reference.*
   - Method `._row(query, *args)` - *One row or None.*
   - Method `._ids(table)` - *Every id in a table, used to allocate the next sequential claim or question id.*
@@ -799,7 +800,7 @@
 ### [`tests/test_ingest.py`](tests/test_ingest.py)
 > *Format parsers stay dependency-free and deterministic.*
 
-**Size**: `138` lines (`5141` bytes)
+**Size**: `151` lines (`5747` bytes)
 
 **Classes:**
 - `class BibtexTests` - *BibTeX braces, authors and identifiers.*
@@ -822,6 +823,8 @@
   - Method `.test_plain_text()`
   - Method `.test_parse_paths()`
   - Method `.test_unsupported_suffix()`
+  - Method `.test_binary_pdf_gets_the_conversion_recipe()`
+  - Method `.test_text_disguised_as_pdf_also_gets_the_recipe()`
 
 ---
 
@@ -904,7 +907,7 @@
 ### [`tests/test_repository.py`](tests/test_repository.py)
 > *Graph writes, dedupe, references, search and evidence grouping.*
 
-**Size**: `178` lines (`7996` bytes)
+**Size**: `205` lines (`9571` bytes)
 
 **Classes:**
 - `class RepositoryTests` - *Every test gets a fresh in-memory graph.*
@@ -924,6 +927,8 @@
   - Method `.test_literature_search_matches_tags_words_sentences_and_study_type()`
   - Method `.test_evidence_groups_and_gaps()`
   - Method `.test_stats_and_event_log()`
+  - Method `.test_stats_reports_evidence_health()`
+  - Method `.test_stats_on_an_empty_graph_report_zero_health()`
   - Method `.test_neighbors_filter_by_kind()`
   - Method `.test_export_bibtex()`
 
@@ -959,6 +964,18 @@
 
 ---
 
+### [`tests/test_ui_inventory.py`](tests/test_ui_inventory.py)
+> *The UI inventory proof covers the studio's controls, handlers, routes and theme tokens.*
+
+**Size**: `35` lines (`1319` bytes)
+
+**Classes:**
+- `class InventoryTest`
+  - Method `.test_the_inventory_names_controls_handlers_routes_and_tokens()`
+  - Method `.test_the_studio_page_and_panels_are_part_of_the_surface()`
+
+---
+
 ### [`tests/test_web.py`](tests/test_web.py)
 > *Tests for the web-based human UI and JSON API dispatcher (zero sockets).*
 
@@ -979,5 +996,59 @@
   - Method `.test_validation_error_and_not_found()`
   - Method `.test_api_outline_endpoint()`
   - Method `.test_api_export_bibtex_endpoint()`
+
+---
+
+### [`tools/__init__.py`](tools/__init__.py)
+> *Project-local proof tools: the UI inventory the AIKit UI guard snapshots.*
+
+**Size**: `1` lines (`80` bytes)
+
+---
+
+### [`tools/dogfood.py`](tools/dogfood.py)
+> *Lattice's dogfood runner: research the way a user does, then attack the surface.*
+
+**Size**: `300` lines (`12953` bytes)
+
+**Classes:**
+- `class Report` - *Collects step outcomes: the console sees a summary, the log sees everything.*
+  - Method `.__init__()`
+  - Method `.step(ok, label, detail)` - *Record one step's outcome and hand back whether it passed.*
+
+**Functions:**
+- `def terminate_process_tree(process)` - *Kill a process and everything it started, on Windows and POSIX alike.*
+- `def supervised(command, log)` - *Run a command with stdin closed, killing its whole tree on the way out.*
+- `def free_port()` - *A port the operating system says is free right now.*
+- `def fingerprint()` - *A digest of every tracked file, so a run that dirties the repository fails.*
+- `def run_cli(db, *arguments, log)` - *Drive the real CLI in-process and capture both streams into the log.*
+- `def http(method, url, body, headers)` - *One HTTP request; an HTTP error status is returned instead of raised.*
+- `def post_json(base, route, payload)` - *POST one JSON object to the studio.*
+- `def wait_for_server(base)` - *Poll the studio until it answers or the start budget runs out.*
+- `def golden_cli(report, sandbox, log)` - *The research workflow a user actually runs, end to end on one database.*
+- `def golden_studio(report, sandbox, log)` - *The real Research Studio server, driven over HTTP like the browser does.*
+- `def chaos_studio(report, base, log)` - *Malformed and hostile requests the browser never sends but a bug or a bot might.*
+- `def chaos_cli(report, sandbox, log)` - *CLI failures must be the documented Error/Why/Fix triad, not tracebacks.*
+- `def main(argv)` - *Run the golden and chaos tracks, print a summary, keep the full log on disk.*
+
+---
+
+### [`tools/ui_inventory.py`](tools/ui_inventory.py)
+> *Print Lattice's UI inventory, one entry per line.*
+
+**Size**: `116` lines (`4551` bytes)
+
+**Classes:**
+- `class SurfaceParser` - *Collects identified elements, click handlers, roles and live regions of the studio.*
+  - Method `.__init__()`
+  - Method `.handle_starttag(tag, attrs)`
+
+**Functions:**
+- `def html_entries(html)` - *Identified elements, click handlers, roles and live regions of the studio page.*
+- `def token_entries(html)` - *Theme custom properties the studio's embedded stylesheet declares.*
+- `def route_entries(source)` - *The GET and POST routes the web dispatcher answers, parsed from its source.*
+- `def _studio_html(root)` - *The exact HTML the studio serves, imported from the package rather than re-parsed.*
+- `def inventory(root)` - *Every inventory entry of the studio surface, sorted and deduplicated.*
+- `def main(argv)` - *Write the inventory to stdout; exit 1 when the surface has no entries at all.*
 
 ---
