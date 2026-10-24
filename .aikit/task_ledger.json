@@ -1,62 +1,17 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "lattice-prisma-v1",
+    "task_id": "lattice-graphrag-v1",
     "last_phase": "phase 4",
     "active_phase": 5,
     "status": "completed",
-    "updated_at": 1792877436.92743,
+    "updated_at": 1792878275.902781,
     "owner": "unidentified",
     "started_by": "unidentified",
     "continuations": [],
-    "completed_at": 1792877445.6307957
+    "completed_at": 1792878280.3222363
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-path-v1",
-      "phase": "phase 1",
-      "phase_num": 1,
-      "description": "[1/4] Design and implement BFS shortest path finding and narrative reasoning in lattice.analysis",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792858380.545254,
-      "timestamp_str": "2026-10-24 19:13:00",
-      "impact_assessment": {
-        "why": "Enable researchers and AI agents to trace multi-hop chains of evidence and citations connecting any two entities in the knowledge graph",
-        "benefits": "Provides deterministic provenance chains, explains how distant findings or papers relate, and exposes path finding across CLI, API, MCP, and Web Studio without heuristics",
-        "risks": "Performance on dense cycles and malformed entity references",
-        "mitigation": "Cycle detection via visited sets, depth capping (default 5, max 10), entity validation via validate_ref, and strict BFS shortest path guarantee"
-      }
-    },
-    {
-      "task_id": "lattice-path-v1",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "checklists: passed. Implemented BFS evidence path tracing across lattice.analysis, lattice.api, lattice.cli, lattice.client, and lattice.mcp. Verified 208/208 tests and 25/25 dogfood steps.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792859138.168951,
-      "timestamp_str": "2026-10-24 19:25:38"
-    },
-    {
-      "task_id": "lattice-path-v1",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "checklists: passed. Delivered Evidence Path Tracer in Web Research Studio with GET /api/path, tracePath() JS, and input form. Verified UI guard, 209/209 tests, 25/25 dogfood steps.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792859371.3760686,
-      "timestamp_str": "2026-10-24 19:29:31"
-    },
-    {
-      "task_id": "lattice-path-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-path-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792859375.7715032,
-      "timestamp_str": "2026-10-24 19:29:35"
-    },
     {
       "task_id": "lattice-hypothesize-v1",
       "phase": "phase 1",
@@ -243,6 +198,55 @@
       "status": "completed",
       "timestamp": 1792877445.6307974,
       "timestamp_str": "2026-10-25 00:30:45",
+      "agent": "unidentified"
+    },
+    {
+      "task_id": "lattice-graphrag-v1",
+      "phase": "phase 1",
+      "phase_num": 1,
+      "description": "[1/3] Design token-bounded GraphRAG context pack engine",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792877849.1140482,
+      "timestamp_str": "2026-10-25 00:37:29",
+      "agent": "unidentified",
+      "impact_assessment": {
+        "why": "Provide high-density, token-bounded GraphRAG context packs for LLM agents with deterministic quote anchors and provenance",
+        "benefits": "Enables downstream RAG and reasoning agents to inject relevant question-claim-paper subgraphs with strict token budget enforcement",
+        "risks": "contract: new context pack API/MCP tool; dependency: none, standard library only; concurrency: thread-safe read-only repository; state: none",
+        "mitigation": "Token budget verification, unit test coverage, ADR-029 recording"
+      }
+    },
+    {
+      "task_id": "lattice-graphrag-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/3] Plan: implement build_context_pack in lattice/context.py, expose in api.py, cli.py (lattice pack), client.py, and mcp.py (get_context_pack), record ADR-029, test in tests/test_context.py, tests/test_cli.py, and tests/test_client.py",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792877853.25045,
+      "timestamp_str": "2026-10-25 00:37:33",
+      "agent": "unidentified"
+    },
+    {
+      "task_id": "lattice-graphrag-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "checklists: passed. Implemented build_context_pack and ContextPack in lattice/context.py, exposed in api.py, cli.py (lattice pack), client.py, and mcp.py (get_context_pack). Verified 233/233 unit tests, 4/4 gates, and 25/25 dogfood steps.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792878275.902781,
+      "timestamp_str": "2026-10-25 00:44:35",
+      "agent": "unidentified"
+    },
+    {
+      "task_id": "lattice-graphrag-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-graphrag-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792878280.3222382,
+      "timestamp_str": "2026-10-25 00:44:40",
       "agent": "unidentified"
     }
   ]

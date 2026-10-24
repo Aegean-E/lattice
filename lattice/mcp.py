@@ -124,6 +124,11 @@ TOOLS: List[Dict[str, Any]] = [
     _tool("get_prisma_flow", "Calculate PRISMA 2020 review attrition metrics, flow counts and optional SVG/Markdown representation.",
           {"format": {"type": "string", "enum": ["json", "markdown", "svg"], "default": "json"}},
           []),
+    _tool("get_context_pack", "Assemble a high-density, token-bounded GraphRAG context pack for LLM reasoning.",
+          {"targets": {"type": "array", "items": {"type": "string"}, "description": "Target question, paper or claim references, or search phrases"},
+           "max_tokens": {"type": "integer", "default": 2000, "description": "Maximum token budget (default: 2000)"},
+           "format": {"type": "string", "enum": ["markdown", "json"], "default": "markdown"}},
+          []),
     _tool("stats", "Entity and edge counts.", {}, []),
 ]
 
@@ -442,6 +447,15 @@ def dispatch_tool(repository: Repository, name: str, arguments: Dict[str, Any]) 
         elif fmt == "markdown":
             res["markdown"] = render_prisma_markdown(flow)
         return res
+    if name == "get_context_pack":
+        from lattice.context import build_context_pack
+        targets = arguments.get("targets") or arguments.get("target")
+        if isinstance(targets, str):
+            targets = [targets]
+        tokens = int(arguments.get("max_tokens", arguments.get("tokens", 2000)))
+        fmt = str(arguments.get("format", "markdown"))
+        pack = build_context_pack(repository, targets=targets, max_tokens=tokens, format=fmt)
+        return pack.to_dict()
     if name == "stats":
         return repository.stats()
     raise LatticeError(f"unknown tool '{name}'", "the server advertises its tools in tools/list",

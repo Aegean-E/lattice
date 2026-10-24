@@ -30,6 +30,8 @@ from lattice.checks import CheckIssue, CheckReport, run_checks, summarize
 from lattice.client import AsyncLatticeClient, DEFAULT_DB, LatticeClient
 from lattice.context import (
     MIN_TOKENS,
+    ContextPack,
+    build_context_pack,
     compact_related,
     compact_search,
     compact_subgraph,
@@ -204,6 +206,7 @@ __all__ = sorted([
     "CheckIssue",
     "CheckReport",
     "Claim",
+    "ContextPack",
     "ContradictionPair",
     "CrossrefProvider",
     "DEFAULT_DB",
@@ -253,6 +256,7 @@ __all__ = sorted([
     "ask",
     "bare_id",
     "brief",
+    "build_context_pack",
     "build_evidence_matrix",
     "cluster_claims",
     "collect_repository_records",

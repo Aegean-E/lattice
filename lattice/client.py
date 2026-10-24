@@ -28,7 +28,7 @@ DEFAULT_DB = "lattice.db"
 _READ_ONLY_TOOLS = frozenset({
     "search", "get_entity", "neighbors", "subgraph", "related_findings", "outline",
     "brief", "review", "synthesize", "stats", "analyze_graph", "detect_contradictions",
-    "diff_snapshot", "find_path", "propose_hypotheses", "get_prisma_flow",
+    "diff_snapshot", "find_path", "propose_hypotheses", "get_prisma_flow", "get_context_pack",
 })
 
 
@@ -277,6 +277,15 @@ class LatticeClient:
         """Get PRISMA 2020 review attrition metrics and flow diagram."""
         return self.call_tool("get_prisma_flow", {"format": format})
 
+    def get_context_pack(self, targets: Optional[Sequence[str] | str] = None,
+                         max_tokens: int = 2000,
+                         format: str = "markdown") -> Dict[str, Any]:
+        """Generate a token-bounded GraphRAG context pack for LLM reasoning."""
+        arguments: Dict[str, Any] = {"max_tokens": max_tokens, "format": format}
+        if targets:
+            arguments["targets"] = [targets] if isinstance(targets, str) else list(targets)
+        return self.call_tool("get_context_pack", arguments)
+
     def stats(self) -> Dict[str, Any]:
         return self.call_tool("stats", {})
 
@@ -286,6 +295,8 @@ class LatticeClient:
     extract = extract_claims
     analyze = analyze_graph
     contradictions = detect_contradictions
+    pack = get_context_pack
+    context_pack = get_context_pack
 
 
 class AsyncLatticeClient:

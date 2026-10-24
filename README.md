@@ -170,7 +170,7 @@ The neurocore design names `synthesize_question` and `extract_claims_for_paper` 
 
 ### AI Client
 
-For an AI host, `LatticeClient` owns the connection and exposes the same 26 tools (16 in
+For an AI host, `LatticeClient` owns the connection and exposes the same 27 tools (17 in
 read-only mode) as the MCP server, so the tool declarations and the dispatch path come from one
 implementation:
 
@@ -217,8 +217,8 @@ launches the MCP server over stdio:
 }
 ```
 
-`python -m lattice mcp` speaks newline-delimited JSON-RPC on stdio and advertises 26 tools
-(16 read-only), 3 resources and the `literature-synthesis` prompt. The agent-facing flow is
+`python -m lattice mcp` speaks newline-delimited JSON-RPC on stdio and advertises 27 tools
+(17 read-only), 3 resources and the `literature-synthesis` prompt. The agent-facing flow is
 budgeted end to end:
 
 1. `outline` — cheap orientation: counts, edge kinds, study-type mix and evidenced question refs.

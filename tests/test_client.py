@@ -72,7 +72,7 @@ class LatticeClientTests(unittest.TestCase):
         schemas = self.client.tool_schemas()
         self.assertEqual([item["name"] for item in schemas],
                          [item["name"] for item in TOOLS])
-        self.assertEqual(len(schemas), 26)
+        self.assertEqual(len(schemas), 27)
         schemas[0]["name"] = "mutated"
         self.assertEqual(TOOLS[0]["name"], "search")
 
@@ -126,7 +126,7 @@ class AsyncLatticeClientTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_async_schemas_and_call_tool(self) -> None:
         schemas = await self.client.tool_schemas()
-        self.assertEqual(len(schemas), 26)
+        self.assertEqual(len(schemas), 27)
         stats = await self.client.call_tool("stats", {})
         self.assertEqual(stats["questions"], 0)
 
@@ -176,7 +176,7 @@ class ClientSafetyTests(unittest.TestCase):
         allowed = {
             "search", "get_entity", "neighbors", "subgraph", "related_findings", "outline",
             "brief", "review", "synthesize", "stats", "analyze_graph", "detect_contradictions",
-            "diff_snapshot", "find_path", "propose_hypotheses", "get_prisma_flow",
+            "diff_snapshot", "find_path", "propose_hypotheses", "get_prisma_flow", "get_context_pack",
         }
         blocked = (
             ("add_paper", {"title": "x"}), ("add_claim", {"paper": "p_x"}),
@@ -254,6 +254,7 @@ class ClientSafetyTests(unittest.TestCase):
                     "diff_snapshot": {"old_path": snapshot, "new_path": snapshot},
                     "screen_paper": {"paper_id": paper["id"], "status": "included"},
                     "get_prisma_flow": {},
+                    "get_context_pack": {"max_tokens": 1000},
                     "stats": {},
                 }
                 for name, arguments in calls.items():
@@ -314,6 +315,12 @@ class ClientSafetyTests(unittest.TestCase):
             flow = client.get_prisma_flow()
             self.assertEqual(flow["flow"]["identified"], 3)
             self.assertEqual(flow["flow"]["included"], 3)
+
+            # Test get_context_pack
+            pack_res = client.get_context_pack(q["id"], max_tokens=1500)
+            self.assertIn("GraphRAG Evidence Pack", pack_res["content"])
+            self.assertIn(q["id"], pack_res["content"])
+            self.assertLessEqual(pack_res["estimated_tokens"], 1500)
 
 
 class AsyncClientSafetyTests(unittest.IsolatedAsyncioTestCase):

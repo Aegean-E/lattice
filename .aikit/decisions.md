@@ -562,6 +562,19 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   5. Expose screening capabilities across all interfaces: `lattice screen` and `lattice prisma` CLI commands, `lattice.api` public facade, MCP tools `screen_paper` and `get_prisma_flow` (with read-only filtering), and convenience methods on `LatticeClient` and `AsyncLatticeClient`.
 - **Consequences**: Researchers and autonomous systematic review agents can conduct reproducible screening workflows and generate compliant PRISMA flowcharts directly from the graph with zero external dependencies. 228 unit tests pass, and gate hygiene invariant is maintained.
 
+## ADR-029: Token-Bounded GraphRAG Context Pack Engine (2026-10-25)
+
+- **Status**: Accepted
+- **Context**: Autonomous LLM agents and retrieval-augmented generation (RAG) systems querying Lattice need high-density, citation-anchored context packs. Prior views either returned unoriented shallow subgraphs (`subgraph`), isolated search snippets (`search`), or full synthesis reports (`synthesize`) without adaptive multi-target assembly or deterministic compaction. Downstream agents risked context window overflow when injecting multi-hop evidence clusters or scientific tension.
+- **Decision**:
+  1. Implement `build_context_pack` and `ContextPack` in `lattice.context` to assemble structured GraphRAG context packages for arbitrary target sets (questions, claims, papers, or search queries).
+  2. Structure the context pack with 4 core evidentiary layers: (1) Target Questions & Status, (2) Evidentiary Claims with verbatim quote anchors, confidence scores, and source paper provenance, (3) Scientific Contradictions and Tension Callouts, and (4) Bibliographic Source Details.
+  3. Support both human/agent Markdown and machine JSON serializations.
+  4. Implement deterministic token-budgeted compaction: prioritize keystone claims participating in scientific contradictions and high-confidence evidence; iteratively trim lower-weight claims with explicit omission annotations when exceeding `max_tokens`.
+  5. Expose context packs across all access layers: `lattice pack [TARGET...]` CLI command, `lattice.api` public re-exports, `get_context_pack` MCP tool (added to `_READ_ONLY_TOOLS`), and `client.get_context_pack()` on `LatticeClient` and `AsyncLatticeClient`.
+- **Consequences**: Autonomous reasoning agents can retrieve self-contained, citation-anchored GraphRAG context packs strictly bounded by token budgets without losing quote provenance or scientific tension. 233 unit tests pass with zero third-party dependencies.
+
+
 
 
 

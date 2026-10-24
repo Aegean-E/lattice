@@ -7,10 +7,10 @@
 
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `47`
-- **Total Classes**: `61`
-- **Total Top-Level Functions**: `234`
-- **Total Class Methods**: `387`
-- **Total Source Lines**: `14306`
+- **Total Classes**: `62`
+- **Total Top-Level Functions**: `238`
+- **Total Class Methods**: `393`
+- **Total Source Lines**: `14797`
 
 ---
 
@@ -62,7 +62,7 @@
 ### [`lattice/api.py`](lattice/api.py)
 > *Stable public Python surface for host integrations such as neurocore.*
 
-**Size**: `337` lines (`8989` bytes)
+**Size**: `341` lines (`9075` bytes)
 
 **Functions:**
 - `def _question_key(value)` - *Normalize `question:q_000001` or `q_000001` to the bare identifier.*
@@ -103,7 +103,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `793` lines (`35703` bytes)
+**Size**: `824` lines (`37081` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -137,13 +137,14 @@
 - `def _run_hypothesize(args, repository)` - *Propose testable research hypotheses based on contradictions and coverage gaps.*
 - `def _run_screen(args, repository)` - *Record or query a screening decision for a paper.*
 - `def _run_prisma(args, repository)` - *Generate PRISMA 2020 flow statistics and diagram.*
+- `def _run_pack(args, repository)` - *Generate a token-bounded GraphRAG context pack for LLM agents.*
 
 ---
 
 ### [`lattice/client.py`](lattice/client.py)
 > *Turnkey client facade for AI hosts: own one connection, call MCP-parity tools.*
 
-**Size**: `374` lines (`17024` bytes)
+**Size**: `385` lines (`17640` bytes)
 
 **Classes:**
 - `class LatticeClient` - *A synchronous, context-managed graph client with MCP tool parity.*
@@ -188,6 +189,7 @@
   - Method `.propose_hypotheses(question, limit)` - *Formulate testable hypotheses from evidence gaps and contradiction clusters.*
   - Method `.screen_paper(paper_id, status, reason, notes)` - *Record an auditable PRISMA 2020 screening decision for a paper.*
   - Method `.get_prisma_flow(format)` - *Get PRISMA 2020 review attrition metrics and flow diagram.*
+  - Method `.get_context_pack(targets, max_tokens, format)` - *Generate a token-bounded GraphRAG context pack for LLM reasoning.*
   - Method `.stats()`
 - `class AsyncLatticeClient` - *An asyncio facade that serializes the sync client on one dedicated thread.*
   - Method `.__init__(db_path, read_only)`
@@ -210,7 +212,11 @@
 ### [`lattice/context.py`](lattice/context.py)
 > *Token-budgeted context views for AI agents: peek, search, expand, drill down.*
 
-**Size**: `202` lines (`7652` bytes)
+**Size**: `522` lines (`20751` bytes)
+
+**Classes:**
+- `class ContextPack` - *Token-budgeted GraphRAG context pack for LLM reasoning and question-answering.*
+  - Method `.to_dict()` - *JSON-ready representation.*
 
 **Functions:**
 - `def _budget(tokens)` - *Validate a token budget and return it as an integer.*
@@ -221,6 +227,9 @@
 - `def compact_search(result, tokens)` - *Search hits as short handles, split across papers, claims and questions.*
 - `def compact_related(result, tokens)` - *Related-finding navigation as short snippets, reasons and next-hop refs.*
 - `def compact_subgraph(result, tokens)` - *A subgraph as short node labels and bare edges, trimmed around a token budget.*
+- `def _render_markdown_pack(targets, questions, claims, papers, contradictions, budget)`
+- `def _render_json_pack(targets, questions, claims, papers, contradictions, budget)`
+- `def build_context_pack(repository, targets, max_tokens, format)` - *Assemble a high-density, token-bounded GraphRAG context pack for AI agents.*
 
 ---
 
@@ -390,7 +399,7 @@
 ### [`lattice/mcp.py`](lattice/mcp.py)
 > *A dependency-free MCP stdio server exposing the graph as JSON-RPC tools.*
 
-**Size**: `486` lines (`24126` bytes)
+**Size**: `500` lines (`25106` bytes)
 
 **Functions:**
 - `def _tool(name, description, properties, required)` - *An MCP tool declaration with a JSON Schema for its arguments.*
@@ -638,7 +647,7 @@
 ### [`tests/test_api.py`](tests/test_api.py)
 > *Unit tests for the public `lattice.api` integration surface.*
 
-**Size**: `353` lines (`13567` bytes)
+**Size**: `357` lines (`13746` bytes)
 
 **Classes:**
 - `class PublicApiTests` - *Verify the facade stays complete, inert at import time and faithful.*
@@ -684,7 +693,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `332` lines (`14312` bytes)
+**Size**: `355` lines (`15446` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
@@ -708,13 +717,14 @@
   - Method `.test_cli_path_command()`
   - Method `.test_cli_hypothesize_command()`
   - Method `.test_cli_screen_and_prisma_commands()`
+  - Method `.test_cli_pack_command()`
 
 ---
 
 ### [`tests/test_client.py`](tests/test_client.py)
 > *Tests for the turnkey client facade used by AI hosts.*
 
-**Size**: `335` lines (`16536` bytes)
+**Size**: `342` lines (`16926` bytes)
 
 **Classes:**
 - `class LatticeClientTests` - *Verify lifecycle, tool parity, convenience methods and failure modes.*
@@ -756,7 +766,7 @@
 ### [`tests/test_context.py`](tests/test_context.py)
 > *Unit tests for the token-budgeted, RLM-style AI context views.*
 
-**Size**: `153` lines (`6717` bytes)
+**Size**: `230` lines (`10943` bytes)
 
 **Classes:**
 - `class ContextViewTests` - *Verify compact payloads, truncation, omission counts and the budget floor.*
@@ -767,6 +777,9 @@
   - Method `.test_compact_related_drops_full_text_but_keeps_reasons_and_refs()`
   - Method `.test_compact_subgraph_keeps_only_edges_between_kept_nodes()`
   - Method `.test_budgets_below_the_floor_fail_with_the_triad()`
+  - Method `.test_build_context_pack_markdown_and_json()`
+  - Method `.test_build_context_pack_compaction_and_defaults()`
+  - Method `.test_build_context_pack_with_contradictions()`
 
 ---
 

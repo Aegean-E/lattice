@@ -17,7 +17,13 @@ from lattice.analysis import (
     related_findings,
 )
 from lattice.checks import run_checks
-from lattice.context import compact_related, compact_search, compact_subgraph, outline
+from lattice.context import (
+    build_context_pack,
+    compact_related,
+    compact_search,
+    compact_subgraph,
+    outline,
+)
 from lattice.database import SCHEMA_VERSION, open_database
 from lattice.diff import diff_snapshot, diff_snapshots
 from lattice.discovery import DiscoveryService
@@ -244,6 +250,13 @@ def build_parser() -> argparse.ArgumentParser:
                             help="output format (default: markdown)")
     prisma_cmd.add_argument("--out", default=None, help="write diagram or report to this file")
     prisma_cmd.set_defaults(handler=_run_prisma)
+
+    pack_cmd = commands.add_parser("pack", help="generate a token-bounded GraphRAG context pack for LLM agents")
+    pack_cmd.add_argument("targets", nargs="*", default=None, help="question, paper or claim references, or search phrases")
+    pack_cmd.add_argument("--tokens", type=int, default=2000, help="maximum token budget (default: 2000)")
+    pack_cmd.add_argument("--format", choices=["markdown", "json"], default="markdown", help="output format (default: markdown)")
+    pack_cmd.add_argument("--out", default=None, help="write context pack to this file")
+    pack_cmd.set_defaults(handler=_run_pack)
     return parser
 
 
@@ -789,5 +802,23 @@ def _run_prisma(args: argparse.Namespace, repository: Repository) -> int:
         _emit({"out": args.out, "format": args.format, "flow": flow.to_dict()}, lines, args.json)
     else:
         print(output)
+    return 0
+
+
+def _run_pack(args: argparse.Namespace, repository: Repository) -> int:
+    """Generate a token-bounded GraphRAG context pack for LLM agents."""
+    fmt = "json" if args.json else args.format
+    pack = build_context_pack(
+        repository,
+        targets=args.targets if args.targets else None,
+        max_tokens=args.tokens,
+        format=fmt,
+    )
+    if args.out:
+        Path(args.out).write_text(pack.content, encoding="utf-8")
+        lines = [f"Context pack ({pack.format}, {pack.estimated_tokens} tokens) written to {args.out}"]
+        _emit({"out": args.out, "format": pack.format, "tokens": pack.estimated_tokens, "pack": pack.data}, lines, args.json)
+    else:
+        print(pack.content)
     return 0
 

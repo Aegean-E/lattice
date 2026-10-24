@@ -5,6 +5,8 @@ import unittest
 
 from lattice.context import (
     MIN_TOKENS,
+    ContextPack,
+    build_context_pack,
     compact_related,
     compact_search,
     compact_subgraph,
@@ -147,6 +149,81 @@ class ContextViewTests(unittest.TestCase):
         for call in calls:
             with self.assertRaises(LatticeError):
                 call()
+
+    def test_build_context_pack_markdown_and_json(self) -> None:
+        import json
+        question = self.repo.add_question("Does slow-wave sleep consolidate memories?")
+        paper, _ = self.repo.add_paper({
+            "title": "Sleep Consolidation RCT",
+            "year": 2024,
+            "venue": "Nature Neuroscience",
+            "doi": "10.1038/s41593-024",
+            "study_type": "Randomized Controlled Trial",
+        })
+        c1 = self.repo.add_claim(
+            paper.id, "Slow-wave sleep improves memory recall.",
+            "TMR during slow-wave sleep enhanced recall by 28%.",
+            stance="supports", confidence=0.88,
+        )
+        self.repo.add_edge(c1.id, question.id, "supports")
+
+        # Markdown test
+        pack_md = build_context_pack(self.repo, targets=[question.id], max_tokens=1500, format="markdown")
+        self.assertIsInstance(pack_md, ContextPack)
+        self.assertEqual(pack_md.format, "markdown")
+        self.assertIn("GraphRAG Evidence Pack", pack_md.content)
+        self.assertIn(question.id, pack_md.content)
+        self.assertIn("Slow-wave sleep improves memory recall.", pack_md.content)
+        self.assertIn("TMR during slow-wave sleep enhanced recall by 28%.", pack_md.content)
+        self.assertIn("Sleep Consolidation RCT", pack_md.content)
+        self.assertLessEqual(pack_md.estimated_tokens, 1500)
+
+        # JSON test
+        pack_json = build_context_pack(self.repo, targets=f"question:{question.id}", max_tokens=1500, format="json")
+        self.assertEqual(pack_json.format, "json")
+        payload = json.loads(pack_json.content)
+        self.assertEqual(payload["counts"]["questions"], 1)
+        self.assertEqual(payload["counts"]["claims"], 1)
+        self.assertEqual(payload["claims"][0]["id"], c1.id)
+
+    def test_build_context_pack_compaction_and_defaults(self) -> None:
+        question = self.repo.add_question("Does sleep improve cognitive endurance?")
+        paper, _ = self.repo.add_paper({"title": "Cognitive Study", "year": 2023})
+        for i in range(12):
+            c = self.repo.add_claim(
+                paper.id, f"Cognitive endurance finding {i} with long descriptive text across participants.",
+                f"Verbatim empirical quote number {i} supporting this conclusion.",
+                stance="supports", confidence=0.75,
+            )
+            self.repo.add_edge(c.id, question.id, "supports")
+
+        # Bounded compaction under strict budget
+        small_pack = build_context_pack(self.repo, targets=[question.id], max_tokens=250, format="markdown")
+        self.assertLessEqual(small_pack.estimated_tokens, 250)
+        self.assertGreater(small_pack.data["counts"]["omitted_claims"], 0)
+        self.assertIn("claim(s) omitted to fit within token budget", small_pack.content)
+
+        # Global defaults and search phrase
+        global_pack = build_context_pack(self.repo, targets=None, max_tokens=1000)
+        self.assertGreaterEqual(global_pack.data["counts"]["questions"], 1)
+
+        search_pack = build_context_pack(self.repo, targets="cognitive", max_tokens=1000)
+        self.assertIn("cognitive", search_pack.targets)
+
+    def test_build_context_pack_with_contradictions(self) -> None:
+        q = self.repo.add_question("Does caffeine improve long-term memory?")
+        p1, _ = self.repo.add_paper({"title": "Caffeine Study 1", "year": 2022})
+        p2, _ = self.repo.add_paper({"title": "Caffeine Study 2", "year": 2023})
+        c1 = self.repo.add_claim(p1.id, "Caffeine significantly enhanced memory consolidation.",
+                                 "Recall increased by 15%.", stance="supports", confidence=0.8)
+        c2 = self.repo.add_claim(p2.id, "Caffeine impaired memory consolidation.",
+                                 "Recall decreased by 10%.", stance="contradicts", confidence=0.85)
+        self.repo.add_edge(c1.id, q.id, "supports")
+        self.repo.add_edge(c2.id, q.id, "contradicts")
+
+        pack = build_context_pack(self.repo, targets=[q.id], max_tokens=2000, format="markdown")
+        self.assertIn("Scientific Contradictions & Tensions", pack.content)
+        self.assertEqual(len(pack.data["contradictions"]), 1)
 
 
 if __name__ == "__main__":

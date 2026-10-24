@@ -326,6 +326,29 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertIn("<svg", out)
 
+    def test_cli_pack_command(self):
+        fixture = self.ingest_fixture()
+        self.run_cli("ingest", str(fixture))
+        code, out, _ = self.run_cli("question", "Does sleep consolidate memory?")
+        self.assertEqual(code, 0)
+        connection = open_database(self.db)
+        paper = Repository(connection).search("Sleep")["papers"][0]
+        connection.close()
+        self.run_cli("claim", "--paper", paper["id"], "--text", "Sleep improves recall",
+                     "--quote", "Sleep improves recall by 25%.", "--stance", "supports")
+        self.run_cli("link", "claim:c_000001", "question:q_000001", "--type", "supports")
+
+        code, out, err = self.run_cli("pack", "q_000001", "--tokens", "1000")
+        self.assertEqual(code, 0, err)
+        self.assertIn("GraphRAG Evidence Pack", out)
+        self.assertIn("Sleep improves recall", out)
+
+        code, out, err = self.run_cli("--json", "pack", "q_000001")
+        self.assertEqual(code, 0, err)
+        pack_json = json.loads(out)
+        self.assertEqual(pack_json["counts"]["questions"], 1)
+        self.assertEqual(pack_json["counts"]["claims"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

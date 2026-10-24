@@ -102,6 +102,8 @@ EXPECTED_EXPORTS = {
     "brief",
     "review",
     "MIN_TOKENS",
+    "ContextPack",
+    "build_context_pack",
     "outline",
     "compact_search",
     "compact_related",
@@ -212,6 +214,8 @@ class PublicApiTests(unittest.TestCase):
         self.assertIs(api.Paper, models.Paper)
         self.assertIs(api.detect_contradictions, analysis.detect_contradictions)
         self.assertIs(api.compact_search, context.compact_search)
+        self.assertIs(api.build_context_pack, context.build_context_pack)
+        self.assertIs(api.ContextPack, context.ContextPack)
 
     def test_design_aliases_resolve_to_canonical_functions(self) -> None:
         from lattice.extraction import extract_from_paper
