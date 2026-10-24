@@ -9,8 +9,8 @@
 - **Total Python Modules**: `49`
 - **Total Classes**: `65`
 - **Total Top-Level Functions**: `247`
-- **Total Class Methods**: `404`
-- **Total Source Lines**: `15585`
+- **Total Class Methods**: `405`
+- **Total Source Lines**: `15620`
 
 ---
 
@@ -214,7 +214,7 @@
 ### [`lattice/context.py`](lattice/context.py)
 > *Token-budgeted context views for AI agents: peek, search, expand, drill down.*
 
-**Size**: `522` lines (`20751` bytes)
+**Size**: `534` lines (`21359` bytes)
 
 **Classes:**
 - `class ContextPack` - *Token-budgeted GraphRAG context pack for LLM reasoning and question-answering.*
@@ -422,7 +422,7 @@
 ### [`lattice/meta.py`](lattice/meta.py)
 > *Quantitative meta-analysis engine: fixed/random effects pooling, Cochran's Q, I-squared, and Forest Plots.*
 
-**Size**: `523` lines (`19748` bytes)
+**Size**: `530` lines (`19953` bytes)
 
 **Classes:**
 - `class MetaStudy` - *An individual study effect size and standard error for quantitative pooling.*
@@ -985,7 +985,7 @@
 ### [`tests/test_meta.py`](tests/test_meta.py)
 > *Unit tests for quantitative meta-analysis, effect sizes and forest plots.*
 
-**Size**: `117` lines (`4969` bytes)
+**Size**: `133` lines (`5831` bytes)
 
 **Classes:**
 - `class MetaAnalysisTests` - *Verify statistical pooling, heterogeneity metrics and forest plot renderers.*
@@ -996,6 +996,7 @@
   - Method `.test_render_forest_ascii()`
   - Method `.test_render_forest_svg()`
   - Method `.test_meta_analyze_question()`
+  - Method `.test_meta_analyze_question_reversed_edge_and_deduplication()`
 
 ---
 

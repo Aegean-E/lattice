@@ -3,7 +3,7 @@
 import html
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from lattice.errors import fail
 from lattice.repository import Repository
@@ -488,12 +488,18 @@ def meta_analyze_question(
         fail(f"question '{question_ref}' not found", "cannot meta-analyze a nonexistent question",
              "pass an existing question reference or id")
 
-    edges = repository.neighbors(f"question:{q_obj.id}")
+    q_ref = f"question:{q_obj.id}"
+    edges = repository.neighbors(q_ref)
     claim_studies: List[MetaStudy] = []
+    seen_claims: Set[str] = set()
 
     for edge in edges:
-        if edge.src.startswith("claim:"):
-            cid = edge.src.split(":", 1)[1]
+        other = edge.dst if edge.src == q_ref else edge.src
+        if other.startswith("claim:"):
+            cid = other.split(":", 1)[1]
+            if cid in seen_claims:
+                continue
+            seen_claims.add(cid)
             claim = repository.get_claim(cid)
             if claim:
                 paper = repository.get_paper(claim.paper_id)
@@ -521,3 +527,4 @@ def meta_analyze_question(
              "add supporting or contradicting claims before running meta-analysis")
 
     return compute_meta_analysis(claim_studies, model=model)
+

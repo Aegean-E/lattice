@@ -112,6 +112,22 @@ class MetaAnalysisTests(unittest.TestCase):
         self.assertGreater(res.pooled_effect, 0.0)
         self.assertIn("Exercise Trial 1", res.studies[0].label)
 
+    def test_meta_analyze_question_reversed_edge_and_deduplication(self) -> None:
+        conn = open_database(":memory:")
+        self.addCleanup(conn.close)
+        repo = Repository(conn)
+        q = repo.add_question("Does light exposure reset circadian rhythm?")
+        p, _ = repo.add_paper({"title": "Circadian Study", "year": 2024})
+        c = repo.add_claim(p.id, "Morning light advanced phase by 1.5 hours.", "Quote", stance="supports", confidence=0.8)
+        # Add two edges to test deduplication and reversed direction
+        repo.add_edge(f"question:{q.id}", f"claim:{c.id}", "supports")
+        repo.add_edge(f"claim:{c.id}", f"question:{q.id}", "answers")
+
+        res = meta_analyze_question(repo, q.id, model="fixed")
+        self.assertEqual(len(res.studies), 1)
+        self.assertAlmostEqual(res.studies[0].effect_size, 0.62, places=2)
+
 
 if __name__ == "__main__":
     unittest.main()
+

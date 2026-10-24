@@ -378,9 +378,11 @@ def build_context_pack(
             q = repository.get_question(q_id)
             if q:
                 questions_map[q.id] = q.to_dict()
-                for edge in repository.neighbors(f"question:{q.id}"):
-                    if edge.src.startswith("claim:"):
-                        cid = edge.src.split(":", 1)[1]
+                q_ref = f"question:{q.id}"
+                for edge in repository.neighbors(q_ref):
+                    other = edge.dst if edge.src == q_ref else edge.src
+                    if other.startswith("claim:"):
+                        cid = other.split(":", 1)[1]
                         c = repository.get_claim(cid)
                         if c:
                             claims_map[c.id] = c.to_dict()
@@ -391,9 +393,11 @@ def build_context_pack(
             q = repository.get_question(clean)
             if q:
                 questions_map[q.id] = q.to_dict()
-                for edge in repository.neighbors(f"question:{q.id}"):
-                    if edge.src.startswith("claim:"):
-                        cid = edge.src.split(":", 1)[1]
+                q_ref = f"question:{q.id}"
+                for edge in repository.neighbors(q_ref):
+                    other = edge.dst if edge.src == q_ref else edge.src
+                    if other.startswith("claim:"):
+                        cid = other.split(":", 1)[1]
                         c = repository.get_claim(cid)
                         if c:
                             claims_map[c.id] = c.to_dict()
@@ -410,9 +414,11 @@ def build_context_pack(
                     c = repository.get_claim(cr["id"])
                     if c:
                         claims_map[c.id] = c.to_dict()
-                        for edge in repository.neighbors(f"claim:{c.id}"):
-                            if edge.dst.startswith("question:"):
-                                qid = edge.dst.split(":", 1)[1]
+                        c_ref = f"claim:{c.id}"
+                        for edge in repository.neighbors(c_ref):
+                            other = edge.dst if edge.src == c_ref else edge.src
+                            if other.startswith("question:"):
+                                qid = other.split(":", 1)[1]
                                 q = repository.get_question(qid)
                                 if q:
                                     questions_map[q.id] = q.to_dict()
@@ -425,9 +431,11 @@ def build_context_pack(
                     c = repository.get_claim(cr["id"])
                     if c:
                         claims_map[c.id] = c.to_dict()
-                        for edge in repository.neighbors(f"claim:{c.id}"):
-                            if edge.dst.startswith("question:"):
-                                qid = edge.dst.split(":", 1)[1]
+                        c_ref = f"claim:{c.id}"
+                        for edge in repository.neighbors(c_ref):
+                            other = edge.dst if edge.src == c_ref else edge.src
+                            if other.startswith("question:"):
+                                qid = other.split(":", 1)[1]
                                 q = repository.get_question(qid)
                                 if q:
                                     questions_map[q.id] = q.to_dict()
@@ -439,9 +447,11 @@ def build_context_pack(
                 p = repository.get_paper(c.paper_id)
                 if p:
                     papers_map[p.id] = p.to_dict()
-                for edge in repository.neighbors(f"claim:{c.id}"):
-                    if edge.dst.startswith("question:"):
-                        qid = edge.dst.split(":", 1)[1]
+                c_ref = f"claim:{c.id}"
+                for edge in repository.neighbors(c_ref):
+                    other = edge.dst if edge.src == c_ref else edge.src
+                    if other.startswith("question:"):
+                        qid = other.split(":", 1)[1]
                         q = repository.get_question(qid)
                         if q:
                             questions_map[q.id] = q.to_dict()
@@ -452,9 +462,11 @@ def build_context_pack(
                 p = repository.get_paper(c.paper_id)
                 if p:
                     papers_map[p.id] = p.to_dict()
-                for edge in repository.neighbors(f"claim:{c.id}"):
-                    if edge.dst.startswith("question:"):
-                        qid = edge.dst.split(":", 1)[1]
+                c_ref = f"claim:{c.id}"
+                for edge in repository.neighbors(c_ref):
+                    other = edge.dst if edge.src == c_ref else edge.src
+                    if other.startswith("question:"):
+                        qid = other.split(":", 1)[1]
                         q = repository.get_question(qid)
                         if q:
                             questions_map[q.id] = q.to_dict()
