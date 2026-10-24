@@ -263,6 +263,23 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("@article{", resp.body)
         self.assertIn("filename=", resp.headers.get("Content-Disposition", ""))
 
+    def test_api_export_graphml_endpoint(self) -> None:
+        self.request_json("POST", "/api/demo", {})
+        resp = dispatch_web_request(self.repository, "GET", "/api/export-graphml")
+        self.assertEqual(resp.status, 200)
+        self.assertIn("application/xml", resp.content_type)
+        self.assertIn("graphml", resp.body)
+        self.assertIn("filename=\"lattice-graph.graphml\"", resp.headers.get("Content-Disposition", ""))
+
+    def test_api_export_cytoscape_endpoint(self) -> None:
+        self.request_json("POST", "/api/demo", {})
+        resp = dispatch_web_request(self.repository, "GET", "/api/export-cytoscape")
+        self.assertEqual(resp.status, 200)
+        self.assertIn("application/json", resp.content_type)
+        self.assertIn("elements", resp.body)
+        self.assertIn("nodes", resp.body)
+        self.assertIn("filename=\"lattice-cytoscape.json\"", resp.headers.get("Content-Disposition", ""))
+
 
 if __name__ == "__main__":
     unittest.main()

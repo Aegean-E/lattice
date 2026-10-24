@@ -310,6 +310,30 @@ class PublicApiTests(unittest.TestCase):
         self.assertFalse(res2["created"])
         self.assertEqual(res2["paper"]["id"], paper["id"])
 
+    def test_sync_article_with_related_hypotheses(self) -> None:
+        article = {
+            "title": "Theta Oscillations in Spatial Navigation",
+            "authors": ["Ada Lovelace"],
+            "year": 2024,
+            "abstract": "Hippocampal theta rhythms synchronize place cell assemblies during navigation.",
+            "key_findings": [
+                "Hippocampal theta rhythms synchronize place cell assemblies during navigation."
+            ],
+            "related_hypotheses": [
+                "Does theta rhythm organize grid-place coordination?",
+                {"title": "Navigation Hypothesis", "statement": "Theta rhythms pace memory encoding."}
+            ]
+        }
+        res = api.sync_article_from_neurocore(self.repo, article)
+        self.assertEqual(len(res["questions"]), 2)
+        self.assertGreaterEqual(len(res["edges"]), 2)
+        self.assertEqual(self.repo.stats()["questions"], 2)
+        # Verify edges connect claims to questions
+        edges = self.repo.neighbors(f"claim:{res['claims'][0]['id']}")
+        self.assertEqual(len(edges), 2)
+        kinds = {edge.kind for edge in edges}
+        self.assertIn("supports", kinds)
+
 
 
 if __name__ == "__main__":

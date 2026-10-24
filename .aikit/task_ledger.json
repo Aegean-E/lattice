@@ -1,49 +1,14 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "lattice-interop-v1",
+    "task_id": "lattice-polish-v1",
     "last_phase": "phase 4",
     "active_phase": 5,
     "status": "completed",
-    "updated_at": 1792832786.0970902,
-    "completed_at": 1792832790.8582692
+    "updated_at": 1792833587.0535598,
+    "completed_at": 1792833590.7224169
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-protocol-params-v1",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[2/3]-[3/3] Delivered MCP boundary validation: params are preserved (empty list no longer becomes {}), resources/read and prompts/get reject non-object params with -32602, tools/call rejects non-object arguments, and public dispatch_tool raises LatticeError for non-dict arguments. open_database validates path type and emptiness before Path/sqlite. ADR-017/README document WAL and allowlist caveats. checklists: passed; 173/173 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792680894.8182049,
-      "timestamp_str": "2026-10-22 17:54:54"
-    },
-    {
-      "task_id": "lattice-protocol-params-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-protocol-params-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792680898.8679717,
-      "timestamp_str": "2026-10-22 17:54:58"
-    },
-    {
-      "task_id": "lattice-api-consistency-v1",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/3] Failing-first tests: client.call_tool and dispatch_tool reject non-string tool names, and LatticeClient/open_database normalize a whitespace-wrapped :memory: sentinel while preserving real paths. [2/3] Add name guards and align client/database path normalization. [3/3] Refresh the map, run gates and complete.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792681438.6079254,
-      "timestamp_str": "2026-10-22 18:03:58",
-      "impact_assessment": {
-        "why": "Verification found two low API inconsistencies: an unhashable tool name crashes only the read-only allowlist check, and LatticeClient strips path whitespace while open_database preserves it.",
-        "benefits": "Both entry points reject malformed names with the Error/Why/Fix triad, and a database path opens the same way through the client and the database layer, including a whitespace-wrapped :memory: sentinel.",
-        "risks": "contract: non-string tool names now fail consistently; dependency: none; concurrency: none; state: path handling changes only for whitespace around the sentinel and for previously stripped real paths.",
-        "mitigation": "Validate names before any set membership or dispatch, normalize only the :memory: sentinel in one shared style, preserve other path text, and pin both behaviors with client, MCP and database tests."
-      }
-    },
     {
       "task_id": "lattice-api-consistency-v1",
       "phase": "phase 4",
@@ -237,6 +202,41 @@
       "status": "completed",
       "timestamp": 1792832790.8582706,
       "timestamp_str": "2026-10-24 12:06:30"
+    },
+    {
+      "task_id": "lattice-polish-v1",
+      "phase": "phase 1",
+      "phase_num": 1,
+      "description": "Add GraphML/Cytoscape web studio exports and auto-link synced hypotheses",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792833574.4471896,
+      "timestamp_str": "2026-10-24 12:19:34",
+      "impact_assessment": {
+        "why": "Expose GraphML and Cytoscape downloads in web Research Studio and auto-link related hypotheses from NeuroCore article sync",
+        "benefits": "Enables direct graph exports from UI and connects NeuroCore hypotheses to evidence graph",
+        "risks": "UI surface changes and edge constraints",
+        "mitigation": "Bounded UI task verification and unique edge error handling"
+      }
+    },
+    {
+      "task_id": "lattice-polish-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "checklists: passed. Verified 202 unit tests, hygiene, guidelines, UI surface and dogfood 25/25 steps",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792833587.0535598,
+      "timestamp_str": "2026-10-24 12:19:47"
+    },
+    {
+      "task_id": "lattice-polish-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-polish-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792833590.7224193,
+      "timestamp_str": "2026-10-24 12:19:50"
     }
   ]
 }

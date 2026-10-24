@@ -77,6 +77,22 @@ def dispatch_web_request(repository: Repository, method: str, path: str,
                 bibtex_content,
                 headers={"Content-Disposition": 'attachment; filename="lattice-references.bib"'},
             )
+        if verb == "GET" and route == "/api/export-graphml":
+            from lattice.snapshots import export_graphml_string
+            return WebResponse(
+                200,
+                "application/xml; charset=utf-8",
+                export_graphml_string(repository),
+                headers={"Content-Disposition": 'attachment; filename="lattice-graph.graphml"'},
+            )
+        if verb == "GET" and route == "/api/export-cytoscape":
+            from lattice.snapshots import export_cytoscape_data
+            return WebResponse(
+                200,
+                "application/json; charset=utf-8",
+                json.dumps(export_cytoscape_data(repository), indent=2, sort_keys=True),
+                headers={"Content-Disposition": 'attachment; filename="lattice-cytoscape.json"'},
+            )
         if verb == "GET" and route == "/api/synthesize":
             return _json_response(200, _handle_synthesize(repository, query))
         if verb == "POST":
@@ -832,6 +848,8 @@ WEB_HTML = """<!DOCTYPE html>
         <button class="btn secondary sm" onclick="extractAllClaims()">Extract All Claims</button>
         <button class="btn secondary sm" onclick="downloadSnapshot()">Download Snapshot</button>
         <button class="btn secondary sm" onclick="downloadBibtex()">Export BibTeX</button>
+        <button class="btn secondary sm" onclick="downloadGraphml()">Export GraphML</button>
+        <button class="btn secondary sm" onclick="downloadCytoscape()">Export Cytoscape</button>
       </div>
     </details>
   </div>
@@ -1812,6 +1830,44 @@ async function downloadSnapshot() {
     a.remove();
     URL.revokeObjectURL(url);
     notify('Snapshot downloaded (lattice_snapshot.jsonl)');
+  } catch (err) {
+    notify(err.message, true);
+  }
+}
+
+async function downloadGraphml() {
+  try {
+    const res = await fetch('/api/export-graphml');
+    const text = await res.text();
+    const blob = new Blob([text], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'lattice_graph.graphml';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    notify('GraphML exported (lattice_graph.graphml)');
+  } catch (err) {
+    notify(err.message, true);
+  }
+}
+
+async function downloadCytoscape() {
+  try {
+    const res = await fetch('/api/export-cytoscape');
+    const text = await res.text();
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'lattice_cytoscape.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    notify('Cytoscape JSON exported (lattice_cytoscape.json)');
   } catch (err) {
     notify(err.message, true);
   }

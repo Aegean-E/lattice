@@ -9,8 +9,8 @@
 - **Total Python Modules**: `45`
 - **Total Classes**: `57`
 - **Total Top-Level Functions**: `218`
-- **Total Class Methods**: `350`
-- **Total Source Lines**: `12357`
+- **Total Class Methods**: `353`
+- **Total Source Lines**: `12518`
 
 ---
 
@@ -330,7 +330,7 @@
 ### [`lattice/ingest.py`](lattice/ingest.py)
 > *Parsers for the text bibliography formats lattice accepts, with no third-party dependencies.*
 
-**Size**: `350` lines (`13166` bytes)
+**Size**: `414` lines (`15931` bytes)
 
 **Functions:**
 - `def empty_record()` - *A record with every supported metadata field present.*
@@ -528,7 +528,7 @@
 ### [`lattice/web.py`](lattice/web.py)
 > *Zero-dependency web server and human-friendly Research Studio UI for Lattice.*
 
-**Size**: `2060` lines (`82678` bytes)
+**Size**: `2116` lines (`84798` bytes)
 
 **Classes:**
 - `class WebResponse` - *Immutable HTTP response returned by `dispatch_web_request`.*
@@ -595,7 +595,7 @@
 ### [`tests/test_api.py`](tests/test_api.py)
 > *Unit tests for the public `lattice.api` integration surface.*
 
-**Size**: `316` lines (`12043` bytes)
+**Size**: `340` lines (`13223` bytes)
 
 **Classes:**
 - `class PublicApiTests` - *Verify the facade stays complete, inert at import time and faithful.*
@@ -612,6 +612,7 @@
   - Method `.test_invalid_selection_never_builds_the_matrix()`
   - Method `.test_get_evidence_matrix_filters_out_unlinked_questions()`
   - Method `.test_sync_article_from_neurocore_creates_paper_and_claims()`
+  - Method `.test_sync_article_with_related_hypotheses()`
 
 **Functions:**
 - `def _definition_names(nodes)` - *Public names bound by top-level statements, including conditional blocks.*
@@ -992,7 +993,7 @@
 ### [`tests/test_web.py`](tests/test_web.py)
 > *Tests for the web-based human UI and JSON API dispatcher (zero sockets).*
 
-**Size**: `269` lines (`11789` bytes)
+**Size**: `286` lines (`12724` bytes)
 
 **Classes:**
 - `class WebInterfaceTests` - *Verify HTML rendering and REST API handlers via pure request dispatch.*
@@ -1009,6 +1010,8 @@
   - Method `.test_validation_error_and_not_found()`
   - Method `.test_api_outline_endpoint()`
   - Method `.test_api_export_bibtex_endpoint()`
+  - Method `.test_api_export_graphml_endpoint()`
+  - Method `.test_api_export_cytoscape_endpoint()`
 
 ---
 

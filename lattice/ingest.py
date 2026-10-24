@@ -343,8 +343,72 @@ def sync_article_from_neurocore(repository: Any,
             if c.id not in {item["id"] for item in claims}:
                 claims.append(c.to_dict())
 
+    questions = []
+    edges = []
+    related_hypotheses = article_data.get("related_hypotheses") or []
+    if isinstance(related_hypotheses, list):
+        for hyp in related_hypotheses:
+            hyp_text = ""
+            hyp_ref = ""
+            if isinstance(hyp, dict):
+                hyp_text = str(hyp.get("statement") or hyp.get("title") or hyp.get("text") or "").strip()
+                hyp_ref = str(hyp.get("id") or "").strip()
+            elif isinstance(hyp, str):
+                hyp_text = hyp.strip()
+                hyp_ref = hyp.strip()
+            if not hyp_text and not hyp_ref:
+                continue
+
+            q_target = None
+            if hyp_ref:
+                try:
+                    q_target = repository.get_question(hyp_ref)
+                # hygiene: allow lookup by ref may fail if not an existing question id
+                except LatticeError:
+                    pass
+            if q_target is None and hyp_text:
+                row = repository.connection.execute(
+                    "SELECT id FROM questions WHERE text = ?", (hyp_text,)
+                ).fetchone()
+                if row:
+                    q_target = repository.get_question(row[0])
+                else:
+                    q_target = repository.add_question(hyp_text)
+
+            if q_target is not None:
+                if q_target.to_dict() not in questions:
+                    questions.append(q_target.to_dict())
+                for c in claims:
+                    stance = c.get("stance", "supports")
+                    kind = stance if stance in ("supports", "contradicts") else "answers"
+                    try:
+                        edge = repository.add_edge(
+                            f"claim:{c['id']}",
+                            f"question:{q_target.id}",
+                            kind=kind,
+                            note="synced from neurocore article",
+                        )
+                        edges.append(edge.to_dict())
+                    # hygiene: allow duplicate edges or self links to be silently skipped
+                    except LatticeError:
+                        pass
+                if not claims:
+                    try:
+                        edge = repository.add_edge(
+                            f"paper:{paper.id}",
+                            f"question:{q_target.id}",
+                            kind="answers",
+                            note="synced from neurocore article",
+                        )
+                        edges.append(edge.to_dict())
+                    # hygiene: allow duplicate edges or self links to be silently skipped
+                    except LatticeError:
+                        pass
+
     return {
         "paper": paper.to_dict(),
         "claims": claims,
+        "questions": questions,
+        "edges": edges,
         "created": created,
     }
