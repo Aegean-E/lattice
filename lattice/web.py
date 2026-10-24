@@ -20,6 +20,7 @@ from lattice.errors import LatticeError, fail
 from lattice.extraction import extract_all, extract_from_paper
 from lattice.ingest import (
     parse_bibtex,
+    parse_csl_json,
     parse_csv,
     parse_markdown,
     parse_ris,
@@ -321,14 +322,16 @@ def _handle_ingest_text(repository: Repository, payload: Dict[str, Any]) -> Dict
         records = parse_ris(raw)
     elif fmt == "csv":
         records = parse_csv(raw)
+    elif fmt in ("csl-json", "csl", "json"):
+        records = parse_csl_json(raw)
     elif fmt in ("markdown", "md"):
         records = parse_markdown(raw, source_name)
     elif fmt in ("text", "txt"):
         records = parse_text(raw, source_name)
     else:
         fail(f"unsupported text format '{fmt}'",
-             "supported formats are bibtex, ris, csv, markdown, and text",
-             "pass format='bibtex', 'ris', 'csv', 'markdown', or 'text'")
+             "supported formats are bibtex, ris, csv, csl-json, markdown, and text",
+             "pass format='bibtex', 'ris', 'csv', 'csl-json', 'markdown', or 'text'")
     if not records:
         fail("no paper records could be parsed from the pasted text",
              "the parser found zero entries with a title",
@@ -992,6 +995,7 @@ WEB_HTML = """<!DOCTYPE html>
                 <option value="bibtex">BibTeX (.bib)</option>
                 <option value="ris">RIS (.ris)</option>
                 <option value="csv">CSV (.csv)</option>
+                <option value="csl-json">CSL-JSON (.json, .csl)</option>
                 <option value="markdown">Markdown Note (.md)</option>
                 <option value="text">Plain Text (.txt)</option>
               </select>
@@ -1202,14 +1206,23 @@ WEB_HTML = """<!DOCTYPE html>
         <div class="card">
           <h2>
             <span>Interactive Provenance Subgraph</span>
-            <button class="btn sm" onclick="linkRelatedFindings()">Connect Findings</button>
+            <div style="display:flex;gap:6px">
+              <button class="btn sm secondary" onclick="downloadSvg()">Export SVG</button>
+              <button class="btn sm" onclick="linkRelatedFindings()">Connect Findings</button>
+            </div>
           </h2>
-          <div class="legend" style="display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:0.72rem;margin:2px 0 8px">
-            <span><b style="color:#22c55e">&#9644;</b> supports</span>
-            <span><b style="color:#ef4444">&#9644;</b> contradicts</span>
-            <span><b style="color:#f59e0b">&#9644;</b> related (dashed)</span>
-            <span><b style="color:#a855f7">&#9644;</b> answers</span>
-            <span><b style="color:#64748b">&#9644;</b> other</span>
+          <div class="legend" style="display:flex;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:0.72rem;margin:2px 0 8px;align-items:center">
+            <span style="font-weight:600">Filters:</span>
+            <label style="cursor:pointer;display:inline-flex;align-items:center;gap:3px"><input type="checkbox" id="ef-supports" checked onchange="toggleEdgeFilter()"><b style="color:#22c55e">&#9644;</b> supports</label>
+            <label style="cursor:pointer;display:inline-flex;align-items:center;gap:3px"><input type="checkbox" id="ef-contradicts" checked onchange="toggleEdgeFilter()"><b style="color:#ef4444">&#9644;</b> contradicts</label>
+            <label style="cursor:pointer;display:inline-flex;align-items:center;gap:3px"><input type="checkbox" id="ef-answers" checked onchange="toggleEdgeFilter()"><b style="color:#a855f7">&#9644;</b> answers</label>
+            <label style="cursor:pointer;display:inline-flex;align-items:center;gap:3px"><input type="checkbox" id="ef-related" checked onchange="toggleEdgeFilter()"><b style="color:#f59e0b">&#9644;</b> related (dashed)</label>
+            <label style="cursor:pointer;display:inline-flex;align-items:center;gap:3px"><input type="checkbox" id="ef-cites" checked onchange="toggleEdgeFilter()"><b style="color:#64748b">&#9644;</b> cites</label>
+            <span style="margin-left:auto;font-weight:600">Layout:</span>
+            <select id="graph-layout" style="padding:1px 4px;font-size:0.72rem" onchange="switchGraphLayout()">
+              <option value="radial" selected>Radial</option>
+              <option value="hierarchical">Hierarchical</option>
+            </select>
           </div>
           <div id="svg-container" style="background:#090e1a;border:1px solid var(--border);border-radius:10px;min-height:420px;display:flex;align-items:center;justify-content:center;overflow:hidden">
             <span style="color:var(--muted);font-size:0.88rem">Select an entity to visualize its connected claims, papers, and questions.</span>
@@ -1787,6 +1800,34 @@ async function tracePath() {
   }
 }
 
+function toggleEdgeFilter() {
+  if (CURRENT_SUBGRAPH) renderSvgGraph(CURRENT_SUBGRAPH);
+}
+
+function switchGraphLayout() {
+  if (CURRENT_SUBGRAPH) renderSvgGraph(CURRENT_SUBGRAPH);
+}
+
+function downloadSvg() {
+  const svg = document.querySelector('#svg-container svg');
+  if (!svg) {
+    notify('Render a subgraph first to export SVG', true);
+    return;
+  }
+  const serializer = new XMLSerializer();
+  const source = serializer.serializeToString(svg);
+  const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `lattice_graph_${Date.now()}.svg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  notify('SVG graph exported successfully');
+}
+
 function renderSvgGraph(data) {
   CURRENT_SUBGRAPH = data;
   const container = document.getElementById('svg-container');
@@ -1798,18 +1839,50 @@ function renderSvgGraph(data) {
     return;
   }
   const width = 680, height = 420, cx = width / 2, cy = height / 2;
+  const layout = (document.getElementById('graph-layout') && document.getElementById('graph-layout').value) || 'radial';
   const positions = {};
-  nodes.forEach((n, i) => {
-    if (n.ref === data.root) {
-      positions[n.ref] = { x: cx, y: cy };
-    } else {
-      const angle = (2 * Math.PI * i) / Math.max(1, nodes.length - 1);
-      const radius = nodes.length > 6 ? 155 : 130;
-      positions[n.ref] = {
-        x: Math.round(cx + radius * Math.cos(angle)),
-        y: Math.round(cy + radius * Math.sin(angle))
-      };
-    }
+  if (layout === 'hierarchical') {
+    const layers = { question: [], claim: [], paper: [] };
+    nodes.forEach(n => {
+      const t = n.type || 'paper';
+      (layers[t] || layers.paper).push(n);
+    });
+    const yMap = { question: 65, claim: 210, paper: 355 };
+    ['question', 'claim', 'paper'].forEach(type => {
+      const list = layers[type];
+      const spacing = width / (list.length + 1);
+      list.forEach((n, idx) => {
+        positions[n.ref] = {
+          x: Math.round(spacing * (idx + 1)),
+          y: yMap[type] || 210
+        };
+      });
+    });
+  } else {
+    nodes.forEach((n, i) => {
+      if (n.ref === data.root) {
+        positions[n.ref] = { x: cx, y: cy };
+      } else {
+        const angle = (2 * Math.PI * i) / Math.max(1, nodes.length - 1);
+        const radius = nodes.length > 6 ? 155 : 130;
+        positions[n.ref] = {
+          x: Math.round(cx + radius * Math.cos(angle)),
+          y: Math.round(cy + radius * Math.sin(angle))
+        };
+      }
+    });
+  }
+  const efSupports = document.getElementById('ef-supports')?.checked ?? true;
+  const efContradicts = document.getElementById('ef-contradicts')?.checked ?? true;
+  const efAnswers = document.getElementById('ef-answers')?.checked ?? true;
+  const efRelated = document.getElementById('ef-related')?.checked ?? true;
+  const efCites = document.getElementById('ef-cites')?.checked ?? true;
+  const visibleEdges = edges.filter(e => {
+    if (e.kind === 'supports') return efSupports;
+    if (e.kind === 'contradicts') return efContradicts;
+    if (e.kind === 'answers') return efAnswers;
+    if (e.kind === 'related') return efRelated;
+    return efCites;
   });
   const colors = { question: '#a855f7', claim: '#22c55e', paper: '#38bdf8' };
   const edgeStyles = {
@@ -1817,7 +1890,7 @@ function renderSvgGraph(data) {
     answers: '#a855f7', replicates: '#14b8a6', extends: '#06b6d4',
     cites: '#64748b', uses_method: '#64748b', measures: '#64748b', mentions: '#475569'
   };
-  const edgeLines = edges.map(e => {
+  const edgeLines = visibleEdges.map(e => {
     const p1 = positions[e.src] || { x: cx, y: cy };
     const p2 = positions[e.dst] || { x: cx, y: cy };
     const mx = Math.round((p1.x + p2.x) / 2);
@@ -1828,7 +1901,7 @@ function renderSvgGraph(data) {
             <text x="${mx}" y="${my - 4}" fill="${stroke}" font-size="10" text-anchor="middle">${esc(e.kind)}</text>`;
   }).join('');
   const nodeCircles = nodes.map(n => {
-    const pos = positions[n.ref];
+    const pos = positions[n.ref] || { x: cx, y: cy };
     const color = colors[n.type] || '#64748b';
     const shortId = n.id || n.ref;
     const title = (n.title || n.text || shortId).slice(0, 26);

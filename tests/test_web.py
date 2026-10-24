@@ -300,6 +300,27 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("independent_variable", h0)
         self.assertIn("dependent_variable", h0)
 
+    def test_csl_json_ingest_and_visual_controls(self) -> None:
+        resp = dispatch_web_request(self.repository, "GET", "/")
+        self.assertIn("Export SVG", resp.body)
+        self.assertIn("downloadSvg()", resp.body)
+        self.assertIn('id="graph-layout"', resp.body)
+        self.assertIn('id="ef-supports"', resp.body)
+        self.assertIn('id="ef-contradicts"', resp.body)
+        self.assertIn('id="ef-answers"', resp.body)
+        self.assertIn('id="ef-related"', resp.body)
+        self.assertIn('id="ef-cites"', resp.body)
+        self.assertIn('value="csl-json"', resp.body)
+
+        csl_text = '[{"title": "CSL Study Title", "author": [{"literal": "Research Lab"}], "issued": {"date-parts": [[2023]]}}]'
+        status, payload = self.request_json("POST", "/api/ingest-text", {
+            "text": csl_text,
+            "format": "csl-json"
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["ingested"], 1)
+        self.assertEqual(payload["papers"][0]["title"], "CSL Study Title")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -95,10 +95,10 @@ finding instead of a silent regression.
 - **Web Research Studio (`web`)** serves a local, zero-dependency human UI with a guided
   "Start here" onboarding card, compact header actions behind one overflow menu, short workflow
   tabs, and collapsible import forms so the first screen stays uncluttered. It includes one-click
-  demo seeding, multi-source literature discovery, browser paste-ingestion (BibTeX/RIS/CSV/Markdown),
+  demo seeding, multi-source literature discovery, browser paste-ingestion (BibTeX/RIS/CSV/CSL-JSON/Markdown),
   literature search by tag, word, full sentence or study type, a Corpus Outline quick drawer with
   study-type and edge-relation breakdowns, one-click clipboard copy for Markdown and BibTeX syntheses,
-  JSONL snapshot download, direct BibTeX export, interactive SVG subgraph exploration whose
+  JSONL snapshot download, direct BibTeX export, vector SVG export, interactive SVG subgraph exploration whose
   paper/claim/question nodes carry the study type and whose edges are colored by relation (dashed amber
   for `related`) with a legend and a Connect Findings action, and a `Paper x Question` Evidence Matrix
   & Contradictions tab.

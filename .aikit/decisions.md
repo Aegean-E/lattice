@@ -538,5 +538,18 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   6. Re-export `parse_csl_json` in `lattice.api` and verify export integrity with `tests/test_api.py`.
 - **Consequences**: Researchers and downstream agents can directly ingest `.csl` and `.json` citation bibliographies and Crossref payloads into the Lattice evidence graph without conversion overhead. All 219 unit tests pass, and gate hygiene invariant is preserved with zero dependencies added. No database schema changes.
 
+## ADR-027: Research Studio Visual Controls, Layout Modes, and Vector SVG Export (2026-10-24)
+
+- **Status**: Accepted
+- **Context**: The Web Research Studio previously rendered ego-network subgraphs using a single, static radial layout without relation-kind filtering controls. Researchers could not toggle specific edge types (e.g. isolating evidentiary `supports`/`contradicts`/`answers` links from citation or thematic links) or switch to a layered hierarchical layout (organizing questions, claims, and papers vertically). Furthermore, there was no vector export mechanism to download publication-ready SVG diagrams directly from the canvas, and pasted text ingestion lacked CSL-JSON format selection.
+- **Decision**:
+  1. Add relation visibility checkboxes to the Provenance Subgraph legend in `lattice.web` (`ef-supports`, `ef-contradicts`, `ef-answers`, `ef-related`, `ef-cites`) with reactive re-rendering.
+  2. Implement layout mode selection (`graph-layout`): Radial (default ego-network circle) and Hierarchical (three vertical layers: questions at $y=65$, claims at $y=210$, papers at $y=355$).
+  3. Add `downloadSvg()` action ("Export SVG") that serializes the rendered SVG DOM element into a standalone vector `.svg` file with XMLSerializer and Blob URL download.
+  4. Expand the browser paste-ingest card with `csl-json` format option and wire `_handle_ingest_text` to parse pasted CSL-JSON payloads.
+  5. Enforce all additions through the AIKit UI guard contract (`.aikit/ui.json`), maintaining 0 strikes and preserving the full baseline inventory.
+- **Consequences**: Researchers have interactive visual control over graph density, edge types, and structure, and can export publication-grade SVG graphics directly without external tools. 220 unit tests, 25/25 dogfood steps, and UI guard verification pass. No schema changes.
+
+
 
 
