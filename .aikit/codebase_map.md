@@ -7,10 +7,10 @@
 
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `45`
-- **Total Classes**: `57`
-- **Total Top-Level Functions**: `225`
-- **Total Class Methods**: `367`
-- **Total Source Lines**: `13176`
+- **Total Classes**: `58`
+- **Total Top-Level Functions**: `226`
+- **Total Class Methods**: `372`
+- **Total Source Lines**: `13395`
 
 ---
 
@@ -62,7 +62,7 @@
 ### [`lattice/api.py`](lattice/api.py)
 > *Stable public Python surface for host integrations such as neurocore.*
 
-**Size**: `313` lines (`8375` bytes)
+**Size**: `315` lines (`8417` bytes)
 
 **Functions:**
 - `def _question_key(value)` - *Normalize `question:q_000001` or `q_000001` to the bare identifier.*
@@ -337,7 +337,7 @@
 ### [`lattice/ingest.py`](lattice/ingest.py)
 > *Parsers for the text bibliography formats lattice accepts, with no third-party dependencies.*
 
-**Size**: `414` lines (`15931` bytes)
+**Size**: `538` lines (`20987` bytes)
 
 **Functions:**
 - `def empty_record()` - *A record with every supported metadata field present.*
@@ -347,6 +347,7 @@
 - `def parse_bibtex(text)` - *Parse one or more BibTeX entries into metadata records.*
 - `def parse_ris(text)` - *Parse RIS records into metadata records.*
 - `def parse_csv(text)` - *Parse a CSV with a header row naming any of the supported metadata fields.*
+- `def parse_csl_json(text)` - *Parse one or more CSL-JSON items into metadata records.*
 - `def parse_markdown(text, source_name)` - *Parse one Markdown note: YAML-like front matter, a heading or the filename as title.*
 - `def parse_text(text, source_name)` - *Parse a plain-text note as one record titled by its filename.*
 - `def parse_file(path)` - *Detect a file's format by suffix and parse it.*
@@ -612,7 +613,7 @@
 ### [`tests/test_api.py`](tests/test_api.py)
 > *Unit tests for the public `lattice.api` integration surface.*
 
-**Size**: `342` lines (`13266` bytes)
+**Size**: `343` lines (`13288` bytes)
 
 **Classes:**
 - `class PublicApiTests` - *Verify the facade stays complete, inert at import time and faithful.*
@@ -831,7 +832,7 @@
 ### [`tests/test_ingest.py`](tests/test_ingest.py)
 > *Format parsers stay dependency-free and deterministic.*
 
-**Size**: `151` lines (`5747` bytes)
+**Size**: `243` lines (`9906` bytes)
 
 **Classes:**
 - `class BibtexTests` - *BibTeX braces, authors and identifiers.*
@@ -844,6 +845,11 @@
 - `class CsvTests` - *CSV headers map to metadata fields case-insensitively.*
   - Method `.test_header_mapping()`
   - Method `.test_keyword_and_study_type_aliases()`
+- `class CslJsonTests` - *CSL-JSON bibliography parsing.*
+  - Method `.test_parse_csl_json_array()`
+  - Method `.test_parse_csl_json_single_object()`
+  - Method `.test_parse_csl_json_wrapped_items()`
+  - Method `.test_parse_csl_json_invalid()`
 - `class MarkdownTests` - *Front matter and heading fallbacks.*
   - Method `.test_front_matter()`
   - Method `.test_heading_and_filename_fallbacks()`
@@ -853,6 +859,7 @@
   - Method `.write(name, content)`
   - Method `.test_plain_text()`
   - Method `.test_parse_paths()`
+  - Method `.test_csl_json_file()`
   - Method `.test_unsupported_suffix()`
   - Method `.test_binary_pdf_gets_the_conversion_recipe()`
   - Method `.test_text_disguised_as_pdf_also_gets_the_recipe()`

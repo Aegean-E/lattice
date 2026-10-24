@@ -1,65 +1,14 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "lattice-hypothesize-v1",
+    "task_id": "lattice-ingest-ext-v1",
     "last_phase": "phase 4",
     "active_phase": 5,
     "status": "completed",
-    "updated_at": 1792860021.8602083,
-    "completed_at": 1792860026.8895614
+    "updated_at": 1792860957.1509993,
+    "completed_at": 1792860960.7246478
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-validation-v1",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/5] Plan: validation and adoption pass - (2) a pointed .pdf ingestion guard with documented conversion recipes, (3) a PRINCIPLE-015 dogfood gate driving the real CLI golden path and the live studio server over HTTP plus chaos perturbations, (4) an agent integration guide for the MCP channel, (5) evidence-health metrics (claims per paper, answered questions, contradiction pairs, coverage gaps) in stats",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792776691.4278588,
-      "timestamp_str": "2026-10-23 20:31:31",
-      "impact_assessment": {
-        "why": "the PM diagnosis: engineering quality is high but adoption friction is unmeasured - PDF input is a wall, the golden path is never exercised end-to-end as a gate, the agent channel is undocumented, and success metrics do not exist",
-        "benefits": "lower input friction with a tested recipe path, a repeatable real-usage gate that catches workflow regressions, a documented MCP integration story, and measurable evidence health from any graph",
-        "risks": "contract: parse_file gains a .pdf branch, repository.stats gains an evidence block (machine consumers must tolerate new keys), tools/dogfood.py spawns a supervised server subprocess; dependency: none, stdlib only; concurrency: dogfood uses a temp sandbox db and a free port; state: dogfood writes only .aikit/dogfood_last_run.log and must leave the tracked tree clean",
-        "mitigation": "failing-first tests for the pdf guard and the stats block, fingerprint the tracked tree before and after the dogfood run, supervise every subprocess with full-tree teardown, keep the dogfood report under 15 lines with full log on disk"
-      }
-    },
-    {
-      "task_id": "lattice-validation-v1",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[5/5] Delivered the validation and adoption pass: .pdf ingestion now fails with the pdftotext/BibTeX recipe before reading binary bytes (2 tests), tools/dogfood.py drives the real CLI golden path plus the live studio server over HTTP with a chaos track and tracked-tree fingerprint (25/25 steps, exit 0), README gets the PDF recipes, the dogfood gate entries and the MCP agent integration guide, and stats gains an evidence health block (claims per paper, answered/open/abandoned, linked questions, coverage gaps, contested, links) rendered by the CLI and served by MCP/studio; .aikit/*.log is gitignored; 195 tests pass, 4/4 gates pass, dogfood 25/25; checklists: passed; both this task and the earlier UI-guard task remain uncommitted pending user authorization",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792778789.658172,
-      "timestamp_str": "2026-10-23 21:06:29"
-    },
-    {
-      "task_id": "lattice-validation-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-validation-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792830895.3049781,
-      "timestamp_str": "2026-10-24 11:34:55"
-    },
-    {
-      "task_id": "lattice-studio-evidence-v1",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/3] Plan: Research Studio Evidence Health and Graph Inspector integration - (1) add Evidence Health metrics in header stats bar and outline drawer, (2) add Graph Node Inspector card displaying full quote/provenance on node selection, (3) verify with AIKit UI guard and Phase 4 gates",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792831286.4514558,
-      "timestamp_str": "2026-10-24 11:41:26",
-      "impact_assessment": {
-        "why": "the Research Studio lacked live visual feedback for the evidence health block (gaps and contested counts) added in ADR-021, and clicking graph nodes lacked an immediate detailed provenance inspector card",
-        "benefits": "researchers see evidence health and coverage gaps in real time across the stats bar and corpus outline drawer, and clicking any graph node instantly reveals its assertion, quote, and locator without leaving the graph tab",
-        "risks": "contract: surface bounded to lattice/web.py within 400 lines budget; dependency: none, stdlib only; concurrency: client-side DOM updates; state: no schema changes",
-        "mitigation": "re-run python aikit.py ui verify lattice, dogfood and all unittests; keep existing 116 inventory entries intact so no removals occur"
-      }
-    },
     {
       "task_id": "lattice-studio-evidence-v1",
       "phase": "phase 4",
@@ -238,6 +187,51 @@
       "status": "completed",
       "timestamp": 1792860026.8895628,
       "timestamp_str": "2026-10-24 19:40:26"
+    },
+    {
+      "task_id": "lattice-ingest-ext-v1",
+      "phase": "phase 1",
+      "phase_num": 1,
+      "description": "[1/3] Design and implement CSL-JSON bibliography parser in lattice.ingest",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792860513.2376907,
+      "timestamp_str": "2026-10-24 19:48:33",
+      "impact_assessment": {
+        "why": "Enable researchers and agents to ingest universal CSL-JSON citation bibliographies from Zotero, Mendeley, and Crossref directly into the Lattice evidence graph",
+        "benefits": "Expands interoperability to the predominant JSON reference format with zero third-party dependencies, preserving all metadata and study types",
+        "risks": "Malformed JSON payloads or missing author/date fields",
+        "mitigation": "Robust defensive normalization for date-parts, author arrays/literals, and study type fallback inference"
+      }
+    },
+    {
+      "task_id": "lattice-ingest-ext-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/3] Plan: Add CSL-JSON parser in lattice/ingest.py and parse_file dispatch, re-export in api.py, unit tests in test_ingest.py, ADR-026",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792860653.1274717,
+      "timestamp_str": "2026-10-24 19:50:53"
+    },
+    {
+      "task_id": "lattice-ingest-ext-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "checklists: passed. Delivered parse_csl_json for standard Citation Style Language JSON bibliography arrays and objects in lattice/ingest.py, parse_file dispatch for .csl and .json, re-exported in lattice/api.py, updated test_ingest.py and test_api.py, recorded ADR-026, 219/219 tests pass, 4/4 gates pass, 25/25 dogfood steps pass",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792860957.1509993,
+      "timestamp_str": "2026-10-24 19:55:57"
+    },
+    {
+      "task_id": "lattice-ingest-ext-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-ingest-ext-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792860960.7246492,
+      "timestamp_str": "2026-10-24 19:56:00"
     }
   ]
 }

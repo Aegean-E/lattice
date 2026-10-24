@@ -7,6 +7,7 @@ from pathlib import Path
 from lattice.errors import LatticeError
 from lattice.ingest import (
     parse_bibtex,
+    parse_csl_json,
     parse_csv,
     parse_file,
     parse_markdown,
@@ -84,6 +85,89 @@ class CsvTests(unittest.TestCase):
         self.assertEqual(records[0]["study_type"], "Cohort Study")
 
 
+class CslJsonTests(unittest.TestCase):
+    """CSL-JSON bibliography parsing."""
+
+    def test_parse_csl_json_array(self):
+        text = """[
+            {
+                "id": "diekelmann2010",
+                "type": "review",
+                "title": "Consolidation of Memory During Slow-Wave Sleep",
+                "author": [
+                    {"family": "Diekelmann", "given": "Susanne"},
+                    {"family": "Born", "given": "Jan"}
+                ],
+                "issued": {"date-parts": [[2010, 2, 1]]},
+                "container-title": "Nature Reviews Neuroscience",
+                "DOI": "10.1038/nrn2763",
+                "abstract": "Sleep stabilizes newly encoded memories...",
+                "keyword": ["sleep", "memory", "slow-wave sleep"]
+            },
+            {
+                "id": "consortium2022",
+                "title": "Deep Learning for Sleep Stage Classification",
+                "author": [{"literal": "AI Consortium"}],
+                "issued": {"raw": "2022"},
+                "URL": "https://arxiv.org/abs/2201.12345",
+                "study_type": "Computational Study"
+            }
+        ]"""
+        records = parse_csl_json(text)
+        self.assertEqual(len(records), 2)
+        self.assertEqual(records[0]["title"], "Consolidation of Memory During Slow-Wave Sleep")
+        self.assertEqual(records[0]["authors"], "Susanne Diekelmann; Jan Born")
+        self.assertEqual(records[0]["year"], "2010")
+        self.assertEqual(records[0]["venue"], "Nature Reviews Neuroscience")
+        self.assertEqual(records[0]["doi"], "10.1038/nrn2763")
+        self.assertEqual(records[0]["abstract"], "Sleep stabilizes newly encoded memories...")
+        self.assertEqual(records[0]["tags"], "sleep, memory, slow-wave sleep")
+        self.assertEqual(records[0]["study_type"], "Review")
+
+        self.assertEqual(records[1]["title"], "Deep Learning for Sleep Stage Classification")
+        self.assertEqual(records[1]["authors"], "AI Consortium")
+        self.assertEqual(records[1]["year"], "2022")
+        self.assertEqual(records[1]["arxiv"], "2201.12345")
+        self.assertEqual(records[1]["study_type"], "Computational Study")
+
+    def test_parse_csl_json_single_object(self):
+        text = """{
+            "title": "Single Study on Memory",
+            "author": [{"family": "Smith", "given": "John"}],
+            "issued": {"date-parts": [[2018]]},
+            "container-title": "Journal of Neuroscience",
+            "study_type": "Cohort Study"
+        }"""
+        records = parse_csl_json(text)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["title"], "Single Study on Memory")
+        self.assertEqual(records[0]["authors"], "John Smith")
+        self.assertEqual(records[0]["year"], "2018")
+        self.assertEqual(records[0]["study_type"], "Cohort Study")
+
+    def test_parse_csl_json_wrapped_items(self):
+        text = """{
+            "items": [
+                {
+                    "title": "Wrapped In Items Object",
+                    "author": [{"family": "Doe", "given": "Jane"}],
+                    "issued": "2021"
+                }
+            ]
+        }"""
+        records = parse_csl_json(text)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["title"], "Wrapped In Items Object")
+        self.assertEqual(records[0]["authors"], "Jane Doe")
+        self.assertEqual(records[0]["year"], "2021")
+
+    def test_parse_csl_json_invalid(self):
+        with self.assertRaises(LatticeError):
+            parse_csl_json("not valid json {")
+        with self.assertRaises(LatticeError):
+            parse_csl_json('"just a string"')
+
+
 class MarkdownTests(unittest.TestCase):
     """Front matter and heading fallbacks."""
 
@@ -127,6 +211,14 @@ class FileTests(unittest.TestCase):
         first = self.write("a.bib", "@article{a, title={A}}")
         second = self.write("b.ris", "TY  - JOUR\nTI  - B\nER  - \n")
         self.assertEqual(len(parse_paths([first, second])), 2)
+
+    def test_csl_json_file(self):
+        json_path = self.write("papers.json", '[{"title": "Paper One", "author": [{"literal": "Lab"}]}]')
+        csl_path = self.write("papers.csl", '{"title": "Paper Two", "author": [{"literal": "Lab"}]}')
+        records_json = parse_file(json_path)
+        records_csl = parse_file(csl_path)
+        self.assertEqual(records_json[0]["title"], "Paper One")
+        self.assertEqual(records_csl[0]["title"], "Paper Two")
 
     def test_unsupported_suffix(self):
         path = self.write("paper.pdf", "not really a pdf")

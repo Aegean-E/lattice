@@ -11,3 +11,6 @@
 *.db.bak
 __pycache__/
 *.pyc
+# AIKit transient state
+*.py[cod]
+node_modules/

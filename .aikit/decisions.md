@@ -525,4 +525,18 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   4. Expose `propose_hypotheses` across all interfaces: `lattice hypothesize [TARGET]` CLI command, `propose_hypotheses` in `lattice.api`, `client.propose_hypotheses()` on `LatticeClient` and `AsyncLatticeClient`, and the `propose_hypotheses` MCP tool (added to `_READ_ONLY_TOOLS`).
 - **Consequences**: Autonomous agents and scientists can programmatically generate principled, testable experimental hypotheses grounded directly in the graph's empirical gaps and conflicts. 213 unit tests pass, and zero third-party dependencies are required. No database schema changes.
 
+## ADR-026: CSL-JSON Bibliography Ingestion and Universal Citation Interoperability (2026-10-24)
+
+- **Status**: Accepted
+- **Context**: While Lattice previously ingested BibTeX, RIS, CSV, Markdown, and plain text files, Citation Style Language JSON (CSL-JSON) is the universal modern exchange format used across citation managers (Zotero, Mendeley, Papers), bibliographic APIs (Crossref, DOI.org content negotiation), and toolchains (Citation.js, Pandoc). Ingesting research bibliographies exported in CSL-JSON or fetched directly from Crossref required external format conversion.
+- **Decision**:
+  1. Implement `parse_csl_json` in `lattice.ingest` using Python's standard library `json` module, with zero external dependencies.
+  2. Support array format (`[{...}]`), single-item dictionaries (`{...}`), and container wrapper objects (`{"items": [...]}`).
+  3. Map CSL-JSON fields defensively: extract title and shortTitle; normalize author lists from family/given name objects, literal names, or string representations; extract 4-digit publication years from `issued.date-parts` arrays, `issued.raw`, or string dates; extract container-title/journal/publisher for venue; map `DOI`, `URL`, `abstract`, and `tags`; infer or extract `arxiv` IDs from URL/eprint.
+  4. Standardize study type extraction: respect explicit `study_type`/`study-type`, fallback to title/abstract heuristic inference via `infer_study_type`, map standard CSL types (e.g. `type: review` -> `"Review"`), and default to `"General Study"`.
+  5. Extend `parse_file` suffix dispatch to accept `.csl` and `.json` extensions.
+  6. Re-export `parse_csl_json` in `lattice.api` and verify export integrity with `tests/test_api.py`.
+- **Consequences**: Researchers and downstream agents can directly ingest `.csl` and `.json` citation bibliographies and Crossref payloads into the Lattice evidence graph without conversion overhead. All 219 unit tests pass, and gate hygiene invariant is preserved with zero dependencies added. No database schema changes.
+
+
 

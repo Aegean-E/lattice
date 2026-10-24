@@ -240,6 +240,7 @@ reads files and the database.
 | BibTeX | `.bib`, `.bibtex` | nested braces and quoted values; `keywords` and `studytype` |
 | RIS | `.ris` | `TY`, `TI`, `AU`, `PY`, `DO`, `UR`, `AB`, `KW`, `M3`, `ER` |
 | CSV | `.csv` | header names map to metadata fields; `keywords`/`tags`, `study_type`/`type` |
+| CSL-JSON | `.json`, `.csl` | standard Citation Style Language JSON arrays or item objects from Zotero/Mendeley/Crossref |
 | Markdown | `.md`, `.markdown` | YAML-like front matter (including `tags` and `study_type`), heading or filename title |
 | Plain text | `.txt` | filename becomes the title, body the abstract |
 
@@ -283,7 +284,7 @@ lattice/
 │   ├── discovery.py          <- pluggable literature discovery (arXiv, Crossref, OpenAlex, EuropePMC, offline)
 │   ├── errors.py             <- the Error/Why/Fix triad
 │   ├── extraction.py         <- automated quote-backed claim and edge extraction
-│   ├── ingest.py             <- BibTeX, RIS, CSV, Markdown and text parsers
+│   ├── ingest.py             <- BibTeX, RIS, CSV, CSL-JSON, Markdown and text parsers
 │   ├── inquiry.py            <- ask, token-budgeted brief and review outline
 │   ├── mcp.py                <- MCP stdio server and tool dispatch
 │   ├── models.py             <- value objects, identifiers and validators

@@ -77,6 +77,7 @@ EXPECTED_EXPORTS = {
     "parse_bibtex",
     "parse_ris",
     "parse_csv",
+    "parse_csl_json",
     "parse_markdown",
     "parse_text",
     "parse_file",

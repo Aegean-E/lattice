@@ -2,7 +2,9 @@
 
 import csv
 import io
+import json
 from pathlib import Path
+import re
 from typing import Any, Dict, Iterable, List
 
 from lattice.errors import LatticeError, fail
@@ -184,6 +186,126 @@ def parse_csv(text: str) -> List[Record]:
     return records
 
 
+def parse_csl_json(text: str) -> List[Record]:
+    """Parse one or more CSL-JSON items into metadata records."""
+    try:
+        data = json.loads(text)
+    except (ValueError, json.JSONDecodeError) as exc:
+        fail(f"malformed CSL-JSON: {exc}", "CSL-JSON must be valid JSON",
+             "check the syntax of the JSON input")
+
+    if isinstance(data, dict):
+        if "items" in data and isinstance(data["items"], list):
+            items = data["items"]
+        else:
+            items = [data]
+    elif isinstance(data, list):
+        items = data
+    else:
+        fail("CSL-JSON must be a JSON array or object", "cannot parse arbitrary primitive as bibliography",
+             "provide a valid CSL-JSON array or item object")
+
+    records: List[Record] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        record = empty_record()
+
+        # Title
+        raw_title = item.get("title") or item.get("shortTitle") or ""
+        record["title"] = _clean(str(raw_title))
+
+        # Authors
+        author_entries = item.get("author") or item.get("editor") or []
+        if isinstance(author_entries, str):
+            record["authors"] = _clean(author_entries)
+        elif isinstance(author_entries, list):
+            author_names: List[str] = []
+            for entry in author_entries:
+                if isinstance(entry, dict):
+                    if entry.get("literal"):
+                        author_names.append(_clean(str(entry["literal"])))
+                    else:
+                        family = _clean(str(entry.get("family") or ""))
+                        given = _clean(str(entry.get("given") or ""))
+                        if family and given:
+                            author_names.append(f"{given} {family}")
+                        elif family:
+                            author_names.append(family)
+                        elif given:
+                            author_names.append(given)
+                elif isinstance(entry, str) and entry.strip():
+                    author_names.append(_clean(entry))
+            record["authors"] = "; ".join(author_names)
+
+        # Year
+        issued = item.get("issued") or item.get("created") or item.get("published-print") or item.get("published-online")
+        if isinstance(issued, dict):
+            date_parts = issued.get("date-parts")
+            if isinstance(date_parts, list) and date_parts and isinstance(date_parts[0], (list, tuple)) and date_parts[0]:
+                record["year"] = str(date_parts[0][0])[:4]
+            elif issued.get("raw"):
+                match = re.search(r"\b(19\d\d|20\d\d)\b", str(issued["raw"]))
+                if match:
+                    record["year"] = match.group(1)
+        elif isinstance(issued, (int, str)):
+            match = re.search(r"\b(19\d\d|20\d\d)\b", str(issued))
+            if match:
+                record["year"] = match.group(1)
+
+        # Venue
+        venue = item.get("container-title") or item.get("journalAbbreviation") or item.get("publisher") or item.get("collection-title") or ""
+        record["venue"] = _clean(str(venue))
+
+        # DOI
+        doi = item.get("DOI") or item.get("doi") or ""
+        record["doi"] = _clean(str(doi))
+
+        # URL
+        url = item.get("URL") or item.get("url") or ""
+        record["url"] = _clean(str(url))
+
+        # Abstract
+        abstract = item.get("abstract") or item.get("note") or ""
+        record["abstract"] = _clean(str(abstract))
+
+        # ArXiv
+        arxiv = item.get("arxiv") or item.get("eprint") or ""
+        if arxiv:
+            record["arxiv"] = _clean(str(arxiv))
+        else:
+            match = re.search(r"arxiv\.org/(?:abs|pdf)/([0-9]+\.[0-9]+(?:v[0-9]+)?)", record["url"] or "")
+            if match:
+                record["arxiv"] = match.group(1)
+
+        # Tags / Keywords
+        raw_tags = item.get("keyword") or item.get("keywords") or item.get("tags") or item.get("categories") or ""
+        if isinstance(raw_tags, list):
+            record["tags"] = ", ".join(_clean(str(t)) for t in raw_tags if str(t).strip())
+        elif isinstance(raw_tags, str):
+            record["tags"] = _clean(raw_tags)
+
+        # Study Type
+        raw_type = item.get("study_type") or item.get("study-type") or item.get("studyType") or ""
+        if raw_type:
+            record["study_type"] = normalize_study_type(str(raw_type))
+        if not record["study_type"]:
+            inferred = infer_study_type(record["title"], record["abstract"])
+            if inferred != "General Study":
+                record["study_type"] = inferred
+            else:
+                csl_type = str(item.get("type") or "").strip().lower()
+                if "review" in csl_type:
+                    record["study_type"] = "Review"
+                else:
+                    record["study_type"] = "General Study"
+
+        if record["title"]:
+            records.append(record)
+
+    return records
+
+
 def parse_markdown(text: str, source_name: str) -> List[Record]:
     """Parse one Markdown note: YAML-like front matter, a heading or the filename as title."""
     record = empty_record()
@@ -240,6 +362,8 @@ def parse_file(path: Path) -> List[Record]:
         return parse_bibtex(text)
     if suffix == ".ris":
         return parse_ris(text)
+    if suffix in (".csl", ".json"):
+        return parse_csl_json(text)
     if suffix == ".csv":
         return parse_csv(text)
     if suffix in (".md", ".markdown"):
@@ -247,7 +371,7 @@ def parse_file(path: Path) -> List[Record]:
     if suffix == ".txt":
         return parse_text(text, path.name)
     fail(f"unsupported input format '{suffix or path.name}'",
-         "lattice ingests BibTeX, RIS, CSV, Markdown and plain text",
+         "lattice ingests BibTeX, RIS, CSV, CSL-JSON, Markdown and plain text",
          "export the source in one of those formats, or convert it first")
 
 
