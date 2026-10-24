@@ -40,5 +40,19 @@
     "final_snapshot_digest": "6acd910ab1ca5638ee5ee0d1e86343e4fe3901f9965fd8b85a6aadb38b4abf66",
     "final_snapshot_entries": 131,
     "surface_digest": "d99ad8711da1f16c8eec4420dcf9cae720abe0d08326e623c82830dae377f0ff"
+  },
+  {
+    "schema": 1,
+    "surface": "studio",
+    "baseline_commit": "5bc2f7a076bcb5d0f3fedd7736b955820584fedf",
+    "contract_hash": "b4c1f390fe70659340264ecbcdfae76132b191b06df7c407b85c8e77316ab763",
+    "started_at": 1792859875.9628925,
+    "finished_at": 1792859970.7929897,
+    "strikes": 0,
+    "reviewer": "",
+    "allowed_removals": [],
+    "final_snapshot_digest": "efd5bba0cd32dc9ed7bad58a701e75317f11d2ee9576d634527c516c76d9e094",
+    "final_snapshot_entries": 134,
+    "surface_digest": "aa37d5eddccfabd7f5416428c349d0a0174b1af1351765cd2b4bf7918e85104c"
   }
 ]

@@ -289,6 +289,17 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("steps", payload)
         self.assertIn("narrative", payload)
 
+    def test_api_hypothesize_endpoint(self) -> None:
+        self.request_json("POST", "/api/demo", {})
+        status, payload = self.request_json("GET", "/api/hypothesize?limit=3")
+        self.assertEqual(status, 200)
+        self.assertIsInstance(payload, list)
+        self.assertGreaterEqual(len(payload), 1)
+        h0 = payload[0]
+        self.assertIn("statement", h0)
+        self.assertIn("independent_variable", h0)
+        self.assertIn("dependent_variable", h0)
+
 
 if __name__ == "__main__":
     unittest.main()

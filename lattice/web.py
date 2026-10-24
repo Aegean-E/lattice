@@ -97,6 +97,8 @@ def dispatch_web_request(repository: Repository, method: str, path: str,
             return _json_response(200, _handle_synthesize(repository, query))
         if verb == "GET" and route == "/api/path":
             return _json_response(200, _handle_path(repository, query))
+        if verb == "GET" and route == "/api/hypothesize":
+            return _json_response(200, _handle_hypothesize(repository, query))
         if verb == "POST":
             payload = _parse_json_body(body)
             return _dispatch_post(repository, route, payload)
@@ -269,6 +271,14 @@ def _handle_path(repository: Repository, query: Dict[str, List[str]]) -> Dict[st
     kinds = [k.strip() for k in kinds_str.split(",") if k.strip()] if kinds_str else None
     from lattice.analysis import find_path
     return find_path(repository, src, dst, max_depth=depth, directed=directed, edge_kinds=kinds)
+
+
+def _handle_hypothesize(repository: Repository, query: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+    """Propose structured testable hypotheses from query parameters."""
+    target = _first(query, "target") or _first(query, "question") or None
+    limit = int(_first(query, "limit") or "5")
+    from lattice.analysis import propose_hypotheses
+    return propose_hypotheses(repository, question_ref=target, limit=limit)
 
 
 def _handle_synthesize(repository: Repository, query: Dict[str, List[str]]) -> Dict[str, Any]:
@@ -1236,6 +1246,14 @@ WEB_HTML = """<!DOCTYPE html>
           <h2>Keystone Papers &amp; Claims (Centrality)</h2>
           <div id="keystone-list" class="item-list"></div>
         </div>
+
+        <div class="card">
+          <h2>
+            <span>Proposed Hypotheses &amp; Gaps</span>
+            <button class="btn sm secondary" onclick="loadHypotheses()">Generate Hypotheses</button>
+          </h2>
+          <div id="hypotheses-list" class="item-list"></div>
+        </div>
       </div>
 
       <div>
@@ -1984,8 +2002,39 @@ async function loadMatrix() {
     }).join('');
     const gapsHtml = (mat.gaps || []).map(g => `<div style="font-size:0.8rem;color:#fbbf24;margin-top:4px">⚠ <strong>${esc(g.question_id)}</strong>: ${esc(g.reason)}</div>`).join('');
     mBox.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="padding:8px;border-bottom:1px solid var(--border);text-align:left;font-size:0.78rem">Paper</th>${headers}</tr></thead><tbody>${rows}</tbody></table></div><div style="margin-top:10px">${gapsHtml}</div>`;
+    loadHypotheses();
   } catch (err) {
     notify(err.message, true);
+  }
+}
+
+async function loadHypotheses() {
+  const hBox = document.getElementById('hypotheses-list');
+  if (!hBox) return;
+  hBox.innerHTML = '<span style="color:var(--muted)">Formulating testable hypotheses...</span>';
+  try {
+    const list = await api('GET', '/api/hypothesize?limit=6');
+    hBox.innerHTML = (list || []).map(h => {
+      const isRec = h.kind === 'reconciliation';
+      const badgeStyle = isRec ? 'background:#854d0e;color:#fef08a' : 'background:#581c87;color:#e9d5ff';
+      return `
+        <div class="item">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span class="badge" style="${badgeStyle}">${esc(h.kind)}</span>
+            <span style="font-size:0.75rem;color:var(--muted)">${esc(h.question_id)} &bull; ${esc(h.recommended_study_type)}</span>
+          </div>
+          <div style="font-size:0.85rem;font-weight:600;margin-bottom:4px">${esc(h.statement)}</div>
+          <div style="font-size:0.78rem;color:var(--muted)">
+            <strong>IV:</strong> ${esc(h.independent_variable)} &bull; <strong>DV:</strong> ${esc(h.dependent_variable)} &bull; <strong>Effect:</strong> ${esc(h.predicted_effect)}
+          </div>
+          <div style="font-size:0.75rem;color:var(--accent);margin-top:2px">
+            <em>${esc(h.rationale)}</em>
+          </div>
+        </div>
+      `;
+    }).join('') || '<div style="color:var(--muted)">No coverage gaps or contradictions to synthesize into hypotheses.</div>';
+  } catch (err) {
+    hBox.innerHTML = `<span style="color:var(--contradict)">${esc(err.message)}</span>`;
   }
 }
 
