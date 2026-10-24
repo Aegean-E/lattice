@@ -272,6 +272,18 @@ class CliTests(unittest.TestCase):
             self.assertTrue(db_path.is_absolute())
             self.assertEqual(db_path, Path(start_module._ROOT) / "lattice.db")
 
+    def test_cli_path_command(self):
+        self.run_cli("web", "--demo", "--dump-html")
+        code, out, _ = self.run_cli("--json", "path", "q_000001", "c_000001")
+        self.assertEqual(code, 0)
+        payload = json.loads(out)
+        self.assertTrue(payload["found"])
+        self.assertEqual(payload["length"], 1)
+
+        code, text_out, _ = self.run_cli("path", "q_000001", "c_000001")
+        self.assertEqual(code, 0)
+        self.assertIn("Path found", text_out)
+
 
 if __name__ == "__main__":
     unittest.main()

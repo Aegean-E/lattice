@@ -503,4 +503,15 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   5. Provide `export_graphml`, `export_cytoscape`, and `sync_article` convenience methods on `LatticeClient` and `AsyncLatticeClient`, and allow `format` parameter dispatch in `export_snapshot` MCP tool.
 - **Consequences**: Lattice graphs can be opened directly in Gephi, Cytoscape, and NetworkX with full typed semantics and metadata. NeuroCore agents can synchronize articles into the evidence graph in one step. All 199 unit tests and 25/25 dogfood steps pass. Zero third-party dependencies added (standard library `xml.etree.ElementTree` and `json` only). No database schema changes.
 
+## ADR-024: Multi-Hop Evidence Path Tracing and Reasoning Chains (2026-10-24)
+
+- **Status**: Accepted
+- **Context**: Researchers and AI agents need to understand how distant papers, claims, and questions relate across the knowledge graph. Prior to this decision, graph traversal was limited to 1-hop direct neighbors and unoriented ego-network subgraphs, leaving agents to manually search for connecting evidence chains.
+- **Decision**:
+  1. Implement `find_path` in `lattice.analysis` using deterministic Breadth-First Search (BFS) to find the shortest relation path between any two validated entity references.
+  2. Support configurable `max_depth` (1 to 10, default 5), optional `directed` constraint (default undirected for provenance navigation), and optional `edge_kinds` filtering (e.g. evidentiary links `supports,contradicts,answers` vs citation links `cites`).
+  3. Return a structured result dictionary containing `found`, `length` (edge hops), ordered `steps` with edge IDs and directions, resolved `nodes` summaries, and a human-readable `narrative` explanation.
+  4. Expose `find_path` across all access surfaces: `lattice path SRC DST` CLI command (with `--depth`, `--directed`, `--kinds`, and `--json`), `find_path` in `lattice.api`, `client.find_path()` on `LatticeClient` and `AsyncLatticeClient`, and the `find_path` MCP tool (added to `_READ_ONLY_TOOLS` allowlist).
+- **Consequences**: Agents and humans can query the exact chain of evidentiary backing between any two findings without heuristics or third-party graph dependencies. The algorithm guarantees the shortest path in $O(V + E)$ time and memory bounded by `max_depth`. All 208 unit tests pass and import cycles are strictly avoided. No database schema changes.
+
 

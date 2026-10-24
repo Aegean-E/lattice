@@ -9,6 +9,7 @@ from lattice import __version__
 from lattice.analysis import (
     build_evidence_matrix,
     detect_contradictions,
+    find_path,
     find_related_findings,
     link_related_findings,
     rank_influential_entities,
@@ -103,6 +104,13 @@ TOOLS: List[Dict[str, Any]] = [
     _tool("diff_snapshot", "Compare a JSONL snapshot against another snapshot or the live graph; "
           "reports added, removed and changed papers, questions, claims and edges.",
           {"old_path": {"type": "string"}, "new_path": {"type": "string"}}, ["old_path"]),
+    _tool("find_path", "Find the shortest chain of relations connecting two entities via BFS; "
+          "returns the sequence of hops, node details and step-by-step reasoning narrative.",
+          {"src": {"type": "string"}, "dst": {"type": "string"},
+           "max_depth": {"type": "integer", "default": 5},
+           "directed": {"type": "boolean", "default": False},
+           "edge_kinds": {"type": "array", "items": {"type": "string"}}},
+          ["src", "dst"]),
     _tool("stats", "Entity and edge counts.", {}, []),
 ]
 
@@ -385,6 +393,18 @@ def dispatch_tool(repository: Repository, name: str, arguments: Dict[str, Any]) 
         if new_path:
             return diff_snapshots(Path(_text(arguments, "old_path")), Path(str(new_path)))
         return diff_snapshot(repository, Path(_text(arguments, "old_path")))
+    if name == "find_path":
+        edge_kinds = arguments.get("edge_kinds")
+        if isinstance(edge_kinds, str):
+            edge_kinds = [k.strip() for k in edge_kinds.split(",") if k.strip()]
+        return find_path(
+            repository,
+            _text(arguments, "src"),
+            _text(arguments, "dst"),
+            max_depth=int(arguments.get("max_depth", 5)),
+            directed=bool(arguments.get("directed", False)),
+            edge_kinds=edge_kinds,
+        )
     if name == "stats":
         return repository.stats()
     raise LatticeError(f"unknown tool '{name}'", "the server advertises its tools in tools/list",

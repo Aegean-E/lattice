@@ -8,9 +8,9 @@
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `45`
 - **Total Classes**: `57`
-- **Total Top-Level Functions**: `218`
-- **Total Class Methods**: `353`
-- **Total Source Lines**: `12518`
+- **Total Top-Level Functions**: `220`
+- **Total Class Methods**: `360`
+- **Total Source Lines**: `12816`
 
 ---
 
@@ -33,7 +33,7 @@
 ### [`lattice/analysis.py`](lattice/analysis.py)
 > *Contradiction detection, related-finding links, keystone ranking and evidence matrices.*
 
-**Size**: `610` lines (`25235` bytes)
+**Size**: `741` lines (`29516` bytes)
 
 **Classes:**
 - `class ContradictionPair` - *An opposing pair of empirical claims sharing a research question or high domain keyword overlap.*
@@ -53,13 +53,14 @@
 - `def related_findings(repo, ref, limit)` - *Findings connected to a claim, paper or question, with reasons and next-hop references.*
 - `def rank_influential_entities(repo, limit)` - *Rank keystone papers and claims by evidence centrality, citation degree, and confidence.*
 - `def build_evidence_matrix(repo)` - *Build a Paper x Question evidence matrix highlighting stance cells and coverage gaps.*
+- `def find_path(repo, src, dst, max_depth, directed, edge_kinds)` - *Find the shortest chain of relations connecting two entities via BFS.*
 
 ---
 
 ### [`lattice/api.py`](lattice/api.py)
 > *Stable public Python surface for host integrations such as neurocore.*
 
-**Size**: `309` lines (`8293` bytes)
+**Size**: `311` lines (`8325` bytes)
 
 **Functions:**
 - `def _question_key(value)` - *Normalize `question:q_000001` or `q_000001` to the bare identifier.*
@@ -100,7 +101,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `662` lines (`29744` bytes)
+**Size**: `699` lines (`31359` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -116,6 +117,7 @@
 - `def _run_search(args, repository)` - *Search and print the three result sections.*
 - `def _run_show(args, repository)` - *Show one entity and each attached edge.*
 - `def _run_subgraph(args, repository)` - *Traverse and print the multi-hop neighborhood around an entity.*
+- `def _run_path(args, repository)` - *Trace and print the shortest relation path between two entities.*
 - `def _run_related(args, repository)` - *List findings connected to an entity, with the reason for each connection.*
 - `def _run_outline(args, repository)` - *Print a cheap orientation index before an agent expands a reference.*
 - `def _run_ask(args, repository)` - *Assemble and print evidence.*
@@ -136,7 +138,7 @@
 ### [`lattice/client.py`](lattice/client.py)
 > *Turnkey client facade for AI hosts: own one connection, call MCP-parity tools.*
 
-**Size**: `349` lines (`15581` bytes)
+**Size**: `358` lines (`16052` bytes)
 
 **Classes:**
 - `class LatticeClient` - *A synchronous, context-managed graph client with MCP tool parity.*
@@ -177,6 +179,7 @@
   - Method `.sync_article(article_data, auto_extract)` - *Sync a NeuroCore or external article dict into the evidence graph.*
   - Method `.import_snapshot(path)`
   - Method `.diff_snapshot(old_path, new_path)` - *Diff a baseline snapshot against another snapshot or the live graph.*
+  - Method `.find_path(src, dst, max_depth, directed, edge_kinds)` - *Find the shortest chain of relations connecting two entities via BFS.*
   - Method `.stats()`
 - `class AsyncLatticeClient` - *An asyncio facade that serializes the sync client on one dedicated thread.*
   - Method `.__init__(db_path, read_only)`
@@ -378,7 +381,7 @@
 ### [`lattice/mcp.py`](lattice/mcp.py)
 > *A dependency-free MCP stdio server exposing the graph as JSON-RPC tools.*
 
-**Size**: `429` lines (`21179` bytes)
+**Size**: `449` lines (`22157` bytes)
 
 **Functions:**
 - `def _tool(name, description, properties, required)` - *An MCP tool declaration with a JSON Schema for its arguments.*
@@ -574,7 +577,7 @@
 ### [`tests/test_analysis.py`](tests/test_analysis.py)
 > *Unit tests for scientific contradiction detection, keystone centrality, and evidence matrix analysis.*
 
-**Size**: `290` lines (`14779` bytes)
+**Size**: `364` lines (`18258` bytes)
 
 **Classes:**
 - `class TestAnalysis` - *Verify contradiction detection, keystone entity ranking, and Paper x Question evidence matrix.*
@@ -589,13 +592,18 @@
   - Method `.test_related_findings_navigation_works_before_linking()`
   - Method `.test_rank_influential_entities_returns_keystone_papers_and_claims()`
   - Method `.test_build_evidence_matrix_identifies_cells_and_coverage_gaps()`
+  - Method `.test_find_path_direct_and_multihop()`
+  - Method `.test_find_path_directed_vs_undirected()`
+  - Method `.test_find_path_edge_kind_filter()`
+  - Method `.test_find_path_disconnected_and_depth_limits()`
+  - Method `.test_find_path_invalid_entities_raise()`
 
 ---
 
 ### [`tests/test_api.py`](tests/test_api.py)
 > *Unit tests for the public `lattice.api` integration surface.*
 
-**Size**: `340` lines (`13223` bytes)
+**Size**: `341` lines (`13240` bytes)
 
 **Classes:**
 - `class PublicApiTests` - *Verify the facade stays complete, inert at import time and faithful.*
@@ -641,7 +649,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `278` lines (`12258` bytes)
+**Size**: `290` lines (`12738` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
@@ -662,13 +670,14 @@
   - Method `.test_compact_token_views_for_related_subgraph_and_search()`
   - Method `.test_analyze_subcommand()`
   - Method `.test_start_file_default_and_forwarding()`
+  - Method `.test_cli_path_command()`
 
 ---
 
 ### [`tests/test_client.py`](tests/test_client.py)
 > *Tests for the turnkey client facade used by AI hosts.*
 
-**Size**: `311` lines (`15199` bytes)
+**Size**: `323` lines (`15813` bytes)
 
 **Classes:**
 - `class LatticeClientTests` - *Verify lifecycle, tool parity, convenience methods and failure modes.*

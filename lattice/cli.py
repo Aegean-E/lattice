@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Sequence
 from lattice.analysis import (
     build_evidence_matrix,
     detect_contradictions,
+    find_path,
     find_related_findings,
     link_related_findings,
     rank_influential_entities,
@@ -117,6 +118,14 @@ def build_parser() -> argparse.ArgumentParser:
     subgraph.add_argument("--tokens", type=int, default=0,
                           help="compact JSON token budget (0 = full payload)")
     subgraph.set_defaults(handler=_run_subgraph)
+
+    path_cmd = commands.add_parser("path", help="trace the shortest relation path between two entities")
+    path_cmd.add_argument("src", help="source entity reference or id")
+    path_cmd.add_argument("dst", help="target entity reference or id")
+    path_cmd.add_argument("--depth", type=int, default=5, help="maximum search depth (default: 5, max: 10)")
+    path_cmd.add_argument("--directed", action="store_true", help="follow directed edges only")
+    path_cmd.add_argument("--kinds", help="comma-separated edge kinds to allow (e.g. 'supports,contradicts')")
+    path_cmd.set_defaults(handler=_run_path)
 
     related = commands.add_parser(
         "related", help="list findings connected to a claim, paper or question")
@@ -386,6 +395,34 @@ def _run_subgraph(args: argparse.Namespace, repository: Repository) -> int:
         lines.append(f"  {edge['src']} -{edge['kind']}-> {edge['dst']}")
     payload = compact_subgraph(result, args.tokens) if args.tokens else result
     _emit(payload, lines, args.json)
+    return 0
+
+
+def _run_path(args: argparse.Namespace, repository: Repository) -> int:
+    """Trace and print the shortest relation path between two entities."""
+    edge_kinds = None
+    if getattr(args, "kinds", None):
+        edge_kinds = [k.strip() for k in str(args.kinds).split(",") if k.strip()]
+    result = find_path(
+        repository,
+        args.src,
+        args.dst,
+        max_depth=int(args.depth),
+        directed=bool(args.directed),
+        edge_kinds=edge_kinds,
+    )
+    if not result["found"]:
+        lines = [f"No path: {result['narrative']}"]
+        _emit(result, lines, args.json)
+        return 1
+    lines = [
+        f"Path found ({result['length']} hops):",
+        f"  {result['narrative']}",
+    ]
+    for i, step in enumerate(result["steps"], 1):
+        rel = f"--[{step['kind']}]-->" if step["direction"] == "forward" else f"<--[{step['kind']}]--"
+        lines.append(f"  {i}. {step['from']} {rel} {step['to']}")
+    _emit(result, lines, args.json)
     return 0
 
 

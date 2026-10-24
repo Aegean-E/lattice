@@ -26,6 +26,7 @@ EXPECTED_EXPORTS = {
     "ContradictionPair",
     "RelatedPair",
     "detect_contradictions",
+    "find_path",
     "find_related_findings",
     "link_related_findings",
     "related_findings",

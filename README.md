@@ -118,6 +118,7 @@ python -m lattice [--db PATH] [--json] link SRC DST --type KIND
 python -m lattice [--db PATH] [--json] search QUERY [--stance S] [--min-confidence C] [--year Y] [--tokens N]
 python -m lattice [--db PATH] [--json] show REF
 python -m lattice [--db PATH] [--json] subgraph REF [--depth 1..3] [--tokens N]
+python -m lattice [--db PATH] [--json] path SRC DST [--depth 1..10] [--directed] [--kinds KINDS]
 python -m lattice [--db PATH] [--json] related REF [--limit N] [--tokens N]
 python -m lattice [--db PATH] [--json] outline [--tokens N]
 python -m lattice [--db PATH] [--json] ask TARGET
@@ -138,7 +139,7 @@ python -m lattice [--db PATH] web [--host 127.0.0.1] [--port 8765] [--demo] [--o
 stdio with tools (`search`, `discover_papers`, `extract_claims`, `get_entity`, `neighbors`,
 `subgraph`, `related_findings`, `outline`, `add_paper`, `add_claim`, `add_question`,
 `set_question_status`, `add_edge`, `brief`, `review`, `synthesize`, `analyze_graph`,
-`detect_contradictions`, `export_snapshot`, `import_snapshot`, `diff_snapshot`, `stats`), resources
+`detect_contradictions`, `export_snapshot`, `import_snapshot`, `diff_snapshot`, `find_path`, `stats`), resources
 (`lattice://stats`, `lattice://questions`, `lattice://matrix`), and prompts
 (`literature-synthesis`). `outline` is the cheap first call; `search`, `related_findings` and
 `subgraph` return compact token-budgeted views by default; `get_entity` is the full drill-down.
@@ -168,7 +169,7 @@ The neurocore design names `synthesize_question` and `extract_claims_for_paper` 
 
 ### AI Client
 
-For an AI host, `LatticeClient` owns the connection and exposes the same 22 tools (13 in
+For an AI host, `LatticeClient` owns the connection and exposes the same 23 tools (14 in
 read-only mode) as the MCP server, so the tool declarations and the dispatch path come from one
 implementation:
 
@@ -215,8 +216,8 @@ launches the MCP server over stdio:
 }
 ```
 
-`python -m lattice mcp` speaks newline-delimited JSON-RPC on stdio and advertises 22 tools
-(13 read-only), 3 resources and the `literature-synthesis` prompt. The agent-facing flow is
+`python -m lattice mcp` speaks newline-delimited JSON-RPC on stdio and advertises 23 tools
+(14 read-only), 3 resources and the `literature-synthesis` prompt. The agent-facing flow is
 budgeted end to end:
 
 1. `outline` — cheap orientation: counts, edge kinds, study-type mix and evidenced question refs.

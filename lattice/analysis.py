@@ -1,10 +1,12 @@
 """Contradiction detection, related-finding links, keystone ranking and evidence matrices."""
 
+from collections import deque
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
+from lattice.errors import fail
 from lattice.inquiry import STOPWORDS
-from lattice.models import Edge, bare_id, entity_type, normalize_text
+from lattice.models import Edge, bare_id, entity_type, normalize_text, validate_edge_kind
 from lattice.repository import Repository
 
 _EXTRA_STOPWORDS = {
@@ -607,4 +609,133 @@ def build_evidence_matrix(repo: Repository) -> Dict[str, Any]:
         "questions": questions,
         "cells": cells,
         "gaps": gaps,
+    }
+
+
+def find_path(repo: Repository,
+              src: str,
+              dst: str,
+              max_depth: int = 5,
+              directed: bool = False,
+              edge_kinds: Optional[Sequence[str]] = None) -> Dict[str, Any]:
+    """Find the shortest chain of relations connecting two entities via BFS.
+
+    Returns a dictionary with:
+      - found: bool (whether a path was found)
+      - length: int (number of edge hops, 0 for self, -1 if no path)
+      - steps: list of edge transitions
+      - nodes: list of entity summaries along the path
+      - narrative: human-readable explanation of the evidence path
+    """
+    if not isinstance(max_depth, int) or max_depth < 1 or max_depth > 10:
+        fail("max_depth must be an integer between 1 and 10",
+             f"received {max_depth}",
+             "pass max_depth between 1 and 10")
+
+    source_ref = repo._resolve(src)
+    target_ref = repo._resolve(dst)
+
+    # Validate that both entities exist in repository
+    source_summary = repo._summary(source_ref)
+    target_summary = repo._summary(target_ref)
+
+    allowed_kinds: Optional[Set[str]] = None
+    if edge_kinds:
+        allowed_kinds = {validate_edge_kind(k) for k in edge_kinds}
+
+    if source_ref == target_ref:
+        return {
+            "found": True,
+            "length": 0,
+            "steps": [],
+            "nodes": [source_summary],
+            "narrative": f"Source and target are the same entity ({source_ref}).",
+        }
+
+    queue: deque[Tuple[str, List[Dict[str, Any]]]] = deque([(source_ref, [])])
+    visited: Set[str] = {source_ref}
+    found_steps: Optional[List[Dict[str, Any]]] = None
+
+    while queue:
+        current, steps = queue.popleft()
+        if len(steps) >= max_depth:
+            continue
+
+        if directed:
+            query = "SELECT id, src, dst, kind, note FROM edges WHERE src = ? ORDER BY id"
+            params: Tuple[Any, ...] = (current,)
+        else:
+            query = "SELECT id, src, dst, kind, note FROM edges WHERE src = ? OR dst = ? ORDER BY id"
+            params = (current, current)
+
+        rows = repo.connection.execute(query, params).fetchall()
+        for row in rows:
+            edge_id = int(row["id"])
+            edge_src = str(row["src"])
+            edge_dst = str(row["dst"])
+            edge_kind = str(row["kind"])
+            edge_note = str(row["note"])
+
+            if allowed_kinds is not None and edge_kind not in allowed_kinds:
+                continue
+
+            if edge_src == current:
+                nxt = edge_dst
+                direction = "forward"
+            else:
+                nxt = edge_src
+                direction = "reverse"
+
+            step = {
+                "from": current,
+                "to": nxt,
+                "kind": edge_kind,
+                "edge_id": edge_id,
+                "direction": direction,
+                "note": edge_note,
+            }
+            new_steps = steps + [step]
+
+            if nxt == target_ref:
+                found_steps = new_steps
+                break
+
+            if nxt not in visited:
+                visited.add(nxt)
+                queue.append((nxt, new_steps))
+
+        if found_steps is not None:
+            break
+
+    if found_steps is None:
+        return {
+            "found": False,
+            "length": -1,
+            "steps": [],
+            "nodes": [],
+            "narrative": f"No path found between {source_ref} and {target_ref} within {max_depth} hops.",
+        }
+
+    # Collect nodes along the path
+    node_refs = [source_ref] + [s["to"] for s in found_steps]
+    nodes = [repo._summary(r) for r in node_refs]
+
+    # Formulate narrative explanation
+    narrative_parts = []
+    for s in found_steps:
+        from_name = s["from"]
+        to_name = s["to"]
+        kind = s["kind"]
+        if s["direction"] == "forward":
+            narrative_parts.append(f"{from_name} ({kind}) -> {to_name}")
+        else:
+            narrative_parts.append(f"{from_name} <- ({kind}) {to_name}")
+    narrative = " then ".join(narrative_parts)
+
+    return {
+        "found": True,
+        "length": len(found_steps),
+        "steps": found_steps,
+        "nodes": nodes,
+        "narrative": narrative,
     }

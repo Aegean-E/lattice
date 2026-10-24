@@ -1,33 +1,13 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "lattice-polish-v1",
+    "task_id": "lattice-path-v1",
     "last_phase": "phase 4",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1792833587.0535598,
-    "completed_at": 1792833590.7224169
+    "active_phase": 4,
+    "status": "in_progress",
+    "updated_at": 1792859138.168951
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-api-consistency-v1",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[2/3]-[3/3] Added string-name guards to LatticeClient.call_tool and public dispatch_tool, made tools/call reject blank names with -32602, and normalized a whitespace-wrapped :memory: sentinel in both LatticeClient and open_database while preserving real path text. checklists: passed; 177/177 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792682471.9310186,
-      "timestamp_str": "2026-10-22 18:21:11"
-    },
-    {
-      "task_id": "lattice-api-consistency-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-api-consistency-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792682485.4411874,
-      "timestamp_str": "2026-10-22 18:21:25"
-    },
     {
       "task_id": "lattice-snapshot-diff-v1",
       "phase": "phase 2",
@@ -237,6 +217,32 @@
       "status": "completed",
       "timestamp": 1792833590.7224193,
       "timestamp_str": "2026-10-24 12:19:50"
+    },
+    {
+      "task_id": "lattice-path-v1",
+      "phase": "phase 1",
+      "phase_num": 1,
+      "description": "[1/4] Design and implement BFS shortest path finding and narrative reasoning in lattice.analysis",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792858380.545254,
+      "timestamp_str": "2026-10-24 19:13:00",
+      "impact_assessment": {
+        "why": "Enable researchers and AI agents to trace multi-hop chains of evidence and citations connecting any two entities in the knowledge graph",
+        "benefits": "Provides deterministic provenance chains, explains how distant findings or papers relate, and exposes path finding across CLI, API, MCP, and Web Studio without heuristics",
+        "risks": "Performance on dense cycles and malformed entity references",
+        "mitigation": "Cycle detection via visited sets, depth capping (default 5, max 10), entity validation via validate_ref, and strict BFS shortest path guarantee"
+      }
+    },
+    {
+      "task_id": "lattice-path-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "checklists: passed. Implemented BFS evidence path tracing across lattice.analysis, lattice.api, lattice.cli, lattice.client, and lattice.mcp. Verified 208/208 tests and 25/25 dogfood steps.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792859138.168951,
+      "timestamp_str": "2026-10-24 19:25:38"
     }
   ]
 }

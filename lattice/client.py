@@ -9,7 +9,7 @@ thread, which keeps SQLite's thread affinity intact for asyncio hosts.
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 from lattice.database import open_database
 from lattice.errors import fail
@@ -28,7 +28,7 @@ DEFAULT_DB = "lattice.db"
 _READ_ONLY_TOOLS = frozenset({
     "search", "get_entity", "neighbors", "subgraph", "related_findings", "outline",
     "brief", "review", "synthesize", "stats", "analyze_graph", "detect_contradictions",
-    "diff_snapshot",
+    "diff_snapshot", "find_path",
 })
 
 
@@ -251,6 +251,15 @@ class LatticeClient:
         if new_path:
             arguments["new_path"] = new_path
         return self.call_tool("diff_snapshot", arguments)
+
+    def find_path(self, src: str, dst: str, max_depth: int = 5,
+                  directed: bool = False,
+                  edge_kinds: Optional[Sequence[str]] = None) -> Dict[str, Any]:
+        """Find the shortest chain of relations connecting two entities via BFS."""
+        return self.call_tool("find_path", {
+            "src": src, "dst": dst, "max_depth": max_depth,
+            "directed": directed, "edge_kinds": edge_kinds,
+        })
 
     def stats(self) -> Dict[str, Any]:
         return self.call_tool("stats", {})

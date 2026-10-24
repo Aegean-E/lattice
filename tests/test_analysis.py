@@ -7,6 +7,7 @@ from lattice.analysis import (
     ContradictionPair,
     build_evidence_matrix,
     detect_contradictions,
+    find_path,
     find_related_findings,
     link_related_findings,
     rank_influential_entities,
@@ -284,6 +285,79 @@ class TestAnalysis(unittest.TestCase):
 
         gap_ids = [g["question_id"] for g in matrix["gaps"]]
         self.assertIn(seeded["q2"].id, gap_ids)
+
+    def test_find_path_direct_and_multihop(self) -> None:
+        seeded = self._seed_conflicting_graph()
+        # Direct edge: claim:c1 -> question:q1 (1 hop, "answers")
+        path1 = find_path(self.repo, seeded["c1"].id, seeded["q1"].id)
+        self.assertTrue(path1["found"])
+        self.assertEqual(path1["length"], 1)
+        self.assertEqual(len(path1["steps"]), 1)
+        self.assertEqual(path1["steps"][0]["kind"], "answers")
+        self.assertEqual(len(path1["nodes"]), 2)
+        self.assertIn("answers", path1["narrative"])
+
+        # Multi-hop: claim:c1 -> question:q1 <- claim:c2 (2 hops)
+        path2 = find_path(self.repo, seeded["c1"].id, seeded["c2"].id)
+        self.assertTrue(path2["found"])
+        self.assertEqual(path2["length"], 2)
+        self.assertEqual(len(path2["steps"]), 2)
+        self.assertEqual(len(path2["nodes"]), 3)
+
+        # Self-path (0 hops)
+        path0 = find_path(self.repo, seeded["c1"].id, seeded["c1"].id)
+        self.assertTrue(path0["found"])
+        self.assertEqual(path0["length"], 0)
+        self.assertEqual(len(path0["steps"]), 0)
+
+    def test_find_path_directed_vs_undirected(self) -> None:
+        seeded = self._seed_conflicting_graph()
+        # c1 -> q1 exists as directed edge
+        directed_fwd = find_path(self.repo, seeded["c1"].id, seeded["q1"].id, directed=True)
+        self.assertTrue(directed_fwd["found"])
+
+        # q1 -> c1 does not exist as directed edge
+        directed_rev = find_path(self.repo, seeded["q1"].id, seeded["c1"].id, directed=True)
+        self.assertFalse(directed_rev["found"])
+
+        # But undirected q1 -> c1 succeeds
+        undirected = find_path(self.repo, seeded["q1"].id, seeded["c1"].id, directed=False)
+        self.assertTrue(undirected["found"])
+        self.assertEqual(undirected["length"], 1)
+
+    def test_find_path_edge_kind_filter(self) -> None:
+        seeded = self._seed_conflicting_graph()
+        # c1 -> q1 is "answers"
+        # Search allowing only "cites": should not find
+        no_cites = find_path(self.repo, seeded["c1"].id, seeded["q1"].id, edge_kinds=["cites"])
+        self.assertFalse(no_cites["found"])
+
+        # Search allowing "answers": should find
+        with_answers = find_path(self.repo, seeded["c1"].id, seeded["q1"].id, edge_kinds=["answers"])
+        self.assertTrue(with_answers["found"])
+
+    def test_find_path_disconnected_and_depth_limits(self) -> None:
+        seeded = self._seed_conflicting_graph()
+        # q2 has no edges connected to it
+        unconnected = find_path(self.repo, seeded["c1"].id, seeded["q2"].id)
+        self.assertFalse(unconnected["found"])
+        self.assertEqual(unconnected["length"], -1)
+        self.assertIn("No path found", unconnected["narrative"])
+
+        # max_depth limits
+        from lattice.errors import LatticeError
+        with self.assertRaises(LatticeError):
+            find_path(self.repo, seeded["c1"].id, seeded["q1"].id, max_depth=0)
+        with self.assertRaises(LatticeError):
+            find_path(self.repo, seeded["c1"].id, seeded["q1"].id, max_depth=15)
+
+    def test_find_path_invalid_entities_raise(self) -> None:
+        seeded = self._seed_conflicting_graph()
+        from lattice.errors import LatticeError
+        with self.assertRaises(LatticeError):
+            find_path(self.repo, "not_an_entity", seeded["q1"].id)
+        with self.assertRaises(LatticeError):
+            find_path(self.repo, seeded["c1"].id, "question:q_999999")
 
 
 if __name__ == "__main__":
