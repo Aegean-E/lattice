@@ -71,6 +71,14 @@ CREATE TABLE IF NOT EXISTS events (
     action TEXT NOT NULL,
     payload TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS screening (
+    paper_id TEXT PRIMARY KEY REFERENCES papers(id) ON DELETE CASCADE,
+    status TEXT NOT NULL CHECK (status IN ('identified', 'screened_in', 'screened_out', 'included', 'excluded')),
+    reason TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    screened_at TEXT NOT NULL
+);
 """
 
 

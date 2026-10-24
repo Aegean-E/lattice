@@ -6,11 +6,11 @@
 ---
 
 ## 📊 Codebase Metrics
-- **Total Python Modules**: `45`
-- **Total Classes**: `58`
-- **Total Top-Level Functions**: `226`
-- **Total Class Methods**: `373`
-- **Total Source Lines**: `13489`
+- **Total Python Modules**: `47`
+- **Total Classes**: `61`
+- **Total Top-Level Functions**: `234`
+- **Total Class Methods**: `386`
+- **Total Source Lines**: `14159`
 
 ---
 
@@ -62,7 +62,7 @@
 ### [`lattice/api.py`](lattice/api.py)
 > *Stable public Python surface for host integrations such as neurocore.*
 
-**Size**: `315` lines (`8417` bytes)
+**Size**: `337` lines (`8989` bytes)
 
 **Functions:**
 - `def _question_key(value)` - *Normalize `question:q_000001` or `q_000001` to the bare identifier.*
@@ -103,7 +103,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `720` lines (`32571` bytes)
+**Size**: `793` lines (`35703` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -135,13 +135,15 @@
 - `def _run_web(args, repository)` - *Launch the Research Studio web UI, optionally seeding demo data or dumping HTML.*
 - `def _run_analyze(args, repository)` - *Detect contradictions and related findings, rank keystones, and build the matrix.*
 - `def _run_hypothesize(args, repository)` - *Propose testable research hypotheses based on contradictions and coverage gaps.*
+- `def _run_screen(args, repository)` - *Record or query a screening decision for a paper.*
+- `def _run_prisma(args, repository)` - *Generate PRISMA 2020 flow statistics and diagram.*
 
 ---
 
 ### [`lattice/client.py`](lattice/client.py)
 > *Turnkey client facade for AI hosts: own one connection, call MCP-parity tools.*
 
-**Size**: `366` lines (`16481` bytes)
+**Size**: `374` lines (`17024` bytes)
 
 **Classes:**
 - `class LatticeClient` - *A synchronous, context-managed graph client with MCP tool parity.*
@@ -184,6 +186,8 @@
   - Method `.diff_snapshot(old_path, new_path)` - *Diff a baseline snapshot against another snapshot or the live graph.*
   - Method `.find_path(src, dst, max_depth, directed, edge_kinds)` - *Find the shortest chain of relations connecting two entities via BFS.*
   - Method `.propose_hypotheses(question, limit)` - *Formulate testable hypotheses from evidence gaps and contradiction clusters.*
+  - Method `.screen_paper(paper_id, status, reason, notes)` - *Record an auditable PRISMA 2020 screening decision for a paper.*
+  - Method `.get_prisma_flow(format)` - *Get PRISMA 2020 review attrition metrics and flow diagram.*
   - Method `.stats()`
 - `class AsyncLatticeClient` - *An asyncio facade that serializes the sync client on one dedicated thread.*
   - Method `.__init__(db_path, read_only)`
@@ -223,7 +227,7 @@
 ### [`lattice/database.py`](lattice/database.py)
 > *SQLite connection, versioned schema and migration veil for the knowledge graph.*
 
-**Size**: `220` lines (`9126` bytes)
+**Size**: `228` lines (`9457` bytes)
 
 **Functions:**
 - `def utc_now()` - *An ISO-8601 UTC timestamp with a stable seconds precision.*
@@ -386,7 +390,7 @@
 ### [`lattice/mcp.py`](lattice/mcp.py)
 > *A dependency-free MCP stdio server exposing the graph as JSON-RPC tools.*
 
-**Size**: `457` lines (`22646` bytes)
+**Size**: `486` lines (`24126` bytes)
 
 **Functions:**
 - `def _tool(name, description, properties, required)` - *An MCP tool declaration with a JSON Schema for its arguments.*
@@ -484,6 +488,27 @@
 - `def _lexical_score(needle, terms, blob, primary)` - *Compute a deterministic relevance score combining exact substring and multi-term hits.*
 - `def _normalize_doi(value)` - *Strip resolver prefixes and lowercase a DOI.*
 - `def _normalize_arxiv(value)` - *Strip the arXiv prefix from an identifier.*
+
+---
+
+### [`lattice/screening.py`](lattice/screening.py)
+> *PRISMA 2020 systematic review screening workflow and flow diagram generation.*
+
+**Size**: `359` lines (`14145` bytes)
+
+**Classes:**
+- `class ScreeningDecision` - *An auditable screening outcome for a source paper.*
+  - Method `.to_dict()` - *JSON-ready representation.*
+- `class PrismaFlow` - *Standardized counts and reason breakdowns across PRISMA 2020 review phases.*
+  - Method `.to_dict()` - *JSON-ready representation.*
+
+**Functions:**
+- `def record_screening_decision(repository, paper_id, status, reason, notes)` - *Record or update a screening decision for a paper in the knowledge graph.*
+- `def get_screening_decision(repository, paper_id)` - *Retrieve the current screening decision for a paper, if recorded.*
+- `def list_screening_decisions(repository, status)` - *List recorded screening decisions, optionally filtered by status.*
+- `def compute_prisma_flow(repository)` - *Compute aggregate counts and exclusion reasons adhering to the PRISMA 2020 statement.*
+- `def render_prisma_markdown(flow)` - *Format PRISMA 2020 metrics as a structured Markdown flow report.*
+- `def render_prisma_svg(flow)` - *Generate a publication-grade PRISMA 2020 vector flowchart in SVG.*
 
 ---
 
@@ -613,7 +638,7 @@
 ### [`tests/test_api.py`](tests/test_api.py)
 > *Unit tests for the public `lattice.api` integration surface.*
 
-**Size**: `343` lines (`13288` bytes)
+**Size**: `353` lines (`13567` bytes)
 
 **Classes:**
 - `class PublicApiTests` - *Verify the facade stays complete, inert at import time and faithful.*
@@ -659,7 +684,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `302` lines (`13205` bytes)
+**Size**: `332` lines (`14312` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
@@ -682,13 +707,14 @@
   - Method `.test_start_file_default_and_forwarding()`
   - Method `.test_cli_path_command()`
   - Method `.test_cli_hypothesize_command()`
+  - Method `.test_cli_screen_and_prisma_commands()`
 
 ---
 
 ### [`tests/test_client.py`](tests/test_client.py)
 > *Tests for the turnkey client facade used by AI hosts.*
 
-**Size**: `326` lines (`16019` bytes)
+**Size**: `335` lines (`16536` bytes)
 
 **Classes:**
 - `class LatticeClientTests` - *Verify lifecycle, tool parity, convenience methods and failure modes.*
@@ -969,6 +995,24 @@
   - Method `.test_stats_on_an_empty_graph_report_zero_health()`
   - Method `.test_neighbors_filter_by_kind()`
   - Method `.test_export_bibtex()`
+
+---
+
+### [`tests/test_screening.py`](tests/test_screening.py)
+> *Unit tests for PRISMA 2020 systematic review screening and flow generation.*
+
+**Size**: `122` lines (`5324` bytes)
+
+**Classes:**
+- `class ScreeningTests` - *Test paper screening decisions, validation, and PRISMA 2020 flow computation.*
+  - Method `.setUp()`
+  - Method `.test_record_and_get_screening_decision()`
+  - Method `.test_record_exclusion_with_reason()`
+  - Method `.test_invalid_status_raises_error()`
+  - Method `.test_invalid_paper_id_raises_error()`
+  - Method `.test_compute_prisma_flow()`
+  - Method `.test_render_prisma_markdown()`
+  - Method `.test_render_prisma_svg()`
 
 ---
 

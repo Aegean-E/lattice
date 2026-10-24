@@ -550,6 +550,19 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   5. Enforce all additions through the AIKit UI guard contract (`.aikit/ui.json`), maintaining 0 strikes and preserving the full baseline inventory.
 - **Consequences**: Researchers have interactive visual control over graph density, edge types, and structure, and can export publication-grade SVG graphics directly without external tools. 220 unit tests, 25/25 dogfood steps, and UI guard verification pass. No schema changes.
 
+## ADR-028: PRISMA 2020 Systematic Review Screening & Attrition Engine (2026-10-25)
+
+- **Status**: Accepted
+- **Context**: Systematic literature reviews and meta-analyses require auditable, reproducible study identification, screening, and attrition reporting conforming to the PRISMA 2020 statement (Preferred Reporting Items for Systematic Reviews and Meta-Analyses). While Lattice maintained an evidence graph of papers, claims, and relations, there was no native screening workflow to record title/abstract and full-text eligibility decisions, track specific exclusion reasons (e.g., wrong population, animal model, insufficient data), or generate publication-ready PRISMA 2020 flow diagrams.
+- **Decision**:
+  1. Add an auditable `screening` table to the database schema (`paper_id`, `status`, `reason`, `notes`, `screened_at`) with indexing on `paper_id` and `status`.
+  2. Implement `lattice.screening` providing `ScreeningDecision` and `PrismaFlow` data structures, along with `record_screening_decision`, `get_screening_decision`, `list_screening_decisions`, and `compute_prisma_flow`.
+  3. Support standardized status stages (`identified`, `screened_in`, `screened_out`, `included`, `excluded`) and predefined exclusion reason categories (`wrong_population`, `out_of_scope_design`, `animal_model`, `in_vitro_only`, `uncontrolled`, `insufficient_data`, `duplicate`, `other`).
+  4. Generate both structured Markdown reports (`render_prisma_markdown`) and standalone, publication-ready vector SVG diagrams (`render_prisma_svg`) displaying the classic 4-phase PRISMA attrition pipeline (Identification -> Screening -> Eligibility -> Included) with explicit reason breakdowns.
+  5. Expose screening capabilities across all interfaces: `lattice screen` and `lattice prisma` CLI commands, `lattice.api` public facade, MCP tools `screen_paper` and `get_prisma_flow` (with read-only filtering), and convenience methods on `LatticeClient` and `AsyncLatticeClient`.
+- **Consequences**: Researchers and autonomous systematic review agents can conduct reproducible screening workflows and generate compliant PRISMA flowcharts directly from the graph with zero external dependencies. 228 unit tests pass, and gate hygiene invariant is maintained.
+
+
 
 
 

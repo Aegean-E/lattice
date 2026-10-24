@@ -296,6 +296,36 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("Proposed Hypotheses", text_out)
 
+    def test_cli_screen_and_prisma_commands(self):
+        fixture = self.ingest_fixture()
+        self.run_cli("ingest", str(fixture))
+        connection = open_database(self.db)
+        paper = Repository(connection).search("Sleep")["papers"][0]
+        connection.close()
+
+        code, out, err = self.run_cli(
+            "--json", "screen", paper["id"],
+            "--status", "included",
+            "--notes", "Matches PICO criteria",
+        )
+        self.assertEqual(code, 0, err)
+        payload = json.loads(out)
+        self.assertEqual(payload["status"], "included")
+
+        code, out, err = self.run_cli("prisma")
+        self.assertEqual(code, 0, err)
+        self.assertIn("PRISMA 2020 Flow Diagram", out)
+
+        code, out, err = self.run_cli("--json", "prisma")
+        self.assertEqual(code, 0, err)
+        flow_json = json.loads(out)
+        self.assertEqual(flow_json["identified"], 1)
+        self.assertEqual(flow_json["included"], 1)
+
+        code, out, err = self.run_cli("prisma", "--format", "svg")
+        self.assertEqual(code, 0, err)
+        self.assertIn("<svg", out)
+
 
 if __name__ == "__main__":
     unittest.main()

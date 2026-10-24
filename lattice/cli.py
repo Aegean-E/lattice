@@ -27,6 +27,14 @@ from lattice.ingest import parse_paths
 from lattice.inquiry import ask, brief, review
 from lattice.mcp import serve
 from lattice.repository import Repository
+from lattice.screening import (
+    SCREENING_STATUSES,
+    compute_prisma_flow,
+    get_screening_decision,
+    record_screening_decision,
+    render_prisma_markdown,
+    render_prisma_svg,
+)
 from lattice.snapshots import (
     export_bibtex_file,
     export_cytoscape_file,
@@ -223,6 +231,19 @@ def build_parser() -> argparse.ArgumentParser:
     hypo_cmd.add_argument("target", nargs="?", default=None, help="optional question reference or id")
     hypo_cmd.add_argument("--limit", type=int, default=5, help="maximum hypotheses to propose (default: 5)")
     hypo_cmd.set_defaults(handler=_run_hypothesize)
+
+    screen_cmd = commands.add_parser("screen", help="record or query paper screening decisions for systematic reviews")
+    screen_cmd.add_argument("paper", help="paper reference or bare p_ id")
+    screen_cmd.add_argument("--status", choices=list(SCREENING_STATUSES), default=None, help="screening status")
+    screen_cmd.add_argument("--reason", default="", help="exclusion reason")
+    screen_cmd.add_argument("--notes", default="", help="reviewer notes")
+    screen_cmd.set_defaults(handler=_run_screen)
+
+    prisma_cmd = commands.add_parser("prisma", help="generate PRISMA 2020 flow diagram and attrition statistics")
+    prisma_cmd.add_argument("--format", choices=["markdown", "svg", "json"], default="markdown",
+                            help="output format (default: markdown)")
+    prisma_cmd.add_argument("--out", default=None, help="write diagram or report to this file")
+    prisma_cmd.set_defaults(handler=_run_prisma)
     return parser
 
 
@@ -716,5 +737,57 @@ def _run_hypothesize(args: argparse.Namespace, repository: Repository) -> int:
     if not results:
         lines.append("  none")
     _emit(results, lines, args.json)
+    return 0
+
+
+def _run_screen(args: argparse.Namespace, repository: Repository) -> int:
+    """Record or query a screening decision for a paper."""
+    if args.status:
+        decision = record_screening_decision(
+            repository,
+            args.paper,
+            status=args.status,
+            reason=args.reason,
+            notes=args.notes,
+        )
+        lines = [
+            f"Screened {decision.paper_id}: status={decision.status}"
+            + (f" reason={decision.reason}" if decision.reason else "")
+            + (f" notes={decision.notes}" if decision.notes else "")
+        ]
+        _emit(decision.to_dict(), lines, args.json)
+        return 0
+    else:
+        decision = get_screening_decision(repository, args.paper)
+        if decision:
+            lines = [
+                f"{decision.paper_id}: status={decision.status}"
+                + (f" reason={decision.reason}" if decision.reason else "")
+                + (f" notes={decision.notes}" if decision.notes else "")
+                + f" (at {decision.screened_at})"
+            ]
+            _emit(decision.to_dict(), lines, args.json)
+        else:
+            payload = {"paper_id": args.paper, "status": "unscreened"}
+            _emit(payload, [f"{args.paper}: unscreened"], args.json)
+        return 0
+
+
+def _run_prisma(args: argparse.Namespace, repository: Repository) -> int:
+    """Generate PRISMA 2020 flow statistics and diagram."""
+    flow = compute_prisma_flow(repository)
+    if args.json or args.format == "json":
+        output = json.dumps(flow.to_dict(), indent=2, sort_keys=True)
+    elif args.format == "svg":
+        output = render_prisma_svg(flow)
+    else:
+        output = render_prisma_markdown(flow)
+
+    if args.out:
+        Path(args.out).write_text(output, encoding="utf-8")
+        lines = [f"PRISMA 2020 flow ({args.format}) written to {args.out}"]
+        _emit({"out": args.out, "format": args.format, "flow": flow.to_dict()}, lines, args.json)
+    else:
+        print(output)
     return 0
 

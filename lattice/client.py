@@ -28,7 +28,7 @@ DEFAULT_DB = "lattice.db"
 _READ_ONLY_TOOLS = frozenset({
     "search", "get_entity", "neighbors", "subgraph", "related_findings", "outline",
     "brief", "review", "synthesize", "stats", "analyze_graph", "detect_contradictions",
-    "diff_snapshot", "find_path", "propose_hypotheses",
+    "diff_snapshot", "find_path", "propose_hypotheses", "get_prisma_flow",
 })
 
 
@@ -268,6 +268,14 @@ class LatticeClient:
         if question:
             arguments["question"] = question
         return self.call_tool("propose_hypotheses", arguments)
+
+    def screen_paper(self, paper_id: str, status: str, reason: str = "", notes: str = "") -> Dict[str, Any]:
+        """Record an auditable PRISMA 2020 screening decision for a paper."""
+        return self.call_tool("screen_paper", {"paper_id": paper_id, "status": status, "reason": reason, "notes": notes})
+
+    def get_prisma_flow(self, format: str = "json") -> Dict[str, Any]:
+        """Get PRISMA 2020 review attrition metrics and flow diagram."""
+        return self.call_tool("get_prisma_flow", {"format": format})
 
     def stats(self) -> Dict[str, Any]:
         return self.call_tool("stats", {})

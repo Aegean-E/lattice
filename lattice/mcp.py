@@ -115,6 +115,15 @@ TOOLS: List[Dict[str, Any]] = [
     _tool("propose_hypotheses", "Formulate structured testable hypotheses from evidence matrix gaps and contradiction clusters.",
           {"question": {"type": "string"}, "limit": {"type": "integer", "default": 5}},
           []),
+    _tool("screen_paper", "Record an auditable PRISMA 2020 screening decision for a paper.",
+          {"paper_id": {"type": "string"},
+           "status": {"type": "string", "enum": ["identified", "screened_in", "screened_out", "included", "excluded"]},
+           "reason": {"type": "string"},
+           "notes": {"type": "string"}},
+          ["paper_id", "status"]),
+    _tool("get_prisma_flow", "Calculate PRISMA 2020 review attrition metrics, flow counts and optional SVG/Markdown representation.",
+          {"format": {"type": "string", "enum": ["json", "markdown", "svg"], "default": "json"}},
+          []),
     _tool("stats", "Entity and edge counts.", {}, []),
 ]
 
@@ -413,6 +422,26 @@ def dispatch_tool(repository: Repository, name: str, arguments: Dict[str, Any]) 
         q_ref = arguments.get("question") or arguments.get("target")
         limit = int(arguments.get("limit", 5))
         return propose_hypotheses(repository, question_ref=q_ref, limit=limit)
+    if name == "screen_paper":
+        from lattice.screening import record_screening_decision
+        decision = record_screening_decision(
+            repository,
+            _text(arguments, "paper_id"),
+            _text(arguments, "status"),
+            str(arguments.get("reason", "")),
+            str(arguments.get("notes", "")),
+        )
+        return {"decision": decision.to_dict()}
+    if name == "get_prisma_flow":
+        from lattice.screening import compute_prisma_flow, render_prisma_markdown, render_prisma_svg
+        flow = compute_prisma_flow(repository)
+        fmt = str(arguments.get("format", "json")).lower()
+        res = {"flow": flow.to_dict()}
+        if fmt == "svg":
+            res["svg"] = render_prisma_svg(flow)
+        elif fmt == "markdown":
+            res["markdown"] = render_prisma_markdown(flow)
+        return res
     if name == "stats":
         return repository.stats()
     raise LatticeError(f"unknown tool '{name}'", "the server advertises its tools in tools/list",
