@@ -95,6 +95,8 @@ def dispatch_web_request(repository: Repository, method: str, path: str,
             )
         if verb == "GET" and route == "/api/synthesize":
             return _json_response(200, _handle_synthesize(repository, query))
+        if verb == "GET" and route == "/api/path":
+            return _json_response(200, _handle_path(repository, query))
         if verb == "POST":
             payload = _parse_json_body(body)
             return _dispatch_post(repository, route, payload)
@@ -255,6 +257,18 @@ def _handle_subgraph(repository: Repository, query: Dict[str, List[str]]) -> Dic
     ref = _first(query, "ref")
     depth = int(_first(query, "depth") or "2")
     return repository.subgraph(ref, depth=depth)
+
+
+def _handle_path(repository: Repository, query: Dict[str, List[str]]) -> Dict[str, Any]:
+    """Run relation path search between two entities from query parameters."""
+    src = _first(query, "src") or _first(query, "from") or ""
+    dst = _first(query, "dst") or _first(query, "to") or ""
+    depth = int(_first(query, "depth") or _first(query, "max_depth") or "5")
+    directed = (_first(query, "directed") or "false").lower() in ("true", "1", "yes")
+    kinds_str = _first(query, "kinds") or ""
+    kinds = [k.strip() for k in kinds_str.split(",") if k.strip()] if kinds_str else None
+    from lattice.analysis import find_path
+    return find_path(repository, src, dst, max_depth=depth, directed=directed, edge_kinds=kinds)
 
 
 def _handle_synthesize(repository: Repository, query: Dict[str, List[str]]) -> Dict[str, Any]:
@@ -1145,6 +1159,16 @@ WEB_HTML = """<!DOCTYPE html>
         </div>
 
         <div class="card">
+          <h2>Evidence Path Tracer</h2>
+          <div class="form-row">
+            <input id="path-src" placeholder="Source ref (e.g. c_000001)" style="flex:1">
+            <input id="path-dst" placeholder="Target ref (e.g. q_000001)" style="flex:1">
+            <button class="btn secondary" onclick="tracePath()">Find Path</button>
+          </div>
+          <div id="path-output" style="font-size:0.82rem;margin-top:6px;display:none"></div>
+        </div>
+
+        <div class="card">
           <h2>Filtered Knowledge Search</h2>
           <div class="form-row">
             <input id="search-query" placeholder="Search papers, claims, quotes, DOIs...">
@@ -1711,6 +1735,37 @@ async function loadSubgraph() {
     renderSvgGraph(data);
   } catch (err) {
     notify(err.message, true);
+  }
+}
+
+async function tracePath() {
+  const src = (document.getElementById('path-src').value || '').trim();
+  const dst = (document.getElementById('path-dst').value || '').trim();
+  const out = document.getElementById('path-output');
+  if (!src || !dst) {
+    notify('Please enter both source and target entity references', true);
+    return;
+  }
+  out.style.display = 'block';
+  out.innerHTML = '<span style="color:var(--muted)">Searching shortest relation path...</span>';
+  try {
+    const res = await api('GET', `/api/path?src=${encodeURIComponent(src)}&dst=${encodeURIComponent(dst)}`);
+    if (!res.found) {
+      out.innerHTML = `<span style="color:var(--warn)">${esc(res.narrative)}</span>`;
+    } else {
+      let stepsHtml = res.steps.map((s, i) => {
+        const arrow = s.direction === 'forward' ? `-[${s.kind}]->` : `<-[${s.kind}]-`;
+        return `<div><strong>${i}.</strong> <code>${esc(s.from)}</code> ${esc(arrow)} <code>${esc(s.to)}</code></div>`;
+      }).join('');
+      out.innerHTML = `
+        <div style="background:var(--panel-alt);padding:8px 10px;border-radius:6px;border:1px solid var(--border)">
+          <div style="font-weight:600;margin-bottom:4px;color:var(--accent)">${res.length} hops &bull; ${esc(res.narrative)}</div>
+          ${stepsHtml}
+        </div>
+      `;
+    }
+  } catch (err) {
+    out.innerHTML = `<span style="color:var(--contradict)">${esc(err.message)}</span>`;
   }
 }
 

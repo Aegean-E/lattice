@@ -280,6 +280,15 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("nodes", resp.body)
         self.assertIn("filename=\"lattice-cytoscape.json\"", resp.headers.get("Content-Disposition", ""))
 
+    def test_api_path_endpoint(self) -> None:
+        self.request_json("POST", "/api/demo", {})
+        status, payload = self.request_json("GET", "/api/path?src=q_000001&dst=c_000001")
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["found"])
+        self.assertEqual(payload["length"], 1)
+        self.assertIn("steps", payload)
+        self.assertIn("narrative", payload)
+
 
 if __name__ == "__main__":
     unittest.main()

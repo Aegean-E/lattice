@@ -8,9 +8,9 @@
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `45`
 - **Total Classes**: `57`
-- **Total Top-Level Functions**: `220`
-- **Total Class Methods**: `360`
-- **Total Source Lines**: `12816`
+- **Total Top-Level Functions**: `221`
+- **Total Class Methods**: `361`
+- **Total Source Lines**: `12880`
 
 ---
 
@@ -531,7 +531,7 @@
 ### [`lattice/web.py`](lattice/web.py)
 > *Zero-dependency web server and human-friendly Research Studio UI for Lattice.*
 
-**Size**: `2116` lines (`84798` bytes)
+**Size**: `2171` lines (`87557` bytes)
 
 **Classes:**
 - `class WebResponse` - *Immutable HTTP response returned by `dispatch_web_request`.*
@@ -543,6 +543,7 @@
 - `def _handle_search(repository, query)` - *Run filtered search from query parameters.*
 - `def _handle_literature(repository, query)` - *Search the literature by tags, words, sentences, study type and year.*
 - `def _handle_subgraph(repository, query)` - *Run multi-hop subgraph traversal from query parameters.*
+- `def _handle_path(repository, query)` - *Run relation path search between two entities from query parameters.*
 - `def _handle_synthesize(repository, query)` - *Run scientific literature synthesis from query parameters.*
 - `def _handle_export_bibtex(repository, query)` - *Export papers matching query parameters as BibTeX.*
 - `def _build_matrix_bundle(repository)` - *Assemble the Paper x Question evidence matrix, contradictions, and keystone ranking.*
@@ -1002,7 +1003,7 @@
 ### [`tests/test_web.py`](tests/test_web.py)
 > *Tests for the web-based human UI and JSON API dispatcher (zero sockets).*
 
-**Size**: `286` lines (`12724` bytes)
+**Size**: `295` lines (`13123` bytes)
 
 **Classes:**
 - `class WebInterfaceTests` - *Verify HTML rendering and REST API handlers via pure request dispatch.*
@@ -1021,6 +1022,7 @@
   - Method `.test_api_export_bibtex_endpoint()`
   - Method `.test_api_export_graphml_endpoint()`
   - Method `.test_api_export_cytoscape_endpoint()`
+  - Method `.test_api_path_endpoint()`
 
 ---
 
