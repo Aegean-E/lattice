@@ -3,9 +3,10 @@
 import csv
 import io
 from pathlib import Path
-from typing import Dict, Iterable, List
+from typing import Any, Dict, Iterable, List
 
-from lattice.errors import fail
+from lattice.errors import LatticeError, fail
+from lattice.models import infer_study_type, normalize_study_type
 
 Record = Dict[str, str]
 _FIELDS = ("title", "authors", "year", "venue", "doi", "arxiv", "url", "abstract",
@@ -256,3 +257,94 @@ def parse_paths(paths: Iterable[Path]) -> List[Record]:
     for path in paths:
         records.extend(parse_file(path))
     return records
+
+
+def sync_article_from_neurocore(repository: Any,
+                                article_data: Dict[str, Any],
+                                auto_extract: bool = False) -> Dict[str, Any]:
+    """Sync a NeuroCore article dictionary into the Lattice graph.
+
+    Normalizes authors, keywords/tags, journal/venue, and study type. If `key_findings`
+    are provided or `auto_extract` is True, records quote-backed claims linked to the paper.
+    """
+    title = str(article_data.get("title") or "").strip()
+    if not title:
+        fail("article title is required", "cannot sync an article without a title",
+             "provide a non-empty 'title' in article_data")
+
+    authors_raw = article_data.get("authors")
+    if isinstance(authors_raw, list):
+        authors = ", ".join(str(a).strip() for a in authors_raw if str(a).strip())
+    else:
+        authors = str(authors_raw or "").strip()
+
+    keywords_raw = article_data.get("keywords") or article_data.get("tags")
+    if isinstance(keywords_raw, list):
+        tags = ", ".join(str(k).strip() for k in keywords_raw if str(k).strip())
+    else:
+        tags = str(keywords_raw or "").strip()
+
+    raw_type = article_data.get("study_type") or article_data.get("article_type")
+    if raw_type:
+        study_type = normalize_study_type(str(raw_type))
+        if not study_type or study_type == "General Study":
+            inferred = infer_study_type(title, str(article_data.get("abstract") or ""))
+            if inferred != "General Study":
+                study_type = inferred
+    else:
+        study_type = infer_study_type(title, str(article_data.get("abstract") or ""))
+
+    paper_dict = {
+        "title": title,
+        "authors": authors,
+        "year": str(article_data.get("year") or "").strip() or None,
+        "venue": str(article_data.get("venue") or article_data.get("journal") or "").strip(),
+        "doi": str(article_data.get("doi") or "").strip() or None,
+        "abstract": str(article_data.get("abstract") or "").strip(),
+        "tags": tags,
+        "study_type": study_type,
+    }
+
+    paper, created = repository.add_paper(paper_dict)
+
+    claims = []
+    abstract_text = paper.abstract or ""
+
+    key_findings = article_data.get("key_findings") or []
+    if isinstance(key_findings, list):
+        for finding in key_findings:
+            assertion = str(finding or "").strip()
+            if not assertion:
+                continue
+            if assertion in abstract_text:
+                quote = assertion
+                locator = "abstract"
+            else:
+                quote = assertion
+                locator = "key_findings"
+            try:
+                claim = repository.add_claim(
+                    paper=paper.id,
+                    text=assertion,
+                    quote=quote,
+                    locator=locator,
+                    stance="supports",
+                    confidence=0.9,
+                )
+                claims.append(claim.to_dict())
+            # hygiene: allow duplicate or unparseable finding is skipped
+            except LatticeError:
+                pass
+
+    if auto_extract and abstract_text:
+        from lattice.extraction import extract_from_paper
+        ext = extract_from_paper(repository, paper.id)
+        for c in ext.claims:
+            if c.id not in {item["id"] for item in claims}:
+                claims.append(c.to_dict())
+
+    return {
+        "paper": paper.to_dict(),
+        "claims": claims,
+        "created": created,
+    }

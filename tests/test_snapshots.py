@@ -129,6 +129,81 @@ class InteractionAndSnapshotTests(unittest.TestCase):
         self.assertEqual(repo2.stats()["claims"], 1)
         self.assertEqual(repo2.stats()["edges"], 1)
 
+    def test_export_graphml_generates_valid_xml_with_keys_and_elements(self) -> None:
+        from xml.etree import ElementTree as ET
+        from lattice.snapshots import export_graphml_file, export_graphml_string
+
+        paper, _ = self.repository.add_paper({
+            "title": "Sleep and Plasticity",
+            "authors": "Jane Doe",
+            "year": "2024",
+            "study_type": "Randomized Controlled Trial",
+        })
+        claim = self.repository.add_claim(
+            paper.id, "Sleep improves synaptic consolidation.",
+            "Sleep improves synaptic consolidation.",
+            stance="supports", confidence=0.95, locator="abstract",
+        )
+        question = self.repository.add_question("Does sleep aid consolidation?")
+        self.repository.add_edge(f"claim:{claim.id}", f"question:{question.id}", "supports")
+
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        gml_path = Path(temp_dir.name) / "graph.graphml"
+
+        result = export_graphml_file(self.repository, gml_path)
+        self.assertEqual(result["format"], "graphml")
+        self.assertEqual(result["papers"], 1)
+        self.assertEqual(result["claims"], 1)
+        self.assertEqual(result["questions"], 1)
+        self.assertEqual(result["edges"], 1)
+        self.assertTrue(gml_path.exists())
+
+        xml_content = export_graphml_string(self.repository)
+        root = ET.fromstring(xml_content)
+        self.assertIn("graphml", root.tag.lower())
+
+        nodes = root.findall(".//{http://graphml.graphdrawing.org/xmlns}node")
+        if not nodes:
+            nodes = root.findall(".//node")
+        self.assertEqual(len(nodes), 3)
+
+        edges = root.findall(".//{http://graphml.graphdrawing.org/xmlns}edge")
+        if not edges:
+            edges = root.findall(".//edge")
+        self.assertEqual(len(edges), 1)
+
+    def test_export_cytoscape_generates_valid_elements(self) -> None:
+        import json
+        from lattice.snapshots import export_cytoscape_data, export_cytoscape_file
+
+        paper, _ = self.repository.add_paper({"title": "Network Dynamics", "year": "2025"})
+        claim = self.repository.add_claim(paper.id, "Networks synchronize.", "Networks synchronize.", stance="supports")
+        question = self.repository.add_question("Do networks synchronize?")
+        self.repository.add_edge(f"claim:{claim.id}", f"question:{question.id}", "answers")
+
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        cyjs_path = Path(temp_dir.name) / "graph.cyjs"
+
+        res = export_cytoscape_file(self.repository, cyjs_path)
+        self.assertEqual(res["format"], "cytoscape")
+        self.assertEqual(res["papers"], 1)
+        self.assertEqual(res["claims"], 1)
+        self.assertEqual(res["questions"], 1)
+        self.assertEqual(res["edges"], 1)
+        self.assertTrue(cyjs_path.exists())
+
+        data = export_cytoscape_data(self.repository)
+        self.assertEqual(data["format"], "cytoscape")
+        self.assertEqual(len(data["elements"]["nodes"]), 3)
+        self.assertEqual(len(data["elements"]["edges"]), 1)
+        node_ids = {n["data"]["id"] for n in data["elements"]["nodes"]}
+        self.assertIn(f"paper:{paper.id}", node_ids)
+        self.assertIn(f"claim:{claim.id}", node_ids)
+        self.assertIn(f"question:{question.id}", node_ids)
+
+
 
 if __name__ == "__main__":
     unittest.main()

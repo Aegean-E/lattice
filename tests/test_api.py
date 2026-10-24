@@ -42,6 +42,12 @@ EXPECTED_EXPORTS = {
     "export_snapshot",
     "import_snapshot",
     "export_bibtex_file",
+    "export_graphml_file",
+    "export_graphml_string",
+    "export_cytoscape_file",
+    "export_cytoscape_data",
+    "GRAPHML_NS",
+    "sync_article_from_neurocore",
     "collect_repository_records",
     "read_snapshot_records",
     "diff_records",
@@ -269,6 +275,41 @@ class PublicApiTests(unittest.TestCase):
         self.assertEqual(filtered["cells"], [])
         self.assertEqual(filtered["papers"], [])
         self.assertEqual([gap["question_id"] for gap in filtered["gaps"]], [q2.id])
+
+    def test_sync_article_from_neurocore_creates_paper_and_claims(self) -> None:
+        article = {
+            "title": "Sleep Slow Oscillations and Declarative Memory",
+            "authors": ["Elena Vance", "Marcus Bell"],
+            "year": 2024,
+            "journal": "Neuroscience Reports",
+            "doi": "10.1016/j.neurorep.2024.01",
+            "abstract": "Slow oscillations during deep sleep coordinate memory replay across hippocampal-neocortical networks.",
+            "keywords": ["slow waves", "memory consolidation"],
+            "article_type": "cohort_study",
+            "key_findings": [
+                "Slow oscillations during deep sleep coordinate memory replay across hippocampal-neocortical networks.",
+                "Consolidation was enhanced by 25% under targeted acoustic stimulation."
+            ]
+        }
+        res = api.sync_article_from_neurocore(self.repo, article)
+        self.assertTrue(res["created"])
+        paper = res["paper"]
+        self.assertEqual(paper["title"], article["title"])
+        self.assertEqual(paper["authors"], "Elena Vance, Marcus Bell")
+        self.assertEqual(paper["venue"], "Neuroscience Reports")
+        self.assertEqual(paper["year"], "2024")
+        self.assertEqual(paper["study_type"], "Cohort Study")
+        self.assertIn("slow waves", paper["tags"])
+        self.assertEqual(len(res["claims"]), 2)
+        c0 = res["claims"][0]
+        self.assertEqual(c0["quote"], "Slow oscillations during deep sleep coordinate memory replay across hippocampal-neocortical networks.")
+        self.assertEqual(c0["locator"], "abstract")
+
+        # Second sync is idempotent
+        res2 = api.sync_article_from_neurocore(self.repo, article)
+        self.assertFalse(res2["created"])
+        self.assertEqual(res2["paper"]["id"], paper["id"])
+
 
 
 if __name__ == "__main__":

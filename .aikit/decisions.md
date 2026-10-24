@@ -491,3 +491,16 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   4. Bound all UI additions within the AIKit UI guard contract (`.aikit/ui.json`, `studio` surface in `lattice/web.py`), passing `aikit ui verify` with 0 strikes and preserving all 116 baseline inventory entries.
 - **Consequences**: Researchers immediately see coverage gaps and contested findings in the header and outline drawer, and provenance inspection during multi-hop graph exploration becomes seamless without visual re-layout disruption. All 195 tests, dogfood (25/25), and UI inventory proofs pass. No schema change.
 
+## ADR-023: Multi-Format Graph Export and NeuroCore Article Synchronization (2026-10-24)
+
+- **Status**: Accepted
+- **Context**: Researchers and downstream network visualization tools (Gephi, Cytoscape, NetworkX, Obsidian) required standard graph interchange formats (GraphML XML and Cytoscape.js JSON) rather than only JSONL snapshots or BibTeX bibliographies. Additionally, NeuroCore research agents needed an automated, field-mapped article synchronization entry point fulfilling the design in ADR-012.
+- **Decision**:
+  1. Add `export_graphml_string` and `export_graphml_file` in `lattice.snapshots`, generating standard GraphML XML (`http://graphml.graphdrawing.org/xmlns`) with declared node keys (`type`, `label`, `title`, `study_type`, `year`, `confidence`, `status`) and edge keys (`kind`, `weight`).
+  2. Add `export_cytoscape_data` and `export_cytoscape_file` in `lattice.snapshots`, generating standard Cytoscape.js elements JSON for web-based graph analysis.
+  3. Expand `lattice export` CLI command to auto-detect `.graphml` and `.cyjs`/`.cytoscape` extensions and accept `--format graphml|cytoscape`.
+  4. Expose `sync_article_from_neurocore` in `lattice.ingest` and `lattice.api` to normalize authors, tags, venue, and study types from NeuroCore article records, automatically recording quote-backed claims from `key_findings` and optional full extraction.
+  5. Provide `export_graphml`, `export_cytoscape`, and `sync_article` convenience methods on `LatticeClient` and `AsyncLatticeClient`, and allow `format` parameter dispatch in `export_snapshot` MCP tool.
+- **Consequences**: Lattice graphs can be opened directly in Gephi, Cytoscape, and NetworkX with full typed semantics and metadata. NeuroCore agents can synchronize articles into the evidence graph in one step. All 199 unit tests and 25/25 dogfood steps pass. Zero third-party dependencies added (standard library `xml.etree.ElementTree` and `json` only). No database schema changes.
+
+

@@ -84,8 +84,10 @@ finding instead of a silent regression.
 - **Synthesis (`synthesize`)** computes a confidence-weighted consensus score in `[-1.0, 1.0]`,
   groups claims into thematic clusters with verbatim quotes, identifies research gaps and
   follow-up queries, and formats resolved Markdown and BibTeX references.
-- **Snapshots & BibTeX (`export` / `import`)** write and merge portable JSONL graph bundles atomically,
-  or export bibliographies to standard `.bib` files (with auto-detection or `--format bibtex`).
+- **Multi-Format Graph Export & Snapshots (`export` / `import`)** writes and merges portable JSONL
+  graph bundles atomically, or exports to standard GraphML (`.graphml`, for Gephi/Cytoscape/NetworkX),
+  Cytoscape.js JSON (`.cyjs`), or BibTeX bibliography (`.bib`), with automatic format detection by file
+  extension or `--format jsonl|bibtex|graphml|cytoscape`.
 - **Snapshot diffing (`diff`)** compares a JSONL snapshot against another snapshot or the live
   graph and reports added, removed and changed papers, questions, claims and edges with the
   changed field names. Comparison ignores the volatile `created_at` field, and the command exits
@@ -123,7 +125,7 @@ python -m lattice [--db PATH] [--json] brief TARGET --tokens N
 python -m lattice [--db PATH] [--json] review TARGET [--out PATH]
 python -m lattice [--db PATH] [--json] synthesize TARGET [--tokens N] [--out PATH]
 python -m lattice [--db PATH] [--json] analyze [--auto-link] [--limit N]
-python -m lattice [--db PATH] [--json] export PATH [--format jsonl|bibtex]
+python -m lattice [--db PATH] [--json] export PATH [--format jsonl|bibtex|graphml|cytoscape]
 python -m lattice [--db PATH] [--json] import PATH
 python -m lattice [--db PATH] [--json] diff OLD_SNAPSHOT [NEW_SNAPSHOT]
 python -m lattice [--db PATH] [--json] stats

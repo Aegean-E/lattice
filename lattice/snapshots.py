@@ -2,6 +2,7 @@
 
 import json
 import os
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -94,6 +95,208 @@ def export_bibtex_file(repository: Repository, path: Path) -> Dict[str, Any]:
         "path": str(target),
         "format": "bibtex",
         "papers": count,
+    }
+
+
+GRAPHML_NS = "http://graphml.graphdrawing.org/xmlns"
+
+
+def _add_graphml_data(elem: ET.Element, key: str, value: str) -> None:
+    d = ET.SubElement(elem, f"{{{GRAPHML_NS}}}data", {"key": key})
+    d.text = value
+
+
+def export_graphml_string(repository: Repository) -> str:
+    """Generate standard GraphML XML string representing the evidence graph."""
+    records = collect_repository_records(repository)
+    root = ET.Element(f"{{{GRAPHML_NS}}}graphml")
+    keys = [
+        ("d_type", "node", "type", "string"),
+        ("d_label", "node", "label", "string"),
+        ("d_title", "node", "title", "string"),
+        ("d_study_type", "node", "study_type", "string"),
+        ("d_year", "node", "year", "string"),
+        ("d_confidence", "node", "confidence", "double"),
+        ("d_status", "node", "status", "string"),
+        ("e_kind", "edge", "kind", "string"),
+        ("e_weight", "edge", "weight", "double"),
+    ]
+    for key_id, for_type, attr_name, attr_type in keys:
+        ET.SubElement(root, f"{{{GRAPHML_NS}}}key", {
+            "id": key_id,
+            "for": for_type,
+            "attr.name": attr_name,
+            "attr.type": attr_type,
+        })
+    graph = ET.SubElement(root, f"{{{GRAPHML_NS}}}graph", {
+        "id": "lattice",
+        "edgedefault": "directed",
+    })
+    paper_study_types: Dict[str, str] = {}
+    for r in records:
+        rtype = r["record_type"]
+        if rtype == "paper":
+            paper_study_types[r["id"]] = r.get("study_type") or ""
+            node_id = f"paper:{r['id']}"
+            n = ET.SubElement(graph, f"{{{GRAPHML_NS}}}node", {"id": node_id})
+            _add_graphml_data(n, "d_type", "paper")
+            _add_graphml_data(n, "d_label", r.get("title") or node_id)
+            _add_graphml_data(n, "d_title", r.get("title") or "")
+            if r.get("study_type"):
+                _add_graphml_data(n, "d_study_type", str(r["study_type"]))
+            if r.get("year"):
+                _add_graphml_data(n, "d_year", str(r["year"]))
+        elif rtype == "question":
+            node_id = f"question:{r['id']}"
+            n = ET.SubElement(graph, f"{{{GRAPHML_NS}}}node", {"id": node_id})
+            _add_graphml_data(n, "d_type", "question")
+            _add_graphml_data(n, "d_label", r.get("text") or node_id)
+            if r.get("status"):
+                _add_graphml_data(n, "d_status", str(r["status"]))
+        elif rtype == "claim":
+            node_id = f"claim:{r['id']}"
+            n = ET.SubElement(graph, f"{{{GRAPHML_NS}}}node", {"id": node_id})
+            _add_graphml_data(n, "d_type", "claim")
+            _add_graphml_data(n, "d_label", r.get("assertion") or node_id)
+            if r.get("confidence") is not None:
+                _add_graphml_data(n, "d_confidence", str(r["confidence"]))
+            st = paper_study_types.get(r.get("paper_id"), "")
+            if st:
+                _add_graphml_data(n, "d_study_type", st)
+        elif rtype == "edge":
+            edge_id = f"edge:{r['id']}"
+            e = ET.SubElement(graph, f"{{{GRAPHML_NS}}}edge", {
+                "id": edge_id,
+                "source": str(r["src"]),
+                "target": str(r["dst"]),
+            })
+            _add_graphml_data(e, "e_kind", str(r.get("kind") or "related"))
+            _add_graphml_data(e, "e_weight", "1.0")
+    xml_decl = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    return xml_decl + ET.tostring(root, encoding="utf-8").decode("utf-8")
+
+
+def export_graphml_file(repository: Repository, path: Path) -> Dict[str, Any]:
+    """Write graph in GraphML XML format atomically."""
+    target = Path(path).resolve()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    xml_str = export_graphml_string(repository)
+    payload = xml_str.encode("utf-8")
+    temp_path = target.with_name(f".tmp_{target.name}_{os.getpid()}")
+    try:
+        with open(temp_path, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, target)
+    except OSError as exc:
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+        fail(f"could not export GraphML to {target}: {exc}",
+             "the destination file could not be written atomically",
+             "choose a writable output path")
+    stats = repository.stats()
+    return {
+        "path": str(target),
+        "format": "graphml",
+        "papers": int(stats["papers"]),
+        "claims": int(stats["claims"]),
+        "questions": int(stats["questions"]),
+        "edges": int(stats["edges"]),
+    }
+
+
+def export_cytoscape_data(repository: Repository) -> Dict[str, Any]:
+    """Generate Cytoscape.js elements dictionary for graph visualization."""
+    records = collect_repository_records(repository)
+    nodes: List[Dict[str, Any]] = []
+    edges: List[Dict[str, Any]] = []
+    paper_study_types: Dict[str, str] = {}
+    for r in records:
+        rtype = r["record_type"]
+        if rtype == "paper":
+            paper_study_types[r["id"]] = r.get("study_type") or ""
+            nodes.append({
+                "data": {
+                    "id": f"paper:{r['id']}",
+                    "type": "paper",
+                    "label": r.get("title") or r["id"],
+                    "title": r.get("title") or "",
+                    "authors": r.get("authors") or "",
+                    "year": r.get("year"),
+                    "venue": r.get("venue") or "",
+                    "study_type": r.get("study_type") or "",
+                }
+            })
+        elif rtype == "question":
+            nodes.append({
+                "data": {
+                    "id": f"question:{r['id']}",
+                    "type": "question",
+                    "label": r.get("text") or r["id"],
+                    "status": r.get("status") or "open",
+                }
+            })
+        elif rtype == "claim":
+            nodes.append({
+                "data": {
+                    "id": f"claim:{r['id']}",
+                    "type": "claim",
+                    "label": r.get("assertion") or r["id"],
+                    "quote": r.get("quote") or "",
+                    "locator": r.get("locator") or "",
+                    "confidence": r.get("confidence", 1.0),
+                    "stance": r.get("stance") or "supports",
+                    "paper_id": r.get("paper_id") or "",
+                    "study_type": paper_study_types.get(r.get("paper_id"), ""),
+                }
+            })
+        elif rtype == "edge":
+            edges.append({
+                "data": {
+                    "id": f"e_{r['id']}",
+                    "source": str(r["src"]),
+                    "target": str(r["dst"]),
+                    "kind": str(r.get("kind") or "related"),
+                    "weight": 1.0,
+                }
+            })
+    return {
+        "format": "cytoscape",
+        "elements": {
+            "nodes": nodes,
+            "edges": edges,
+        }
+    }
+
+
+def export_cytoscape_file(repository: Repository, path: Path) -> Dict[str, Any]:
+    """Write graph in Cytoscape.js JSON format atomically."""
+    target = Path(path).resolve()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    data = export_cytoscape_data(repository)
+    payload = json.dumps(data, indent=2).encode("utf-8")
+    temp_path = target.with_name(f".tmp_{target.name}_{os.getpid()}")
+    try:
+        with open(temp_path, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, target)
+    except OSError as exc:
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+        fail(f"could not export Cytoscape to {target}: {exc}",
+             "the destination file could not be written atomically",
+             "choose a writable output path")
+    stats = repository.stats()
+    return {
+        "path": str(target),
+        "format": "cytoscape",
+        "papers": int(stats["papers"]),
+        "claims": int(stats["claims"]),
+        "questions": int(stats["questions"]),
+        "edges": int(stats["edges"]),
     }
 
 

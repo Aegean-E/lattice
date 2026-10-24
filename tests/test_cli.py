@@ -175,6 +175,18 @@ class CliTests(unittest.TestCase):
         self.assertTrue(custom_path.is_file())
         self.assertIn("@article{", custom_path.read_text(encoding="utf-8"))
 
+        gml_path = Path(self.directory.name) / "graph.graphml"
+        code, out, _ = self.run_cli("export", str(gml_path))
+        self.assertEqual(code, 0)
+        self.assertTrue(gml_path.is_file())
+        self.assertIn("GraphML", out)
+
+        cy_path = Path(self.directory.name) / "graph.cyjs"
+        code, out, _ = self.run_cli("export", str(cy_path))
+        self.assertEqual(code, 0)
+        self.assertTrue(cy_path.is_file())
+        self.assertIn("Cytoscape", out)
+
     def test_web_subcommand_demo_and_dump_html(self):
         code, out, _ = self.run_cli("web", "--demo", "--dump-html")
         self.assertEqual(code, 0)

@@ -8,9 +8,9 @@
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `45`
 - **Total Classes**: `57`
-- **Total Top-Level Functions**: `212`
-- **Total Class Methods**: `343`
-- **Total Source Lines**: `11815`
+- **Total Top-Level Functions**: `218`
+- **Total Class Methods**: `350`
+- **Total Source Lines**: `12357`
 
 ---
 
@@ -59,7 +59,7 @@
 ### [`lattice/api.py`](lattice/api.py)
 > *Stable public Python surface for host integrations such as neurocore.*
 
-**Size**: `297` lines (`7971` bytes)
+**Size**: `309` lines (`8293` bytes)
 
 **Functions:**
 - `def _question_key(value)` - *Normalize `question:q_000001` or `q_000001` to the bare identifier.*
@@ -100,7 +100,7 @@
 ### [`lattice/cli.py`](lattice/cli.py)
 > *Command-line interface: ingest, assert, link, ask, brief, review, check and serve MCP.*
 
-**Size**: `631` lines (`28691` bytes)
+**Size**: `662` lines (`29744` bytes)
 
 **Functions:**
 - `def build_parser()` - *The complete command grammar.*
@@ -122,7 +122,7 @@
 - `def _run_brief(args, repository)` - *Print a token-budgeted evidence pack.*
 - `def _run_review(args, repository)` - *Print or write a review outline.*
 - `def _run_synthesize(args, repository)` - *Generate a consensus-scored scientific synthesis report.*
-- `def _run_export(args, repository)` - *Export the graph to an atomic JSONL snapshot or BibTeX bibliography.*
+- `def _run_export(args, repository)` - *Export the graph to an atomic JSONL snapshot, BibTeX, GraphML, or Cytoscape file.*
 - `def _run_import(args, repository)` - *Import a JSONL snapshot idempotently.*
 - `def _run_diff(args, repository)` - *Diff snapshots, or a snapshot against the live graph; exit 1 when they differ.*
 - `def _run_stats(args, repository)` - *Print counts and evidence health.*
@@ -136,7 +136,7 @@
 ### [`lattice/client.py`](lattice/client.py)
 > *Turnkey client facade for AI hosts: own one connection, call MCP-parity tools.*
 
-**Size**: `329` lines (`14567` bytes)
+**Size**: `349` lines (`15581` bytes)
 
 **Classes:**
 - `class LatticeClient` - *A synchronous, context-managed graph client with MCP tool parity.*
@@ -172,6 +172,9 @@
   - Method `.analyze_graph(auto_link, limit)`
   - Method `.detect_contradictions(auto_link)`
   - Method `.export_snapshot(path)`
+  - Method `.export_graphml(path)` - *Export the evidence graph in standard GraphML XML format.*
+  - Method `.export_cytoscape(path)` - *Export the evidence graph in Cytoscape.js JSON format.*
+  - Method `.sync_article(article_data, auto_extract)` - *Sync a NeuroCore or external article dict into the evidence graph.*
   - Method `.import_snapshot(path)`
   - Method `.diff_snapshot(old_path, new_path)` - *Diff a baseline snapshot against another snapshot or the live graph.*
   - Method `.stats()`
@@ -327,7 +330,7 @@
 ### [`lattice/ingest.py`](lattice/ingest.py)
 > *Parsers for the text bibliography formats lattice accepts, with no third-party dependencies.*
 
-**Size**: `258` lines (`9590` bytes)
+**Size**: `350` lines (`13166` bytes)
 
 **Functions:**
 - `def empty_record()` - *A record with every supported metadata field present.*
@@ -341,6 +344,7 @@
 - `def parse_text(text, source_name)` - *Parse a plain-text note as one record titled by its filename.*
 - `def parse_file(path)` - *Detect a file's format by suffix and parse it.*
 - `def parse_paths(paths)` - *Parse every path in order and concatenate the records.*
+- `def sync_article_from_neurocore(repository, article_data, auto_extract)` - *Sync a NeuroCore article dictionary into the Lattice graph.*
 
 ---
 
@@ -374,7 +378,7 @@
 ### [`lattice/mcp.py`](lattice/mcp.py)
 > *A dependency-free MCP stdio server exposing the graph as JSON-RPC tools.*
 
-**Size**: `406` lines (`20147` bytes)
+**Size**: `429` lines (`21179` bytes)
 
 **Functions:**
 - `def _tool(name, description, properties, required)` - *An MCP tool declaration with a JSON Schema for its arguments.*
@@ -478,13 +482,18 @@
 ### [`lattice/snapshots.py`](lattice/snapshots.py)
 > *Portable JSONL graph snapshots with atomic write and idempotent merge import.*
 
-**Size**: `238` lines (`9420` bytes)
+**Size**: `441` lines (`17563` bytes)
 
 **Functions:**
 - `def collect_repository_records(repository)` - *Every paper, question, claim and edge as a snapshot record, in stable export order.*
 - `def read_snapshot_records(path)` - *Read a JSONL snapshot file into validated records.*
 - `def export_snapshot(repository, path)` - *Write all papers, questions, claims and edges to a portable JSONL file atomically.*
 - `def export_bibtex_file(repository, path)` - *Write papers in the graph to a BibTeX file atomically.*
+- `def _add_graphml_data(elem, key, value)`
+- `def export_graphml_string(repository)` - *Generate standard GraphML XML string representing the evidence graph.*
+- `def export_graphml_file(repository, path)` - *Write graph in GraphML XML format atomically.*
+- `def export_cytoscape_data(repository)` - *Generate Cytoscape.js elements dictionary for graph visualization.*
+- `def export_cytoscape_file(repository, path)` - *Write graph in Cytoscape.js JSON format atomically.*
 - `def import_snapshot(repository, path)` - *Import a JSONL snapshot idempotently, remapping entity references as needed.*
 - `def _parse_jsonl(lines, label)` - *Parse non-empty JSONL lines and verify each is an object.*
 - `def _import_question(repository, record)` - *Find an existing question with the same text or create it.*
@@ -586,7 +595,7 @@
 ### [`tests/test_api.py`](tests/test_api.py)
 > *Unit tests for the public `lattice.api` integration surface.*
 
-**Size**: `275` lines (`10055` bytes)
+**Size**: `316` lines (`12043` bytes)
 
 **Classes:**
 - `class PublicApiTests` - *Verify the facade stays complete, inert at import time and faithful.*
@@ -602,6 +611,7 @@
   - Method `.test_invalid_question_identifiers_raise()`
   - Method `.test_invalid_selection_never_builds_the_matrix()`
   - Method `.test_get_evidence_matrix_filters_out_unlinked_questions()`
+  - Method `.test_sync_article_from_neurocore_creates_paper_and_claims()`
 
 **Functions:**
 - `def _definition_names(nodes)` - *Public names bound by top-level statements, including conditional blocks.*
@@ -630,7 +640,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *End-to-end command contracts without spawning subprocesses.*
 
-**Size**: `266` lines (`11780` bytes)
+**Size**: `278` lines (`12258` bytes)
 
 **Classes:**
 - `class CliTests` - *Drive the real parser and handlers against a temporary database.*
@@ -657,7 +667,7 @@
 ### [`tests/test_client.py`](tests/test_client.py)
 > *Tests for the turnkey client facade used by AI hosts.*
 
-**Size**: `278` lines (`13545` bytes)
+**Size**: `311` lines (`15199` bytes)
 
 **Classes:**
 - `class LatticeClientTests` - *Verify lifecycle, tool parity, convenience methods and failure modes.*
@@ -687,6 +697,7 @@
   - Method `.test_read_only_filters_schemas_and_blocks_writes()`
   - Method `.test_resource_and_prompt_parity()`
   - Method `.test_every_tool_executes_and_serializes()`
+  - Method `.test_export_graphml_and_cytoscape_and_sync_article()`
 - `class AsyncClientSafetyTests` - *Verify the read-only policy survives the async facade.*
   - Method `async def .test_async_read_only_filters_and_blocks_writes()`
 
@@ -937,7 +948,7 @@
 ### [`tests/test_snapshots.py`](tests/test_snapshots.py)
 > *Tests for knowledge interaction: multi-term search, subgraphs, question status, and snapshots.*
 
-**Size**: `135` lines (`5889` bytes)
+**Size**: `210` lines (`9272` bytes)
 
 **Classes:**
 - `class InteractionAndSnapshotTests` - *Verify multi-term search, subgraph traversal, question status, and JSONL snapshot I/O.*
@@ -946,6 +957,8 @@
   - Method `.test_subgraph_traverses_multi_hop_neighborhood()`
   - Method `.test_set_question_status_updates_and_validates()`
   - Method `.test_export_and_import_snapshot_roundtrip_is_idempotent()`
+  - Method `.test_export_graphml_generates_valid_xml_with_keys_and_elements()`
+  - Method `.test_export_cytoscape_generates_valid_elements()`
 
 ---
 

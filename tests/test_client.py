@@ -258,6 +258,39 @@ class ClientSafetyTests(unittest.TestCase):
                     with self.subTest(tool=name):
                         json.dumps(client.call_tool(name, arguments))
 
+    def test_export_graphml_and_cytoscape_and_sync_article(self) -> None:
+        with LatticeClient(":memory:") as client:
+            seed(client)
+            with tempfile.TemporaryDirectory() as temp_dir:
+                gml_path = str(Path(temp_dir) / "out.graphml")
+                cy_path = str(Path(temp_dir) / "out.cyjs")
+                res_gml = client.export_graphml(gml_path)
+                self.assertEqual(res_gml["format"], "graphml")
+                self.assertEqual(res_gml["papers"], 1)
+                self.assertTrue(Path(gml_path).is_file())
+
+                res_cy = client.export_cytoscape(cy_path)
+                self.assertEqual(res_cy["format"], "cytoscape")
+                self.assertEqual(res_cy["claims"], 1)
+                self.assertTrue(Path(cy_path).is_file())
+
+                # Also check MCP call_tool dispatch with format parameter
+                res_tool_gml = client.call_tool("export_snapshot", {"path": gml_path, "format": "graphml"})
+                self.assertEqual(res_tool_gml["format"], "graphml")
+                res_tool_cy = client.call_tool("export_snapshot", {"path": cy_path, "format": "cytoscape"})
+                self.assertEqual(res_tool_cy["format"], "cytoscape")
+
+            article = {
+                "title": "Client Sync Trial",
+                "authors": ["Alice"],
+                "year": 2023,
+                "abstract": "Synapses adapt rapidly.",
+                "key_findings": ["Synapses adapt rapidly."]
+            }
+            res_sync = client.sync_article(article)
+            self.assertTrue(res_sync["created"])
+            self.assertEqual(len(res_sync["claims"]), 1)
+
 
 class AsyncClientSafetyTests(unittest.IsolatedAsyncioTestCase):
     """Verify the read-only policy survives the async facade."""

@@ -222,6 +222,26 @@ class LatticeClient:
     def export_snapshot(self, path: str) -> Dict[str, Any]:
         return self.call_tool("export_snapshot", {"path": path})
 
+    def export_graphml(self, path: str) -> Dict[str, Any]:
+        """Export the evidence graph in standard GraphML XML format."""
+        self._ensure_open()
+        from pathlib import Path
+        from lattice.snapshots import export_graphml_file
+        return export_graphml_file(self._repository, Path(path))
+
+    def export_cytoscape(self, path: str) -> Dict[str, Any]:
+        """Export the evidence graph in Cytoscape.js JSON format."""
+        self._ensure_open()
+        from pathlib import Path
+        from lattice.snapshots import export_cytoscape_file
+        return export_cytoscape_file(self._repository, Path(path))
+
+    def sync_article(self, article_data: Dict[str, Any], auto_extract: bool = False) -> Dict[str, Any]:
+        """Sync a NeuroCore or external article dict into the evidence graph."""
+        self._ensure_open()
+        from lattice.ingest import sync_article_from_neurocore
+        return sync_article_from_neurocore(self._repository, article_data, auto_extract=auto_extract)
+
     def import_snapshot(self, path: str) -> Dict[str, Any]:
         return self.call_tool("import_snapshot", {"path": path})
 

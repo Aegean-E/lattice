@@ -1,49 +1,14 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "lattice-studio-evidence-v1",
+    "task_id": "lattice-interop-v1",
     "last_phase": "phase 4",
     "active_phase": 5,
     "status": "completed",
-    "updated_at": 1792831713.724417,
-    "completed_at": 1792831717.5227594
+    "updated_at": 1792832786.0970902,
+    "completed_at": 1792832790.8582692
   },
   "checkpoints": [
-    {
-      "task_id": "lattice-readonly-db-v1",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[2/3]-[3/3] Delivered file-level read-only opens: open_database(path, read_only=True) requires an existing file, uses SQLite mode=ro plus query_only, verifies the schema without migrating, and closes on failure. LatticeClient read-only requires an existing DB; get_prompt validates token/argument types so MCP returns -32602; async repository now raises LatticeError. ADR-017, README and map updated. checklists: passed; 170/170 tests; aikit check lattice 4/4 gates. Uncommitted by PRINCIPLE-018 R1.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792673583.5728118,
-      "timestamp_str": "2026-10-22 15:53:03"
-    },
-    {
-      "task_id": "lattice-readonly-db-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'lattice-readonly-db-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1792673589.5295188,
-      "timestamp_str": "2026-10-22 15:53:09"
-    },
-    {
-      "task_id": "lattice-protocol-params-v1",
-      "phase": "phase 2",
-      "phase_num": 2,
-      "description": "[1/3] Failing-first tests for truthy non-object MCP params and arguments, direct dispatch_tool with non-dict arguments, and open_database(None/empty). [2/3] Preserve params instead of masking falsy values, validate mapping shapes in both handlers and dispatch_tool, and type/empty-check the database path. [3/3] Record the WAL and allowlist caveats in ADR-017/README, refresh the map and run gates.",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1792680882.292512,
-      "timestamp_str": "2026-10-22 17:54:42",
-      "impact_assessment": {
-        "why": "Verification showed remaining crashes: resources/read and prompts/get raised AttributeError for truthy list params, and open_database(None) raised TypeError instead of the LatticeError contract; direct dispatch_tool had the same unvalidated-shape gap.",
-        "benefits": "Every malformed JSON-RPC params/arguments shape now returns -32602, direct Python callers get the Error/Why/Fix triad from dispatch_tool and open_database, and the read-only WAL/allowlist limitations are documented.",
-        "risks": "contract: MCP rejects empty-list params that previously fell through to unknown-resource errors, and open_database rejects None/empty paths; dependency: standard library os.PathLike only; concurrency: unchanged; state: none.",
-        "mitigation": "Keep the original params object, guard each handler and dispatcher with an isinstance dict check, validate path types and emptiness before Path/sqlite work, and pin every boundary with MCP and database tests."
-      }
-    },
     {
       "task_id": "lattice-protocol-params-v1",
       "phase": "phase 4",
@@ -237,6 +202,41 @@
       "status": "completed",
       "timestamp": 1792831717.5227606,
       "timestamp_str": "2026-10-24 11:48:37"
+    },
+    {
+      "task_id": "lattice-interop-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/4] Plan: multi-format graph export and NeuroCore article sync - (1) failing-first tests for GraphML and Cytoscape exports and sync_article_from_neurocore, (2) implement graphml/cytoscape in snapshots.py and cli.py, (3) implement sync_article_from_neurocore in api.py and client.py, (4) ADR-023, README, and Phase 4 gates",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792831974.3521454,
+      "timestamp_str": "2026-10-24 11:52:54",
+      "impact_assessment": {
+        "why": "Researchers need standard graph interchange formats (GraphML for Gephi/Cytoscape/NetworkX and Cytoscape JSON) and NeuroCore needs a field-mapped synchronization entry point fulfilling ADR-012",
+        "benefits": "The evidence graph can be opened in Gephi and Cytoscape with typed nodes and relations, and NeuroCore agents can sync structured research articles and findings into Lattice with one call",
+        "risks": "contract: export gains graphml and cytoscape formats; dependency: stdlib only (xml.etree.ElementTree and json); concurrency: unchanged atomic file writes; state: no database schema changes",
+        "mitigation": "assert XML well-formedness and schema attributes in tests, validate Cytoscape JSON elements shape, and ensure all existing snapshot JSONL tests pass unchanged"
+      }
+    },
+    {
+      "task_id": "lattice-interop-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[4/4] Delivered multi-format graph export and NeuroCore article sync: (1) export_graphml_string/file for Gephi/Cytoscape XML, (2) export_cytoscape_data/file for web graphs, (3) CLI export auto-detects and accepts --format graphml|cytoscape, (4) sync_article_from_neurocore in ingest/api normalizes articles and extracts quote-backed claims, (5) LatticeClient methods and MCP format support; ADR-023; checklists: passed; 199 tests, 4/4 gates, dogfood 25/25.",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792832786.0970902,
+      "timestamp_str": "2026-10-24 12:06:26"
+    },
+    {
+      "task_id": "lattice-interop-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'lattice-interop-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792832790.8582706,
+      "timestamp_str": "2026-10-24 12:06:30"
     }
   ]
 }

@@ -68,6 +68,7 @@ from lattice.ingest import (
     parse_paths,
     parse_ris,
     parse_text,
+    sync_article_from_neurocore,
 )
 from lattice.inquiry import GROUPS, STOPWORDS, ask, brief, review
 from lattice.mcp import (
@@ -109,8 +110,13 @@ from lattice.models import (
 )
 from lattice.repository import PAPER_FIELDS, Repository
 from lattice.snapshots import (
+    GRAPHML_NS,
     collect_repository_records,
     export_bibtex_file,
+    export_cytoscape_data,
+    export_cytoscape_file,
+    export_graphml_file,
+    export_graphml_string,
     export_snapshot,
     import_snapshot,
     read_snapshot_records,
@@ -193,6 +199,7 @@ __all__ = sorted([
     "EuropePmcProvider",
     "ExtractionResult",
     "Fetcher",
+    "GRAPHML_NS",
     "GROUPS",
     "LatticeClient",
     "LatticeError",
@@ -246,6 +253,10 @@ __all__ = sorted([
     "entity_type",
     "estimate_tokens",
     "export_bibtex_file",
+    "export_cytoscape_data",
+    "export_cytoscape_file",
+    "export_graphml_file",
+    "export_graphml_string",
     "export_snapshot",
     "extract_all",
     "extract_claims_for_paper",
@@ -288,6 +299,7 @@ __all__ = sorted([
     "serve_web",
     "split_empirical_sentences",
     "summarize",
+    "sync_article_from_neurocore",
     "synthesize",
     "synthesize_question",
     "utc_now",

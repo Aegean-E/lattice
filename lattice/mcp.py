@@ -94,8 +94,10 @@ TOOLS: List[Dict[str, Any]] = [
            "limit": {"type": "integer", "default": 10}}, []),
     _tool("detect_contradictions", "Find opposing claims across shared questions or domain keywords.",
           {"auto_link": {"type": "boolean", "default": False}}, []),
-    _tool("export_snapshot", "Export the graph to an atomic JSONL snapshot file.",
-          {"path": {"type": "string"}}, ["path"]),
+    _tool("export_snapshot", "Export the graph to an atomic JSONL snapshot, BibTeX, GraphML, or Cytoscape file.",
+          {"path": {"type": "string"},
+           "format": {"type": "string", "enum": ["jsonl", "bibtex", "graphml", "cytoscape"], "default": "jsonl"}},
+          ["path"]),
     _tool("import_snapshot", "Import a JSONL snapshot file idempotently.",
           {"path": {"type": "string"}}, ["path"]),
     _tool("diff_snapshot", "Compare a JSONL snapshot against another snapshot or the live graph; "
@@ -354,7 +356,28 @@ def dispatch_tool(repository: Repository, name: str, arguments: Dict[str, Any]) 
         pairs = [item.to_dict() for item in detect_contradictions(repository, auto_link=auto_link)]
         return {"count": len(pairs), "contradictions": pairs}
     if name == "export_snapshot":
-        return export_snapshot(repository, Path(_text(arguments, "path")))
+        target = Path(_text(arguments, "path"))
+        fmt = str(arguments.get("format") or "").lower()
+        if not fmt:
+            suf = target.suffix.lower()
+            if suf in (".graphml", ".xml"):
+                fmt = "graphml"
+            elif suf in (".cyjs", ".cytoscape"):
+                fmt = "cytoscape"
+            elif suf in (".bib", ".bibtex"):
+                fmt = "bibtex"
+            else:
+                fmt = "jsonl"
+        if fmt == "graphml":
+            from lattice.snapshots import export_graphml_file
+            return export_graphml_file(repository, target)
+        if fmt == "cytoscape":
+            from lattice.snapshots import export_cytoscape_file
+            return export_cytoscape_file(repository, target)
+        if fmt == "bibtex":
+            from lattice.snapshots import export_bibtex_file
+            return export_bibtex_file(repository, target)
+        return export_snapshot(repository, target)
     if name == "import_snapshot":
         return import_snapshot(repository, Path(_text(arguments, "path")))
     if name == "diff_snapshot":

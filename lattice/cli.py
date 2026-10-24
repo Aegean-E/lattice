@@ -25,7 +25,13 @@ from lattice.ingest import parse_paths
 from lattice.inquiry import ask, brief, review
 from lattice.mcp import serve
 from lattice.repository import Repository
-from lattice.snapshots import export_bibtex_file, export_snapshot, import_snapshot
+from lattice.snapshots import (
+    export_bibtex_file,
+    export_cytoscape_file,
+    export_graphml_file,
+    export_snapshot,
+    import_snapshot,
+)
 from lattice.synthesis import synthesize
 from lattice.web import dispatch_web_request, serve_web
 
@@ -148,10 +154,11 @@ def build_parser() -> argparse.ArgumentParser:
     synth_parser.add_argument("--out", default=None, help="write the synthesis Markdown to this file")
     synth_parser.set_defaults(handler=_run_synthesize)
 
-    export_cmd = commands.add_parser("export", help="export portable JSONL graph snapshot or BibTeX bibliography")
-    export_cmd.add_argument("path", help="output file path (.jsonl, .bib, or custom)")
-    export_cmd.add_argument("--format", choices=["jsonl", "bibtex"], default=None,
-                            help="output format (default: auto-detected from .bib/.bibtex suffix, else jsonl)")
+    export_cmd = commands.add_parser(
+        "export", help="export portable JSONL snapshot, BibTeX, GraphML, or Cytoscape")
+    export_cmd.add_argument("path", help="output file path (.jsonl, .bib, .graphml, .cyjs)")
+    export_cmd.add_argument("--format", choices=["jsonl", "bibtex", "graphml", "cytoscape"], default=None,
+                            help="output format (default: auto-detected from suffix, else jsonl)")
     export_cmd.set_defaults(handler=_run_export)
 
     import_cmd = commands.add_parser("import", help="import portable JSONL graph snapshot")
@@ -493,14 +500,38 @@ def _run_synthesize(args: argparse.Namespace, repository: Repository) -> int:
 
 
 def _run_export(args: argparse.Namespace, repository: Repository) -> int:
-    """Export the graph to an atomic JSONL snapshot or BibTeX bibliography."""
+    """Export the graph to an atomic JSONL snapshot, BibTeX, GraphML, or Cytoscape file."""
     path = Path(args.path)
     fmt = args.format
     if not fmt:
-        fmt = "bibtex" if path.suffix.lower() in (".bib", ".bibtex") else "jsonl"
+        suf = path.suffix.lower()
+        if suf in (".bib", ".bibtex"):
+            fmt = "bibtex"
+        elif suf in (".graphml", ".xml"):
+            fmt = "graphml"
+        elif suf in (".cyjs", ".cytoscape"):
+            fmt = "cytoscape"
+        else:
+            fmt = "jsonl"
     if fmt == "bibtex":
         result = export_bibtex_file(repository, path)
         lines = [f"[OK] exported {result['papers']} paper(s) in BibTeX format to {result['path']}"]
+        _emit(result, lines, args.json)
+        return 0
+    if fmt == "graphml":
+        result = export_graphml_file(repository, path)
+        lines = [
+            f"[OK] exported {result['papers']} paper(s), {result['claims']} claim(s), "
+            f"{result['questions']} question(s), {result['edges']} edge(s) in GraphML format to {result['path']}"
+        ]
+        _emit(result, lines, args.json)
+        return 0
+    if fmt == "cytoscape":
+        result = export_cytoscape_file(repository, path)
+        lines = [
+            f"[OK] exported {result['papers']} paper(s), {result['claims']} claim(s), "
+            f"{result['questions']} question(s), {result['edges']} edge(s) in Cytoscape format to {result['path']}"
+        ]
         _emit(result, lines, args.json)
         return 0
     result = export_snapshot(repository, path)
