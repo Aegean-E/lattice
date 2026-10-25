@@ -3,12 +3,13 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
+license = { text = "AGPL-3.0-or-later" }
 name = "lattice-kb"
 version = "0.4.0"
 description = "A provenance-first research knowledge graph for humans and AI agents"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "AI Assistant" }]
+authors = [{ name = "Aegean-E", email = "aegean-licensing@proton.me" }]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
