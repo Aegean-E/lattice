@@ -266,6 +266,7 @@ lattice/
 ├── .gitignore                <- local databases and transient AIKit state
 ├── LICENSE
 ├── README.md
+├── COMMERCIAL.md
 ├── pyproject.toml            <- package metadata and the `lattice` console script
 ├── start.py                  <- 1-click launcher for Web Research Studio and CLI
 ├── start.bat                 <- Windows batch launcher
