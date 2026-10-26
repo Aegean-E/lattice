@@ -1,11 +1,12 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-license = { text = "AGPL-3.0-or-later" }
+license = "LicenseRef-AL-1.1"
+license-files = ["LICENSE"]
 name = "lattice-kb"
-version = "0.4.0"
+version = "0.5.0"
 description = "A provenance-first research knowledge graph for humans and AI agents"
 readme = "README.md"
 requires-python = ">=3.10"

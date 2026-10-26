@@ -265,6 +265,8 @@ lattice/
 ├── .aikit/                   <- project memory: guidelines, decisions, ledger, codebase map
 ├── .gitignore                <- local databases and transient AIKit state
 ├── LICENSE
+├── LICENSES/                 <- REUSE license texts
+├── REUSE.toml                <- Machine-readable SPDX metadata
 ├── README.md
 ├── COMMERCIAL.md
 ├── pyproject.toml            <- package metadata and the `lattice` console script
@@ -334,3 +336,9 @@ outline drawer and BibTeX export in ADR-011, the public integration surface in A
 input hardening and export inventory in ADR-014, strict question references and a
 self-discovering inventory in ADR-015, the turnkey AI client in ADR-016, its read-only
 policy and resource parity in ADR-017, and deterministic snapshot diffing in ADR-019.
+
+> **License history:** versions up to and including `v0.4.0-agpl` remain available under GNU AGPL-3.0.
+
+## 📜 License
+
+Free for personal use under the Aegean License 1.1 (AL-1.1); see [LICENSE](LICENSE). Any commercial use needs the Aegean Commercial License 1.0 (ACL-1.0); see [COMMERCIAL.md](COMMERCIAL.md).

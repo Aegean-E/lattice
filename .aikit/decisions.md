@@ -585,9 +585,8 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
   4. Expose meta-analysis across all interfaces: `lattice meta [TARGET]` CLI command (supporting both question references and JSON study files), `lattice.api` public re-exports, `compute_meta_analysis` MCP tool (added to `_READ_ONLY_TOOLS`), and convenience methods on `LatticeClient` and `AsyncLatticeClient`.
 - **Consequences**: Researchers and autonomous systematic review agents can quantitatively pool effect sizes, evaluate between-study heterogeneity, and generate publication-ready forest plots directly from the graph with zero dependencies. 241 unit tests pass and gate hygiene invariant is maintained.
 
+## Licensing migration (v0.4.0-agpl)
 
-
-
-
-
-
+- New versions use the Aegean License 1.1 (AL-1.1); versions up to and including `v0.4.0-agpl` remain under GNU AGPL-3.0.
+- Rights holder: AegeanWorks; commercial use under ACL-1.0.
+- Counsel review of the 1.1 texts remains pending.
