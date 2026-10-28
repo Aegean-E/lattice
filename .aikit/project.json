@@ -13,22 +13,22 @@
   "ui_source": "detected",
   "topics": [
     "aikit",
+    "source-available",
+    "aegean-license",
+    "commercial-license",
     "ai-agents",
     "evidence-graph",
     "knowledge-graph",
     "local-first",
     "provenance",
     "python",
-    "research",
     "sqlite",
-    "source-available",
     "zero-dependencies",
     "aegeanworks",
     "ai",
     "cli",
     "knowledge-management",
     "llm",
-    "software",
     "auditable",
     "research-tools",
     "data-provenance"
@@ -42,5 +42,10 @@
     "ai",
     "llm",
     "knowledge-management"
+  ],
+  "license_topics": [
+    "source-available",
+    "aegean-license",
+    "commercial-license"
   ]
 }

@@ -2,7 +2,6 @@
 
 <!-- aegean:media:start -->
 <p align="center"><img src="assets/social-preview.png" alt="Lattice social preview" width="100%"></p>
-*The banner and logo are AI-generated brand assets. They are illustrative and may not literally depict every feature or the full project scope.*
 <!-- aegean:media:end -->
 
 A provenance-first research knowledge graph for humans and AI agents. Ingest papers, record
@@ -341,6 +340,12 @@ outline drawer and BibTeX export in ADR-011, the public integration surface in A
 input hardening and export inventory in ADR-014, strict question references and a
 self-discovering inventory in ADR-015, the turnkey AI client in ADR-016, its read-only
 policy and resource parity in ADR-017, and deterministic snapshot diffing in ADR-019.
+
+<!-- aegean:brand-assets:start -->
+## 🎨 Brand Assets
+
+> **AI-Generated Brand Artwork.** The banner and logo are **AI-generated brand assets**. They are illustrative and may not literally depict every feature or the full project scope.
+<!-- aegean:brand-assets:end -->
 
 ## 📜 License
 
