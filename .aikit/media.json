@@ -14,46 +14,39 @@
   "layout": "split",
   "assets": {
     "logo": {
-      "path": "assets/logo.svg",
+      "path": "assets/logo.png",
       "status": "approved",
       "commit": "",
-      "generated_at": "2026-10-28T08:47:00",
+      "generated_at": "2026-10-28T11:43:27",
       "review": {
         "status": "approved",
         "reviewer": "subagent:vision-review",
         "method": "vision",
-        "notes": "LA node web, distinct from PNN",
-        "score": 89,
-        "reviewed_at": "2026-10-28T08:58:21"
+        "notes": "Fix verified: monogram LT unique and matches project; legible, unclipped, premium.",
+        "score": 92,
+        "reviewed_at": "2026-10-28T11:49:29"
       }
     },
     "social_preview": {
-      "path": "assets/social-preview.svg",
+      "path": "assets/social-preview.png",
       "status": "approved",
       "commit": "",
-      "generated_at": "2026-10-28T08:47:00",
+      "generated_at": "2026-10-28T11:43:27",
       "review": {
         "status": "approved",
         "reviewer": "subagent:vision-review",
         "method": "vision",
-        "notes": "Consistent template, legible",
-        "score": 89,
-        "reviewed_at": "2026-10-28T08:58:21"
+        "notes": "Strong hierarchy; legible, unclipped; premium card, no watermark.",
+        "score": 90,
+        "reviewed_at": "2026-10-28T11:49:29"
       }
     },
-    "social_preview_png": {
-      "path": "assets/social-preview.png",
-      "status": "approved",
+    "artwork": {
+      "path": "assets/artwork.jpg",
+      "status": "pending_review",
       "commit": "",
-      "generated_at": "2026-10-28T08:47:01",
-      "review": {
-        "status": "approved",
-        "reviewer": "subagent:vision-review",
-        "method": "structural",
-        "notes": "Rendered from the approved 1280x640 social SVG; exact dimensions verified.",
-        "score": null,
-        "reviewed_at": "2026-10-28T09:02:27"
-      }
+      "generated_at": "2026-10-28T11:43:27",
+      "review": null
     }
   },
   "screenshots": []
