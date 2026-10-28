@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "name": "lattice",
+  "repo": "Lattice",
+  "has_ui": false,
+  "ui_kind": "cli",
+  "palette": [
+    "#0b1220",
+    "#1e293b",
+    "#c084fc",
+    "#f8fafc"
+  ],
+  "assets": {
+    "logo": {
+      "path": "assets/logo.svg",
+      "status": "approved",
+      "commit": "",
+      "generated_at": "2026-10-28T08:02:32",
+      "review": {
+        "status": "approved",
+        "reviewer": "subagent:vision-review",
+        "method": "vision",
+        "notes": "LA monogram in lavender, dark purple, balanced and legible.",
+        "score": 93,
+        "reviewed_at": "2026-10-28T08:10:43"
+      }
+    },
+    "social_preview": {
+      "path": "assets/social-preview.svg",
+      "status": "approved",
+      "commit": "",
+      "generated_at": "2026-10-28T08:02:32",
+      "review": {
+        "status": "approved",
+        "reviewer": "subagent:vision-review",
+        "method": "vision",
+        "notes": "LA icon, title, research graph description, CLI tag, coherent.",
+        "score": 93,
+        "reviewed_at": "2026-10-28T08:10:43"
+      }
+    },
+    "social_preview_png": {
+      "path": "assets/social-preview.png",
+      "status": "pending_review",
+      "commit": "",
+      "generated_at": "2026-10-28T08:02:33",
+      "review": null
+    }
+  },
+  "screenshots": []
+}

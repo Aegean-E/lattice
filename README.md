@@ -1,5 +1,10 @@
 # lattice
 
+<!-- aegean:media:start -->
+<p align="center"><img src="assets/logo.svg" alt="Lattice logo" width="96" height="96"></p>
+<p align="center"><img src="assets/social-preview.svg" alt="Lattice social preview" width="100%"></p>
+<!-- aegean:media:end -->
+
 A provenance-first research knowledge graph for humans and AI agents. Ingest papers, record
 claims only with an exact quote and locator, link those claims to research questions, and let
 agents query a deterministic evidence graph instead of a pile of summaries.
